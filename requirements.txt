@@ -1,0 +1,12 @@
+fastapi
+httpx
+kuzu
+pydantic
+pytest
+pytest-asyncio
+tree-sitter
+tree-sitter-python
+tree-sitter-typescript
+tree-sitter-javascript
+PyYAML
+sqlite-vec

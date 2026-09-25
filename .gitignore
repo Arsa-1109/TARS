@@ -11,3 +11,27 @@ dist/
 .DS_Store
 *.kuzu_lock
 *.log
+
+# Antigravity tooling (do not commit per user)
+.agent/
+.agents/
+.gemini/
+.gsd/
+GSD-STYLE.md
+PROJECT_RULES.md
+adapters/
+docs/model-selection-playbook.md
+docs/runbook.md
+docs/token-optimization-guide.md
+model_capabilities.yaml
+scripts/search_repo.*
+scripts/setup_search.*
+scripts/validate-*
+
+# Local Environment
+.venv/
+
+# Local DB
+tars_local.db
+
+*.kuzu

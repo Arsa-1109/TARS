@@ -90,3 +90,40 @@ class ActionItemDTO(BaseModel):
     source_type: str  # CALL, DECISION, CHAT
     source_id: str
     source_offset: str
+
+# ==========================================
+# CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE
+# ==========================================
+class MemoryRecord(BaseModel):
+    id: str
+    record_type: str
+    title: str
+    content: str
+    source: str
+    timestamp: int
+    tags: List[str] = Field(default_factory=list)
+    related_ids: List[str] = Field(default_factory=list)
+    vector_ref: Optional[str] = None
+
+class ToolExecutionRequest(BaseModel):
+    tool_name: str
+    arguments: dict
+    session_id: str
+
+class ToolAuditRecord(BaseModel):
+    id: str
+    tool_name: str
+    arguments: dict
+    actor: str
+    timestamp: int
+    approval_state: str
+    result: Optional[str] = None
+    error: Optional[str] = None
+
+class SystemStatus(BaseModel):
+    status: str
+    database: str
+    ollama: str
+    mcp_tools: int
+    airplane_mode: bool
+
