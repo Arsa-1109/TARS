@@ -1,0 +1,41 @@
+# .tars/flags.yaml
+# Living Feature Flag Registry for TARS
+# Flags marked as PRUNED or DEPRECATED will trigger INV-014 if referenced in code.
+
+active_flags:
+  - key: "ENABLE_VECTOR_SEARCH"
+    status: "ACTIVE"
+    owner: "Contributor 1"
+    description: "Enables sqlite-vec dense embeddings"
+
+  - key: "ENABLE_FAST_WHISPER"
+    status: "ACTIVE"
+    owner: "Contributor 3"
+    description: "Enables background faster-whisper worker"
+
+  - key: "ENABLE_KUZU_GRAPH"
+    status: "ACTIVE"
+    owner: "Contributor 2"
+    description: "Enables embedded Kùzu graph query engine"
+
+  - key: "ENABLE_REACT_FLOW_CANVAS"
+    status: "ACTIVE"
+    owner: "Contributor 4"
+    description: "Enables React Flow interactive canvas in Think Tank"
+
+pruned_flags:
+  # Any code referencing these flags will be deterministically blocked by INV-014
+  - key: "POWER_PEG_ALGO"
+    status: "PRUNED"
+    pruned_date: "2026-08-01"
+    rationale: "Obsolete trading algorithm pruned to prevent Knight Capital style resurrected execution."
+
+  - key: "LEGACY_JWT_LOCALSTORAGE"
+    status: "PRUNED"
+    pruned_date: "2026-08-10"
+    rationale: "Pruned in favor of HttpOnly session cookies (INV-004)."
+
+  - key: "OLD_STRIPE_SYNC_DISPATCH"
+    status: "PRUNED"
+    pruned_date: "2026-08-15"
+    rationale: "Pruned in favor of Transactional Outbox pattern (INV-017)."
