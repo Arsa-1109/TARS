@@ -1,0 +1,13 @@
+# .gitignore for TARS Monorepo
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+dist/
+.DS_Store
+*.kuzu_lock
+*.log
