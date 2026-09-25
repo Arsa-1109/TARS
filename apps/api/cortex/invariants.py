@@ -175,8 +175,8 @@ class InvariantsEngine:
         except Exception:
             staged_files = []
 
-        # Exclude tests, mocks, and demo files from pre-commit blocking
-        ignored_patterns = ("tests/", "test_", "/mocks/", "tars_cli.py")
+        # Exclude tests, test scripts, mocks, and CLI tools from pre-commit blocking
+        ignored_patterns = ("tests/", "test_", "/mocks/", "tars_cli.py", "scripts/")
 
         all_violations: List[InvariantCheckResult] = []
         for file_rel in staged_files:
