@@ -1,8 +1,10 @@
 # tests/test_ingestion.py
 """
 Test Suite for Track 3: Ambient Ingestion & Audio Intelligence Engine
-Validates Action Hub persistence, Voice-to-Spec extraction, and API endpoints.
+Validates Action Hub persistence, Voice-to-Spec extraction, Document Ingester,
+SHA-256 deduplication, and FastAPI endpoints (Sprint Plan & SDD requirements).
 """
+import io
 import os
 import time
 import pytest
@@ -13,6 +15,7 @@ from apps.api.ingestion.action_hub import ActionHubRepository
 from apps.api.ingestion.voice_to_spec import VoiceToSpecExtractor
 from apps.api.ingestion.whisper_worker import WhisperWorker
 from apps.api.ingestion.drop_watcher import AmbientDropWatcher
+from apps.api.ingestion.doc_ingester import DocumentIngester
 from apps.api.main import app
 
 TEST_DB_PATH = os.path.join(os.getcwd(), ".tars", "test_action_hub.sqlite3")
@@ -121,6 +124,26 @@ def test_whisper_worker_lifecycle():
         os.remove(dummy_audio_file)
 
 
+def test_document_ingester_and_sha256_dedup():
+    ingester = DocumentIngester()
+    test_csv = os.path.join(os.getcwd(), "drop", "test_runway.csv")
+    os.makedirs(os.path.dirname(test_csv), exist_ok=True)
+    with open(test_csv, "w", encoding="utf-8") as f:
+        f.write("Month,Burn,Cash\nOct-26,50000,1200000\nNov-26,52000,1148000\n")
+
+    res1 = ingester.ingest_document(test_csv, department="FINANCE")
+    assert res1["doc_id"].startswith("DOC-")
+    assert "Oct-26" in res1["content"]
+
+    # Deduplication test: re-ingest same file
+    res2 = ingester.ingest_document(test_csv, department="FINANCE")
+    assert res1["file_hash"] == res2["file_hash"]
+    assert res1["doc_id"] == res2["doc_id"]
+
+    if os.path.exists(test_csv):
+        os.remove(test_csv)
+
+
 def test_fastapi_endpoints():
     client = TestClient(app)
 
@@ -146,7 +169,7 @@ def test_fastapi_endpoints():
     assert "summary" in data
     assert len(data["commitments"]) > 0
 
-    # Action Items API
+    # Action Items API (standard + alias route /api/ingestion/actions/list)
     item_payload = {
         "id": "ACT-API-999",
         "description": "Verify zero egress airplane mode",
@@ -159,11 +182,25 @@ def test_fastapi_endpoints():
     create_res = client.post("/api/ingestion/action-items", json=item_payload)
     assert create_res.status_code == 201
 
-    list_res = client.get("/api/ingestion/action-items?status=OPEN")
+    list_res = client.get("/api/ingestion/actions/list?status=OPEN")
     assert list_res.status_code == 200
     items = list_res.json()
     assert any(it["id"] == "ACT-API-999" for it in items)
 
-    # Delete
+    # Document upload endpoint test
+    fake_csv = io.BytesIO(b"Header1,Header2\nValue1,Value2\n")
+    upload_res = client.post(
+        "/api/ingestion/upload",
+        files={"file": ("test_upload.csv", fake_csv, "text/csv")},
+        data={"department": "OPERATIONS"},
+    )
+    assert upload_res.status_code == 200
+    assert upload_res.json()["status"] == "INGESTED"
+
+    # Events endpoint
+    events_res = client.get("/api/ingestion/events")
+    assert events_res.status_code == 200
+
+    # Delete Action item
     del_res = client.delete("/api/ingestion/action-items/ACT-API-999")
     assert del_res.status_code == 200

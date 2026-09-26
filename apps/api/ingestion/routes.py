@@ -2,7 +2,8 @@
 """
 Track 3: Ingestion & Audio Intelligence API Router
 Exposes endpoints for mobile voice memos, ambient drop folder inspection,
-and the Unified Action Hub CRUD operations.
+multi-format document ingestion, and the Unified Action Hub CRUD operations.
+Implements specifications from SDD Section 4.3 & 7.1.
 """
 import os
 import shutil
@@ -17,6 +18,7 @@ from apps.api.ingestion.action_hub import action_hub_repo
 from apps.api.ingestion.whisper_worker import whisper_worker, WhisperTask
 from apps.api.ingestion.voice_to_spec import voice_to_spec
 from apps.api.ingestion.drop_watcher import drop_watcher
+from apps.api.ingestion.doc_ingester import doc_ingester
 
 router = APIRouter()
 
@@ -43,16 +45,26 @@ whisper_worker.on_complete_callback = _auto_spec_callback
 
 
 # ============================================================
-# 1. AMBIENT WATCHER & WORKER CONTROL
+# 1. AMBIENT WATCHER, EVENTS & STATUS (SDD 4.3)
 # ============================================================
 @router.get("/status")
 def get_ingestion_status():
-    """Returns the live status of the drop folder watcher and Whisper worker."""
+    """Returns the live status of the drop folder watcher, Whisper worker, and ingested docs."""
     return {
         "status": "online",
         "track": "Track 3: Ingestion & Audio Intelligence",
         "watcher": drop_watcher.get_status(),
         "whisper": whisper_worker.get_stats(),
+        "ingested_docs_count": len(doc_ingester.ingested_hashes),
+    }
+
+
+@router.get("/events")
+def get_recent_events():
+    """Returns recent ambient file capture and transcription events for GUI notification badges."""
+    return {
+        "events": drop_watcher.recent_events[-20:],
+        "count": len(drop_watcher.recent_events),
     }
 
 
@@ -71,7 +83,7 @@ def trigger_folder_scan():
 
 
 # ============================================================
-# 2. AUDIO UPLOAD & MEMO INGESTION
+# 2. AUDIO UPLOAD & MEMO INGESTION (SDD 7.1 /api/calls/transcribe)
 # ============================================================
 class MemoUploadResponse(BaseModel):
     task_id: str
@@ -81,17 +93,18 @@ class MemoUploadResponse(BaseModel):
 
 
 @router.post("/memo", response_model=MemoUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/calls/transcribe", response_model=MemoUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_memo(
     file: UploadFile = File(...),
     client_name: str = Form("Client Call"),
 ):
     """
-    Direct audio upload endpoint for mobile memos or client call recordings.
-    Saves the file to local drop directory and dispatches non-blocking Whisper transcription.
+    Direct audio upload endpoint for mobile memos or client call recordings (SDD 7.1).
+    Saves file to local drop directory and dispatches non-blocking Whisper transcription.
     """
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     file_ext = os.path.splitext(file.filename or "")[1] or ".wav"
-    safe_filename = f"memo_{uuid.uuid4().hex[:8]}{file_ext}"
+    safe_filename = f"call_{uuid.uuid4().hex[:8]}{file_ext}"
     dest_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     with open(dest_path, "wb") as buffer:
@@ -128,7 +141,39 @@ def get_transcription_task(task_id: str):
 
 
 # ============================================================
-# 3. VOICE-TO-SPEC EXTRACTION
+# 3. MULTI-FORMAT DOCUMENT INGESTION (SDD 2.2 & 7.1)
+# ============================================================
+@router.post("/upload")
+@router.post("/ingest/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    department: str = Form("GENERAL"),
+):
+    """
+    Direct multipart document upload endpoint for PDFs, Word docs, CSVs, and markdown (SDD 7.1).
+    Validates SHA-256 hash and extracts plain text.
+    """
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    safe_filename = f"doc_{uuid.uuid4().hex[:8]}_{file.filename}"
+    dest_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    doc_record = doc_ingester.ingest_document(dest_path, department=department)
+    return {
+        "status": "INGESTED",
+        "doc_id": doc_record["doc_id"],
+        "filename": doc_record["filename"],
+        "file_hash": doc_record["file_hash"],
+        "department": doc_record["department"],
+        "page_count": doc_record["page_count"],
+        "character_count": doc_record["character_count"],
+    }
+
+
+# ============================================================
+# 4. VOICE-TO-SPEC EXTRACTION
 # ============================================================
 class ExtractSpecRequest(BaseModel):
     transcript: str
@@ -158,15 +203,16 @@ def extract_spec(payload: ExtractSpecRequest):
 
 
 # ============================================================
-# 4. UNIFIED ACTION HUB CRUD
+# 5. UNIFIED ACTION HUB CRUD (SDD 7.1 /api/actions/list)
 # ============================================================
 @router.get("/action-items", response_model=List[ActionItemDTO])
+@router.get("/actions/list", response_model=List[ActionItemDTO])
 def list_action_items(
     status: Optional[str] = Query(None, description="Filter by status: OPEN, IN_PROGRESS, DONE"),
     owner: Optional[str] = Query(None, description="Filter by owner"),
     source_type: Optional[str] = Query(None, description="Filter by source: CALL, DECISION, CHAT"),
 ):
-    """Lists all action items from the Unified Action Hub database."""
+    """Lists all action items from the Unified Action Hub database (SDD 7.1)."""
     return action_hub_repo.list_items(status=status, owner=owner, source_type=source_type)
 
 
