@@ -1,0 +1,26 @@
+# TARS Declarative Invariant Rules
+version: "1.0"
+invariants:
+  - id: "INV-017"
+    name: "Transaction External HTTP Call Prohibition"
+    severity: "HIGH"
+    rationale: "External HTTP calls inside database transactions cause connection pool exhaustion."
+    adr_ref: "ADR-017"
+
+  - id: "INV-021"
+    name: "Schema Parameter Arity Guard"
+    severity: "CRITICAL"
+    rationale: "Parameter count mismatch between schema definition and runtime dispatcher causes kernel panics."
+    adr_ref: "ADR-021"
+
+  - id: "INV-014"
+    name: "Dormant Feature Flag Elimination"
+    severity: "MEDIUM"
+    rationale: "Dead code paths and reused legacy flags risk catastrophic unintended activation."
+    adr_ref: "ADR-014"
+
+  - id: "INV-008"
+    name: "Plaintext Secret Emission Ban"
+    severity: "CRITICAL"
+    rationale: "Plaintext password, token, or private key printing in log streams violates compliance."
+    adr_ref: "ADR-008"

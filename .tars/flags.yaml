@@ -1,0 +1,7 @@
+# TARS Feature Flags Registry
+version: "1.0"
+flags:
+  mock_mode: false
+  ambient_drop_watcher: true
+  whisper_local_worker: true
+  ast_precommit_check: true
