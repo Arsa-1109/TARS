@@ -38,6 +38,7 @@ interface TopBarProps {
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onSwitchRole?: (role: UserRole) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -56,6 +57,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onLogout,
   theme,
   onToggleTheme,
+  onSwitchRole,
 }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -76,14 +78,21 @@ export const TopBar: React.FC<TopBarProps> = ({
   const allWorkspaceOptions: Record<WorkspaceId, { value: WorkspaceId; label: string; icon: React.ReactNode }> = {
     knowledge:    { value: 'knowledge',    label: 'Knowledge',    icon: <Layers className="w-3.5 h-3.5" /> },
     calls:        { value: 'calls',        label: 'Calls',        icon: <Phone className="w-3.5 h-3.5" /> },
+    onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
+    thinktank:    { value: 'thinktank',   label: 'Discussions',  icon: <MessageSquare className="w-3.5 h-3.5" /> },
     decisions:    { value: 'decisions',    label: 'Decisions',    icon: <Scale className="w-3.5 h-3.5" /> },
     architecture: { value: 'architecture', label: 'Architecture', icon: <Cpu className="w-3.5 h-3.5" /> },
-    thinktank:    { value: 'thinktank',   label: 'Discussions',  icon: <MessageSquare className="w-3.5 h-3.5" /> },
-    onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
   };
 
-  const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain] || WORKSPACE_DOMAINS.executive;
-  const filteredOptions = currentDomainConfig.allowedWorkspaces.map((wsId) => allWorkspaceOptions[wsId]);
+  const workspaceOrder: WorkspaceId[] = [
+    'knowledge',
+    'calls',
+    'onboarding',
+    'thinktank',
+    'decisions',
+    'architecture',
+  ];
+  const workspaceOptions = workspaceOrder.map((wsId) => allWorkspaceOptions[wsId]);
 
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
@@ -118,7 +127,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="hidden md:flex items-center justify-center flex-1 px-6">
         <SegmentedControl
           size="sm"
-          options={filteredOptions}
+          options={workspaceOptions}
           value={currentWorkspace}
           onChange={onSelectWorkspace}
         />
@@ -206,6 +215,33 @@ export const TopBar: React.FC<TopBarProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Switch Role Section */}
+                {onSwitchRole && (
+                  <div className="p-2 border-b border-black/[0.07] dark:border-white/[0.07]">
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[#8E8E93] px-1.5 mb-1">
+                      Simulate Role
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {(['FOUNDER', 'ENGINEER', 'PRODUCT', 'SALES', 'NEW_HIRE'] as UserRole[]).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => {
+                            onSwitchRole(r);
+                            setProfileOpen(false);
+                          }}
+                          className={`px-2 py-1 text-[11px] rounded-[6px] text-left font-medium transition-colors ${
+                            currentRole === r
+                              ? 'bg-black text-white dark:bg-white dark:text-black font-semibold'
+                              : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.07] text-[#6E6E73] dark:text-[#8E8E93]'
+                          }`}
+                        >
+                          {r === 'FOUNDER' ? 'Founder' : r === 'ENGINEER' ? 'Engineer' : r === 'PRODUCT' ? 'Product' : r === 'SALES' ? 'Sales' : 'New Hire'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Menu items */}
                 <div className="p-1.5 space-y-0.5">

@@ -29,6 +29,7 @@ interface AppShellProps {
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onSwitchRole?: (role: UserRole) => void;
   children: React.ReactNode;
 }
 
@@ -48,6 +49,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onLogout,
   theme,
   onToggleTheme,
+  onSwitchRole,
   children,
 }) => {
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -71,6 +73,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}
+        onSwitchRole={onSwitchRole}
       />
 
       {/* Main Viewport */}

@@ -112,6 +112,15 @@ export function App() {
       });
       return;
     }
+    const currentDomainCfg = WORKSPACE_DOMAINS[activeDomain];
+    if (currentDomainCfg && !currentDomainCfg.allowedWorkspaces.includes(targetWs)) {
+      const targetDomainEntry = Object.values(WORKSPACE_DOMAINS).find(
+        (d) => d.allowedWorkspaces.includes(targetWs) && d.allowedRoles.includes(currentRole)
+      );
+      if (targetDomainEntry) {
+        switchDomain(targetDomainEntry.id);
+      }
+    }
     setWorkspace(targetWs);
   };
 
@@ -213,6 +222,7 @@ export function App() {
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}
+      onSwitchRole={setRole}
       onLogout={() => {
         logout();
         setShowLanding(true);
