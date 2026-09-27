@@ -84,6 +84,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.agents
 
 # Antigravity tooling
 .agent/
