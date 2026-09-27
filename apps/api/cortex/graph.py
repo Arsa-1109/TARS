@@ -27,21 +27,32 @@ class TarsGraph:
         os.makedirs(Path(self.db_path).parent, exist_ok=True)
         
         if self.db_path not in self._db_cache:
+            try:
+                from apps.api.ingestion.kuzu_sync import kuzu_sync
+                if getattr(kuzu_sync, "use_native", False) and getattr(kuzu_sync, "_db", None) is not None:
+                    if os.path.abspath(kuzu_sync.db_path) == self.db_path:
+                        self._db_cache[self.db_path] = kuzu_sync._db
+            except Exception:
+                pass
+
+        if self.db_path not in self._db_cache:
             self._db_cache[self.db_path] = kuzu.Database(self.db_path)
-            self._conn_cache[self.db_path] = kuzu.Connection(self._db_cache[self.db_path])
-        
+            
         self.db = self._db_cache[self.db_path]
+        if self.db_path not in self._conn_cache:
+            self._conn_cache[self.db_path] = kuzu.Connection(self.db)
         self.conn = self._conn_cache[self.db_path]
         self._initialize_schema()
 
     def _initialize_schema(self) -> None:
         """Initializes tables and relationships if not already present."""
         tables_to_create = [
-            ("Document", "CREATE NODE TABLE Document(id STRING, title STRING, content STRING, doc_type STRING, PRIMARY KEY(id));"),
-            ("Decision", "CREATE NODE TABLE Decision(id STRING, title STRING, category STRING, context STRING, chosen_option STRING, timestamp INT64, clearance STRING, PRIMARY KEY(id));"),
-            ("ActionItem", "CREATE NODE TABLE ActionItem(id STRING, description STRING, owner STRING, status STRING, source_type STRING, PRIMARY KEY(id));"),
-            ("Invariant", "CREATE NODE TABLE Invariant(id STRING, name STRING, category STRING, severity STRING, rationale STRING, adr_ref STRING, PRIMARY KEY(id));"),
-            ("CodeEntity", "CREATE NODE TABLE CodeEntity(id STRING, name STRING, file_path STRING, entity_type STRING, PRIMARY KEY(id));"),
+            ("Document", "CREATE NODE TABLE Document(id STRING, title STRING, content STRING, doc_type STRING, department STRING, clearance STRING, valid_from INT64, valid_until INT64, lifecycle_status STRING, PRIMARY KEY(id));"),
+            ("Decision", "CREATE NODE TABLE Decision(id STRING, title STRING, category STRING, status STRING, context STRING, chosen_option STRING, timestamp INT64, stale_review_date INT64, clearance STRING, PRIMARY KEY(id));"),
+            ("ActionItem", "CREATE NODE TABLE ActionItem(id STRING, description STRING, owner STRING, deadline INT64, status STRING, source_type STRING, source_id STRING, timestamp_offset STRING, PRIMARY KEY(id));"),
+            ("ClientCall", "CREATE NODE TABLE ClientCall(id STRING, client_name STRING, sentiment STRING, audio_path STRING, transcript_summary STRING, date INT64, PRIMARY KEY(id));"),
+            ("Invariant", "CREATE NODE TABLE Invariant(id STRING, name STRING, category STRING, severity STRING, rule STRING, rationale STRING, adr_ref STRING, PRIMARY KEY(id));"),
+            ("CodeEntity", "CREATE NODE TABLE CodeEntity(id STRING, name STRING, file_path STRING, symbol_name STRING, entity_type STRING, PRIMARY KEY(id));"),
         ]
 
         for name, ddl in tables_to_create:
@@ -52,9 +63,12 @@ class TarsGraph:
                 pass
 
         rels_to_create = [
-            ("SUPERSEDES", "CREATE REL TABLE SUPERSEDES(FROM Decision TO Decision);"),
-            ("RELATES_TO", "CREATE REL TABLE RELATES_TO(FROM Decision TO Document, FROM ActionItem TO Document, FROM CodeEntity TO Document);"),
+            ("SUPERSEDES", "CREATE REL TABLE SUPERSEDES(FROM Decision TO Decision, reason STRING, timestamp INT64);"),
+            ("RELATES_TO", "CREATE REL TABLE RELATES_TO(FROM Document TO Decision, FROM Decision TO Document, FROM ActionItem TO Document, FROM CodeEntity TO Document);"),
+            ("EXTRACTED_FROM", "CREATE REL TABLE EXTRACTED_FROM(FROM ActionItem TO ClientCall, timestamp_offset STRING);"),
+            ("ASSIGNED_TO", "CREATE REL TABLE ASSIGNED_TO(FROM ActionItem TO Document);"),
             ("ENFORCES", "CREATE REL TABLE ENFORCES(FROM Invariant TO CodeEntity, FROM Invariant TO Decision);"),
+            ("DEPENDS_ON", "CREATE REL TABLE DEPENDS_ON(FROM CodeEntity TO CodeEntity, call_type STRING);"),
         ]
 
         for name, ddl in rels_to_create:

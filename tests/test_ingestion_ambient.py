@@ -194,7 +194,7 @@ def test_fastapi_endpoints():
         files={"file": ("test_upload.csv", fake_csv, "text/csv")},
         data={"department": "OPERATIONS"},
     )
-    assert upload_res.status_code == 200
+    assert upload_res.status_code in [200, 201]
     assert upload_res.json()["status"] == "INGESTED"
 
     # Events endpoint

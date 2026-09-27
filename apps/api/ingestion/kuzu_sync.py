@@ -42,6 +42,7 @@ class KuzuGraphEngine:
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        self._sqlite_path = os.path.join(os.path.dirname(self.db_path), "graph_store.db")
         self._init_engine()
 
     def _init_engine(self):
@@ -73,6 +74,8 @@ class KuzuGraphEngine:
             """CREATE NODE TABLE IF NOT EXISTS Document (
                 id STRING,
                 title STRING,
+                content STRING,
+                doc_type STRING,
                 department STRING,
                 clearance STRING,
                 valid_from INT64,
@@ -115,6 +118,8 @@ class KuzuGraphEngine:
             """CREATE NODE TABLE IF NOT EXISTS Invariant (
                 id STRING,
                 name STRING,
+                category STRING,
+                severity STRING,
                 rule STRING,
                 rationale STRING,
                 adr_ref STRING,
@@ -122,16 +127,17 @@ class KuzuGraphEngine:
             );""",
             """CREATE NODE TABLE IF NOT EXISTS CodeEntity (
                 id STRING,
+                name STRING,
                 file_path STRING,
                 symbol_name STRING,
                 entity_type STRING,
                 PRIMARY KEY (id)
             );""",
-            "CREATE REL TABLE IF NOT EXISTS RELATES_TO (FROM Document TO Decision);",
+            "CREATE REL TABLE IF NOT EXISTS RELATES_TO (FROM Document TO Decision, FROM Decision TO Document, FROM ActionItem TO Document, FROM CodeEntity TO Document);",
             "CREATE REL TABLE IF NOT EXISTS SUPERSEDES (FROM Decision TO Decision, reason STRING, timestamp INT64);",
             "CREATE REL TABLE IF NOT EXISTS EXTRACTED_FROM (FROM ActionItem TO ClientCall, timestamp_offset STRING);",
             "CREATE REL TABLE IF NOT EXISTS ASSIGNED_TO (FROM ActionItem TO Document);",
-            "CREATE REL TABLE IF NOT EXISTS ENFORCES (FROM Invariant TO CodeEntity);",
+            "CREATE REL TABLE IF NOT EXISTS ENFORCES (FROM Invariant TO CodeEntity, FROM Invariant TO Decision);",
             "CREATE REL TABLE IF NOT EXISTS DEPENDS_ON (FROM CodeEntity TO CodeEntity, call_type STRING);",
         ]
         for stmt in ddl_statements:
@@ -411,14 +417,14 @@ class KuzuGraphEngine:
                     self._conn.execute(
                         """
                         MERGE (a:ActionItem {id: $id})
-                        ON CREATE SET a.description = $desc, a.owner = $owner, a.deadline = $deadline,
+                        ON CREATE SET a.description = $description, a.owner = $owner, a.deadline = $deadline,
                                       a.status = $status, a.source_type = $stype, a.source_id = $sid,
                                       a.timestamp_offset = $offset
-                        ON MATCH SET a.description = $desc, a.owner = $owner, a.status = $status;
+                        ON MATCH SET a.description = $description, a.owner = $owner, a.status = $status;
                         """,
                         {
                             "id": item_id,
-                            "desc": description,
+                            "description": description,
                             "owner": owner,
                             "deadline": deadline or 0,
                             "status": status,
@@ -548,7 +554,8 @@ class KuzuGraphEngine:
                 try:
                     self._conn.execute(
                         """
-                        MATCH (doc:Document {id: $doc_id}), (dec:Decision {id: $decision_id})
+                        MERGE (doc:Document {id: $doc_id})
+                        MERGE (dec:Decision {id: $decision_id})
                         MERGE (doc)-[:RELATES_TO]->(dec);
                         """,
                         {"doc_id": doc_id, "decision_id": decision_id},
@@ -573,7 +580,8 @@ class KuzuGraphEngine:
                 try:
                     self._conn.execute(
                         """
-                        MATCH (a:ActionItem {id: $item_id}), (doc:Document {id: $doc_id})
+                        MERGE (a:ActionItem {id: $item_id})
+                        MERGE (doc:Document {id: $doc_id})
                         MERGE (a)-[:ASSIGNED_TO]->(doc);
                         """,
                         {"item_id": item_id, "doc_id": doc_id},
@@ -598,7 +606,8 @@ class KuzuGraphEngine:
                 try:
                     self._conn.execute(
                         """
-                        MATCH (inv:Invariant {id: $invariant_id}), (c:CodeEntity {id: $code_id})
+                        MERGE (inv:Invariant {id: $invariant_id})
+                        MERGE (c:CodeEntity {id: $code_id})
                         MERGE (inv)-[:ENFORCES]->(c);
                         """,
                         {"invariant_id": invariant_id, "code_id": code_entity_id},

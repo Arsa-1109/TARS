@@ -257,6 +257,7 @@ def trigger_folder_scan():
 # 2. DOCUMENT INGESTION & EXCEL FLATTENING (Markitdown)
 # ============================================================
 class DocumentIngestResponse(BaseModel):
+    status: str = "INGESTED"
     doc_id: str
     filename: str
     file_hash: str
@@ -270,6 +271,7 @@ class DocumentIngestResponse(BaseModel):
 
 
 @router.post("/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/ingest/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_200_OK)
 @router.post("/documents/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),

@@ -67,7 +67,9 @@ next-env.d.ts
 *.sqlite3
 *.db-journal
 *.sqlite-journal
-tars_local.db
+*.db-shm
+*.db-wal
+tars_local.db*
 *.kuzu_lock
 *.kuzu
 *.kuzu/

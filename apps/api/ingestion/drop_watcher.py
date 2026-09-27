@@ -283,6 +283,7 @@ class AmbientDropWatcher:
             "drop_directory": self.drop_dir,
             "engine": "watchdog" if self._observer else "polling",
             "files_processed_count": len(self.handler.processed_hashes),
+            "processed_file_count": len(self.handler.processed_hashes),
             "recent_events_count": len(self.recent_events),
         }
 
