@@ -15,6 +15,7 @@ from .contracts import (
     ToolExecutionRequest,
     ToolAuditRecord,
     SystemStatus,
+    MCPToolInvocation,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "ToolExecutionRequest",
     "ToolAuditRecord",
     "SystemStatus",
+    "MCPToolInvocation",
 ]

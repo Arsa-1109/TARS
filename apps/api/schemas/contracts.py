@@ -1,9 +1,9 @@
 # apps/api/schemas/contracts.py
 """
-TARS: Contract-First Frozen Schemas
+TARS: Contract-First Frozen Schemas (Version 2.0.0)
 Shared contract definitions for all 4 tracks. Frozen across all contributors.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 # ==========================================
@@ -56,8 +56,8 @@ class ContradictionCheckResponse(BaseModel):
 
 class SimulationRequest(BaseModel):
     proposal: str
-    delay_days: int
-    reallocated_devs: int
+    delay_days: int = 0
+    reallocated_devs: int = 0
 
 class SimulationResponse(BaseModel):
     runway_impact_months: float
@@ -82,13 +82,17 @@ class InvariantCheckResult(BaseModel):
 # ==========================================
 class ActionItemDTO(BaseModel):
     id: str
-    title: str
-    assignee: str
-    priority: str  # HIGH, MEDIUM, LOW
-    status: str    # PENDING, APPROVED, REJECTED
-    source_type: str  # CALL, DECISION, CHAT
+    title: Optional[str] = None
+    description: Optional[str] = None
+    owner: str = "Unassigned"
+    assignee: Optional[str] = None
+    department: Optional[str] = "General"
+    priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
+    deadline: Optional[int] = None
+    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED
+    source_type: str          # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT
     source_id: str
-    source_offset: str
+    source_offset: Optional[str] = None
 
 # ==========================================
 # CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE
@@ -125,3 +129,10 @@ class SystemStatus(BaseModel):
     ollama: str
     mcp_tools: int
     airplane_mode: bool
+
+# ==========================================
+# CONTRIBUTOR 2: MCP INTERNAL LOOPBACK DISPATCH
+# ==========================================
+class MCPToolInvocation(BaseModel):
+    tool: str
+    args: Dict[str, Any] = Field(default_factory=dict)
