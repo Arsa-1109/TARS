@@ -92,3 +92,19 @@ def test_queue_and_callback_lifecycle(transcriber):
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+def test_qos_priority_3_pause_resume(transcriber):
+    """Verify Priority 3 background worker yields when paused and resumes seamlessly."""
+    assert not transcriber.is_paused
+    stats = transcriber.get_stats()
+    assert not stats["is_paused"]
+
+    transcriber.pause()
+    assert transcriber.is_paused
+    assert transcriber.get_stats()["is_paused"]
+
+    transcriber.resume()
+    assert not transcriber.is_paused
+    assert not transcriber.get_stats()["is_paused"]
+

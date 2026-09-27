@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 from typing import Dict, Any, List, Optional, Tuple
 
 logger = logging.getLogger("tars.ingestion.markitdown")
@@ -87,6 +88,7 @@ class MarkitdownParser:
         try:
             if ext in [".xlsx", ".xls", ".xlsm"]:
                 markdown_content, table_count = self._parse_excel(file_path)
+                page_count = max(1, table_count)
             elif ext == ".csv":
                 markdown_content, table_count = self._parse_csv(file_path)
             elif ext == ".pdf":
@@ -114,6 +116,9 @@ class MarkitdownParser:
             markdown_content = f"# Document: {filename}\n\n[Extraction Warning: {e}]\n"
 
         doc_id = f"DOC-{file_hash[:8].upper()}"
+        chunks = self.chunk_markdown(markdown_content.strip(), doc_id=doc_id, doc_title=filename)
+        calculated_page_count = max(page_count, len({c["page_number"] for c in chunks}) if chunks else 1)
+
         result = {
             "doc_id": doc_id,
             "filename": filename,
@@ -123,14 +128,74 @@ class MarkitdownParser:
             "clearance": clearance,
             "format": ext.lstrip("."),
             "file_size_bytes": file_size,
-            "page_count": page_count,
+            "page_count": calculated_page_count,
             "table_count": table_count,
             "content": markdown_content.strip(),
             "character_count": len(markdown_content.strip()),
+            "chunks": chunks,
+            "chunk_count": len(chunks),
         }
 
         self.ingested_hashes[file_hash] = result
         return result
+
+    def chunk_markdown(
+        self,
+        content: str,
+        doc_id: str,
+        doc_title: str,
+        max_chunk_chars: int = 500,
+    ) -> List[Dict[str, Any]]:
+        """
+        Splits markdown document into semantic chunks with line and page metadata
+        matching the SearchCitation contract schema (doc_id, doc_title, page_number, snippet).
+        """
+        if not content.strip():
+            return []
+
+        lines = content.split("\n")
+        chunks: List[Dict[str, Any]] = []
+        current_lines: List[str] = []
+        current_chars = 0
+        current_page = 1
+        chunk_start_line = 1
+        page_pattern = re.compile(r"^###\s+Page\s+(\d+)", re.IGNORECASE)
+        sheet_pattern = re.compile(r"^##\s+Sheet:\s*(.+)", re.IGNORECASE)
+
+        for line_num, line in enumerate(lines, start=1):
+            page_match = page_pattern.match(line.strip())
+            if page_match:
+                try:
+                    current_page = int(page_match.group(1))
+                except ValueError:
+                    pass
+
+            sheet_match = sheet_pattern.match(line.strip())
+            if sheet_match and len(chunks) > 0:
+                current_page += 1
+
+            current_lines.append(line)
+            current_chars += len(line) + 1
+
+            if current_chars >= max_chunk_chars or line_num == len(lines):
+                snippet = "\n".join(current_lines).strip()
+                if snippet:
+                    chunk_idx = len(chunks) + 1
+                    chunks.append({
+                        "chunk_id": f"{doc_id}-CHK-{chunk_idx:03d}",
+                        "doc_id": doc_id,
+                        "doc_title": doc_title,
+                        "page_number": current_page,
+                        "line_start": chunk_start_line,
+                        "line_end": line_num,
+                        "snippet": snippet,
+                        "char_count": len(snippet),
+                    })
+                current_lines = []
+                current_chars = 0
+                chunk_start_line = line_num + 1
+
+        return chunks
 
     def _parse_excel(self, file_path: str) -> Tuple[str, int]:
         """
@@ -159,6 +224,7 @@ class MarkitdownParser:
             if not rows:
                 continue
 
+            sections.append(f"### Page {table_count + 1}\n")
             sections.append(f"## Sheet: {sheet_name}\n")
             table_count += 1
 

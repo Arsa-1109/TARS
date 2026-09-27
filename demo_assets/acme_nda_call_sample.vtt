@@ -1,0 +1,31 @@
+WEBVTT - TARS ASYNC26 Stage Demo Golden Asset: Acme Corp Call Sample (NDA Protected)
+Date: 2026-09-28T14:30:00Z
+Participants: Mir Farzin Hussain (Lead Architect, TARS), Sarah Jenkins (VP Engineering, Acme Corp)
+Clearance: NDA_CONFIDENTIAL
+
+00:00:01.000 --> 00:00:07.500
+<v Sarah Jenkins>Thanks for jumping on the call Farzin. We are evaluating TARS as our internal sovereign operating system for our 12-person startup.</v>
+
+00:00:08.000 --> 00:00:15.500
+<v Sarah Jenkins>Right now our primary friction point is severe tribal knowledge decay. Strategic decisions agreed on midnight calls disappear within 14 days.</v>
+
+00:00:16.000 --> 00:00:23.800
+<v Sarah Jenkins>Also, we cannot paste our unredacted runway spreadsheets or customer audio into cloud SaaS like Notion AI or ChatGPT due to strict enterprise client NDAs.</v>
+
+00:00:24.500 --> 00:00:32.000
+<v Mir Farzin Hussain>Understood Sarah. TARS guarantees complete air-gap sovereignty with 0.00 KB network egress. Everything runs on your office host.</v>
+
+00:00:32.500 --> 00:00:41.200
+<v Sarah Jenkins>That sounds ideal. Here are our non-negotiable feature requests: we require SAML 2.0 Single Sign-On, automatic Excel multi-sheet table flattening, and Git pre-commit invariant enforcement.</v>
+
+00:00:42.000 --> 00:00:50.500
+<v Sarah Jenkins>Specifically, we need an architectural check that blocks unencrypted API tokens from ever being committed to our repository.</v>
+
+00:00:51.000 --> 00:01:00.000
+<v Mir Farzin Hussain>We commit to shipping the SAML SSO integration and the pre-commit invariant rule INV-008 before Wednesday 5 PM.</v>
+
+00:01:00.500 --> 00:01:10.000
+<v Mir Farzin Hussain>We will also provide our faster-whisper CPU worker consuming exactly 0.00 MB GPU VRAM so your engineering workstations never experience OOM crashes.</v>
+
+00:01:10.500 --> 00:01:16.000
+<v Sarah Jenkins>Excellent. Let's schedule the pilot onboarding flight-plan for next Tuesday morning. Thank you.</v>

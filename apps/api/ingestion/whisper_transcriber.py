@@ -81,9 +81,23 @@ class WhisperTranscriber:
         self._queue: queue.Queue[WhisperTask] = queue.Queue()
         self._tasks: Dict[str, WhisperTask] = {}
         self._stop_event = threading.Event()
+        self._pause_event = threading.Event()
+        self.is_paused: bool = False
         self._worker_thread: Optional[threading.Thread] = None
         self._model = None
         self._lock = threading.Lock()
+
+    def pause(self):
+        """Yields compute cycles for higher-priority tasks (Patch P-09 Lean QoS)."""
+        self.is_paused = True
+        self._pause_event.set()
+        logger.info("[Patch P-09] Whisper worker paused for Priority 1/2 QoS pre-emption.")
+
+    def resume(self):
+        """Resumes background audio transcription."""
+        self.is_paused = False
+        self._pause_event.clear()
+        logger.info("[Patch P-09] Whisper worker resumed execution.")
 
     def _init_model(self):
         """Initializes faster-whisper strictly on CPU with int8 quantization."""
@@ -149,6 +163,7 @@ class WhisperTranscriber:
             "compute_type": self.compute_type,
             "cpu_threads": self.cpu_threads,
             "vram_mb": 0.00,  # Invariant P-03
+            "is_paused": self.is_paused,
             "queued_count": sum(1 for t in tasks if t.status == "QUEUED"),
             "processing_count": sum(1 for t in tasks if t.status == "PROCESSING"),
             "completed_count": sum(1 for t in tasks if t.status == "COMPLETED"),
@@ -158,6 +173,9 @@ class WhisperTranscriber:
 
     def _process_queue(self):
         while not self._stop_event.is_set():
+            if self._pause_event.is_set():
+                time.sleep(0.1)
+                continue
             try:
                 task = self._queue.get(timeout=0.5)
             except queue.Empty:

@@ -105,3 +105,38 @@ def test_sha256_deduplication(parser):
 def test_missing_file_raises_not_found(parser):
     with pytest.raises(FileNotFoundError):
         parser.parse_file("non_existent_file_path_12345.pdf")
+
+
+def test_semantic_chunking_citations(parser):
+    """
+    Verify semantic chunking outputs citation metadata conforming to SearchCitation contract:
+    doc_id, doc_title, page_number, line_start, line_end, snippet.
+    """
+    content = """# Executive Summary
+Line 2: Strategic direction for autonomous engineering.
+Line 3: Air gap deployment protocols.
+Line 4: Kùzu graph temporal memory.
+
+### Page 2
+Line 7: Invariant rule INV-008 enforcement.
+Line 8: SAML 2.0 Single Sign-On requirements.
+Line 9: Headcount budget allocations.
+"""
+    chunks = parser.chunk_markdown(content, doc_id="DOC-TEST01", doc_title="Executive Summary", max_chunk_chars=120)
+    assert len(chunks) >= 2
+
+    # Verify first chunk
+    c1 = chunks[0]
+    assert c1["doc_id"] == "DOC-TEST01"
+    assert c1["doc_title"] == "Executive Summary"
+    assert c1["page_number"] == 1
+    assert c1["line_start"] == 1
+    assert c1["line_end"] >= 1
+    assert "Line 2: Strategic direction" in c1["snippet"]
+
+    # Verify second chunk tracks page transition
+    c_last = chunks[-1]
+    assert c_last["page_number"] == 2
+    assert c_last["line_end"] >= 7
+    assert c_last["chunk_id"].startswith("DOC-TEST01-CHK-")
+

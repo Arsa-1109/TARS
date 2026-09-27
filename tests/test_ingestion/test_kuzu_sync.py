@@ -102,3 +102,56 @@ def test_graph_stats_structure(graph_engine):
     assert "engine" in stats
     assert "nodes" in stats
     assert "edges" in stats
+
+
+def test_sync_invariant_and_code_entity(graph_engine):
+    """Verify Invariant and CodeEntity nodes can be registered in graph."""
+    success_inv = graph_engine.sync_invariant(
+        invariant_id="INV-008",
+        name="Zero Unencrypted Secrets in Commits",
+        rule="git_pre_commit_hook.sh must reject raw API keys or tokens",
+        rationale="SOC-2 compliance and customer secret sovereignty",
+        adr_ref="ADR-014",
+    )
+    assert success_inv
+
+    success_code = graph_engine.sync_code_entity(
+        entity_id="CODE-PRECOMMIT",
+        file_path=".git/hooks/pre-commit",
+        symbol_name="verify_zero_secrets",
+        entity_type="SCRIPT",
+    )
+    assert success_code
+
+    stats = graph_engine.get_stats()
+    assert stats["nodes"].get("Invariant", 0) >= 1
+    assert stats["nodes"].get("CodeEntity", 0) >= 1
+
+
+def test_expanded_graph_relationships(graph_engine):
+    """Verify RELATES_TO, ASSIGNED_TO, and ENFORCES edges."""
+    # 1. Document -> Decision (RELATES_TO)
+    graph_engine.sync_document(doc_id="DOC-ADR01", title="ADR Document")
+    graph_engine.sync_decision(decision_id="DEC-01", title="Use SQLite for Fallback")
+    rel_doc = graph_engine.link_document_to_decision("DOC-ADR01", "DEC-01")
+    assert rel_doc
+
+    decisions = graph_engine.get_document_decisions("DOC-ADR01")
+    assert len(decisions) >= 1
+    assert decisions[0]["id"] == "DEC-01"
+
+    # 2. ActionItem -> Document (ASSIGNED_TO)
+    graph_engine.sync_action_item(item_id="ACT-99", description="Review spec document")
+    rel_act = graph_engine.link_action_to_document("ACT-99", "DOC-ADR01")
+    assert rel_act
+
+    # 3. Invariant -> CodeEntity (ENFORCES)
+    graph_engine.sync_invariant(invariant_id="INV-001", name="Air Gap Rule", rule="Enet == 0.00 KB")
+    graph_engine.sync_code_entity(entity_id="CODE-FIREWALL", file_path="core/firewall.py", symbol_name="block_egress")
+    rel_inv = graph_engine.link_invariant_to_code("INV-001", "CODE-FIREWALL")
+    assert rel_inv
+
+    invariants = graph_engine.get_invariants_for_code("CODE-FIREWALL")
+    assert len(invariants) >= 1
+    assert invariants[0]["name"] == "Air Gap Rule"
+

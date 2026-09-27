@@ -88,3 +88,88 @@ def test_graph_stats_and_superseded_endpoints(client):
     chain_res = client.get("/api/ingestion/graph/superseded/ADR-100")
     assert chain_res.status_code == 200
     assert chain_res.json()["decision_id"] == "ADR-100"
+
+
+def test_qos_pause_resume_endpoints(client):
+    """Verify QoS Priority 3 yield endpoints update worker states."""
+    pause_res = client.post("/api/ingestion/qos/pause")
+    assert pause_res.status_code == 200
+    data = pause_res.json()
+    assert data["status"] == "PAUSED"
+    assert data["whisper_paused"] is True
+    assert data["watcher_paused"] is True
+
+    status_res = client.get("/api/ingestion/qos/status")
+    assert status_res.status_code == 200
+    assert status_res.json()["is_paused"] is True
+
+    resume_res = client.post("/api/ingestion/qos/resume")
+    assert resume_res.status_code == 200
+    res_data = resume_res.json()
+    assert res_data["status"] == "ACTIVE"
+    assert res_data["whisper_paused"] is False
+    assert res_data["watcher_paused"] is False
+
+
+def test_graph_extended_endpoints(client):
+    """Verify endpoints for sync_invariant, sync_code_entity, and relationship edges."""
+    # 1. Sync Invariant
+    inv_payload = {
+        "invariant_id": "INV-API01",
+        "name": "Zero Egress Rule",
+        "rule": "Enet == 0.00 KB",
+        "rationale": "Sovereignty guarantee",
+        "adr_ref": "ADR-002",
+    }
+    inv_res = client.post("/api/ingestion/graph/sync/invariant", json=inv_payload)
+    assert inv_res.status_code == 200
+    assert inv_res.json()["status"] == "success"
+
+    # 2. Sync Code Entity
+    code_payload = {
+        "entity_id": "CODE-EGRESS01",
+        "file_path": "apps/api/core/firewall.py",
+        "symbol_name": "assert_zero_egress",
+        "entity_type": "FUNCTION",
+    }
+    code_res = client.post("/api/ingestion/graph/sync/code-entity", json=code_payload)
+    assert code_res.status_code == 200
+    assert code_res.json()["status"] == "success"
+
+    # 3. Link Invariant to Code
+    link_inv_res = client.post(
+        "/api/ingestion/graph/link/invariant-code",
+        json={"invariant_id": "INV-API01", "code_entity_id": "CODE-EGRESS01"},
+    )
+    assert link_inv_res.status_code == 200
+    assert link_inv_res.json()["relationship"] == "ENFORCES"
+
+    # 4. Query Code Invariants
+    query_inv_res = client.get("/api/ingestion/graph/code/CODE-EGRESS01/invariants")
+    assert query_inv_res.status_code == 200
+    assert query_inv_res.json()["count"] >= 1
+
+    # 5. Link Document to Decision
+    link_doc_res = client.post(
+        "/api/ingestion/graph/link/document-decision",
+        json={"doc_id": "DOC-99", "decision_id": "ADR-100"},
+    )
+    assert link_doc_res.status_code == 200
+    assert link_doc_res.json()["relationship"] == "RELATES_TO"
+
+    # 6. Query Document Decisions
+    query_dec_res = client.get("/api/ingestion/graph/document/DOC-99/decisions")
+    assert query_dec_res.status_code == 200
+    assert query_dec_res.json()["count"] >= 1
+
+
+def test_sse_events_stream(client):
+    """Verify Server-Sent Events stream connects and yields handshake."""
+    with client.stream("GET", "/api/ingestion/events/stream?limit=1") as response:
+        assert response.status_code == 200
+        assert "text/event-stream" in response.headers["content-type"]
+        lines = [line for line in response.iter_lines() if line]
+        combined = " ".join(lines)
+        assert "CONNECTED" in combined or "TARS" in combined
+
+

@@ -452,6 +452,253 @@ class KuzuGraphEngine:
                 conn.commit()
             return True
 
+    def sync_invariant(
+        self,
+        invariant_id: str,
+        name: str,
+        rule: str,
+        rationale: str = "",
+        adr_ref: str = "",
+    ) -> bool:
+        """Inserts or updates an Invariant rule node in the Kùzu institutional memory graph."""
+        with self._lock:
+            import json
+            data = {
+                "id": invariant_id,
+                "name": name,
+                "rule": rule,
+                "rationale": rationale,
+                "adr_ref": adr_ref,
+            }
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MERGE (i:Invariant {id: $id})
+                        ON CREATE SET i.name = $name, i.rule = $rule, i.rationale = $rationale, i.adr_ref = $adr_ref
+                        ON MATCH SET i.name = $name, i.rule = $rule, i.rationale = $rationale, i.adr_ref = $adr_ref;
+                        """,
+                        {
+                            "id": invariant_id,
+                            "name": name,
+                            "rule": rule,
+                            "rationale": rationale,
+                            "adr_ref": adr_ref,
+                        },
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native sync_invariant error: {e}")
+
+            with sqlite3.connect(self._sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_nodes (node_type, id, data) VALUES (?, ?, ?);",
+                    ("Invariant", invariant_id, json.dumps(data)),
+                )
+                conn.commit()
+            return True
+
+    def sync_code_entity(
+        self,
+        entity_id: str,
+        file_path: str,
+        symbol_name: str,
+        entity_type: str = "FUNCTION",
+    ) -> bool:
+        """Registers a CodeEntity (function, class, endpoint) in the institutional graph."""
+        with self._lock:
+            import json
+            data = {
+                "id": entity_id,
+                "file_path": file_path,
+                "symbol_name": symbol_name,
+                "entity_type": entity_type,
+            }
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MERGE (c:CodeEntity {id: $id})
+                        ON CREATE SET c.file_path = $file_path, c.symbol_name = $symbol_name, c.entity_type = $entity_type
+                        ON MATCH SET c.file_path = $file_path, c.symbol_name = $symbol_name, c.entity_type = $entity_type;
+                        """,
+                        {
+                            "id": entity_id,
+                            "file_path": file_path,
+                            "symbol_name": symbol_name,
+                            "entity_type": entity_type,
+                        },
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native sync_code_entity error: {e}")
+
+            with sqlite3.connect(self._sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_nodes (node_type, id, data) VALUES (?, ?, ?);",
+                    ("CodeEntity", entity_id, json.dumps(data)),
+                )
+                conn.commit()
+            return True
+
+    def link_document_to_decision(self, doc_id: str, decision_id: str) -> bool:
+        """Forms a [:RELATES_TO] edge from Document to Decision."""
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MATCH (doc:Document {id: $doc_id}), (dec:Decision {id: $decision_id})
+                        MERGE (doc)-[:RELATES_TO]->(dec);
+                        """,
+                        {"doc_id": doc_id, "decision_id": decision_id},
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native link_document_to_decision error: {e}")
+
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_edges (edge_type, from_type, from_id, to_type, to_id, data) VALUES (?, ?, ?, ?, ?, ?);",
+                    ("RELATES_TO", "Document", doc_id, "Decision", decision_id, json.dumps({})),
+                )
+                conn.commit()
+            return True
+
+    def link_action_to_document(self, item_id: str, doc_id: str) -> bool:
+        """Forms an [:ASSIGNED_TO] edge from ActionItem to Document."""
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MATCH (a:ActionItem {id: $item_id}), (doc:Document {id: $doc_id})
+                        MERGE (a)-[:ASSIGNED_TO]->(doc);
+                        """,
+                        {"item_id": item_id, "doc_id": doc_id},
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native link_action_to_document error: {e}")
+
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_edges (edge_type, from_type, from_id, to_type, to_id, data) VALUES (?, ?, ?, ?, ?, ?);",
+                    ("ASSIGNED_TO", "ActionItem", item_id, "Document", doc_id, json.dumps({})),
+                )
+                conn.commit()
+            return True
+
+    def link_invariant_to_code(self, invariant_id: str, code_entity_id: str) -> bool:
+        """Forms an [:ENFORCES] edge from Invariant to CodeEntity."""
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MATCH (inv:Invariant {id: $invariant_id}), (c:CodeEntity {id: $code_id})
+                        MERGE (inv)-[:ENFORCES]->(c);
+                        """,
+                        {"invariant_id": invariant_id, "code_id": code_entity_id},
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native link_invariant_to_code error: {e}")
+
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_edges (edge_type, from_type, from_id, to_type, to_id, data) VALUES (?, ?, ?, ?, ?, ?);",
+                    ("ENFORCES", "Invariant", invariant_id, "CodeEntity", code_entity_id, json.dumps({})),
+                )
+                conn.commit()
+            return True
+
+    def get_document_decisions(self, doc_id: str) -> List[Dict[str, Any]]:
+        """Finds all Decision nodes connected to a Document via [:RELATES_TO]."""
+        results: List[Dict[str, Any]] = []
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    res = self._conn.execute(
+                        """
+                        MATCH (doc:Document {id: $doc_id})-[:RELATES_TO]->(dec:Decision)
+                        RETURN dec.id, dec.title, dec.category, dec.status, dec.chosen_option, dec.timestamp;
+                        """,
+                        {"doc_id": doc_id},
+                    )
+                    while res.has_next():
+                        row = res.get_next()
+                        results.append({
+                            "id": row[0],
+                            "title": row[1],
+                            "category": row[2],
+                            "status": row[3],
+                            "chosen_option": row[4],
+                            "timestamp": row[5],
+                        })
+                    return results
+                except Exception as e:
+                    logger.warning(f"Native get_document_decisions error: {e}")
+
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    SELECT n.data FROM graph_edges e
+                    JOIN graph_nodes n ON n.node_type = 'Decision' AND n.id = e.to_id
+                    WHERE e.edge_type = 'RELATES_TO' AND e.from_type = 'Document' AND e.from_id = ?;
+                    """,
+                    (doc_id,),
+                )
+                for (data_str,) in cur.fetchall():
+                    results.append(json.loads(data_str))
+            return results
+
+    def get_invariants_for_code(self, code_entity_id: str) -> List[Dict[str, Any]]:
+        """Finds all Invariant rules enforcing a given CodeEntity."""
+        results: List[Dict[str, Any]] = []
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    res = self._conn.execute(
+                        """
+                        MATCH (inv:Invariant)-[:ENFORCES]->(c:CodeEntity {id: $code_id})
+                        RETURN inv.id, inv.name, inv.rule, inv.rationale, inv.adr_ref;
+                        """,
+                        {"code_id": code_entity_id},
+                    )
+                    while res.has_next():
+                        row = res.get_next()
+                        results.append({
+                            "id": row[0],
+                            "name": row[1],
+                            "rule": row[2],
+                            "rationale": row[3],
+                            "adr_ref": row[4],
+                        })
+                    return results
+                except Exception as e:
+                    logger.warning(f"Native get_invariants_for_code error: {e}")
+
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    SELECT n.data FROM graph_edges e
+                    JOIN graph_nodes n ON n.node_type = 'Invariant' AND n.id = e.from_id
+                    WHERE e.edge_type = 'ENFORCES' AND e.to_type = 'CodeEntity' AND e.to_id = ?;
+                    """,
+                    (code_entity_id,),
+                )
+                for (data_str,) in cur.fetchall():
+                    results.append(json.loads(data_str))
+            return results
+
     def get_superseded_chain(self, decision_id: str) -> List[Dict[str, Any]]:
         """Traverses temporal [:SUPERSEDES] edges to identify decision history."""
         chain = []

@@ -65,6 +65,7 @@ class DropFileHandler:
         self.on_event_callback = on_event_callback
         self.processed_hashes: Dict[str, Dict[str, Any]] = {}
         self.processed_files: Dict[str, Dict[str, Any]] = {}
+        self.is_paused: bool = False
 
     @staticmethod
     def compute_sha256(file_path: str) -> str:
@@ -75,6 +76,10 @@ class DropFileHandler:
         return hasher.hexdigest()
 
     def process_file(self, file_path: str) -> Optional[Dict[str, Any]]:
+        if self.is_paused:
+            logger.info(f"DropFileHandler is paused under QoS Priority 3 yield, deferring: {os.path.basename(file_path)}")
+            return None
+
         if not os.path.exists(file_path):
             return None
 
@@ -191,12 +196,25 @@ class AmbientDropWatcher:
         self._poll_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self.is_running = False
+        self.is_paused = False
 
     def _record_event(self, event_data: Dict[str, Any]):
         event_data["timestamp"] = time.time()
         self.recent_events.append(event_data)
         if len(self.recent_events) > 100:
             self.recent_events.pop(0)
+
+    def pause(self):
+        """Yields execution under QoS Priority 3 (Batch Ingestion) to protect active query SLAs."""
+        self.is_paused = True
+        self.handler.is_paused = True
+        logger.info("Ambient drop watcher PAUSED under QoS Priority 3 yield.")
+
+    def resume(self):
+        """Resumes ambient folder monitoring and ingestion."""
+        self.is_paused = False
+        self.handler.is_paused = False
+        logger.info("Ambient drop watcher RESUMED from QoS Priority 3 yield.")
 
     def start(self):
         if self.is_running:
@@ -242,6 +260,10 @@ class AmbientDropWatcher:
 
     def scan_existing(self) -> int:
         """Manually trigger scan of all current files in the drop directory."""
+        if self.is_paused:
+            logger.debug("Scan skipped: drop watcher is paused under QoS yield.")
+            return 0
+
         if not os.path.exists(self.drop_dir):
             return 0
 
@@ -257,6 +279,7 @@ class AmbientDropWatcher:
     def get_status(self) -> Dict[str, Any]:
         return {
             "is_running": self.is_running,
+            "is_paused": self.is_paused,
             "drop_directory": self.drop_dir,
             "engine": "watchdog" if self._observer else "polling",
             "files_processed_count": len(self.handler.processed_hashes),
@@ -266,7 +289,8 @@ class AmbientDropWatcher:
     def _poll_loop(self):
         while not self._stop_event.is_set():
             try:
-                self.scan_existing()
+                if not self.is_paused:
+                    self.scan_existing()
             except Exception as e:
                 logger.debug(f"Error during drop folder poll: {e}")
             time.sleep(2.0)
