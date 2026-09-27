@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PageHeader } from '../layout/PageHeader';
-import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
 import { Drawer } from '../primitives/Drawer';
 import { MOCK_ONBOARDING_DATA } from '../../mocks/fixtures';
@@ -13,8 +12,6 @@ import {
   Play,
   ArrowRight,
   ArrowLeft,
-  MessageSquare,
-  Sparkles,
   BookOpen,
   Send,
 } from 'lucide-react';
@@ -112,10 +109,10 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       />
 
       {/* Stepper Progress Bar */}
-      <Surface className="p-4 sm:p-5 shadow-subtle">
-        <div className="flex items-center justify-between text-xs font-semibold text-tars-text-secondary uppercase tracking-wider mb-4">
+      <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 shadow-sm">
+        <div className="flex items-center justify-between text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider mb-4">
           <span>Flight-Plan Progress ({userRole.replace('_', ' ')})</span>
-          <span className="font-mono text-tars-text-primary">
+          <span className="font-mono text-black dark:text-white font-bold">
             Day {activeDay} of {data.total_days}
           </span>
         </div>
@@ -129,55 +126,55 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
               <button
                 key={mod.day}
                 onClick={() => setActiveDay(mod.day)}
-                className={`p-3 rounded-control border text-left transition-all ${
+                className={`p-3.5 rounded-[14px] border text-left transition-all ${
                   isSelected
-                    ? 'border-tars-border-strong bg-tars-surface font-semibold shadow-subtle'
+                    ? 'border-black/[0.25] dark:border-white/[0.30] bg-white dark:bg-[#1C1C1E] font-semibold text-black dark:text-white shadow-sm ring-1 ring-black/[0.08] dark:ring-white/[0.12]'
                     : isCompleted
-                    ? 'border-tars-separator bg-tars-surface-secondary/40 text-tars-text-secondary'
-                    : 'border-tars-separator/70 bg-tars-surface-secondary/20 text-tars-text-tertiary'
+                    ? 'border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 text-[#3C3C43] dark:text-[#EBEBF5]'
+                    : 'border-black/[0.06] dark:border-white/[0.06] bg-[#F5F5F7]/50 dark:bg-[#2C2C2E]/30 text-[#8E8E93]'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-mono">Day {mod.day}</span>
+                  <span className="text-[11px] font-mono font-semibold">Day {mod.day}</span>
                   {isCompleted ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-tars-success-text" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" />
                   ) : isSelected ? (
-                    <span className="w-2 h-2 rounded-full bg-tars-text-primary" />
+                    <span className="w-2 h-2 rounded-full bg-black dark:bg-white" />
                   ) : (
-                    <Circle className="w-3 h-3 text-tars-text-tertiary" />
+                    <Circle className="w-3 h-3 text-[#8E8E93]" />
                   )}
                 </div>
-                <div className="text-xs font-medium truncate text-tars-text-primary">
+                <div className="text-xs font-semibold truncate text-black dark:text-white">
                   {mod.title}
                 </div>
               </button>
             );
           })}
         </div>
-      </Surface>
+      </div>
 
       {/* Active Day Detail Work Surface */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Current Day Objectives & Interactive Checklist (8 cols) */}
         <div className="lg:col-span-8 space-y-4">
-          <Surface className="p-5 sm:p-6 space-y-5">
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 sm:p-6 space-y-5 shadow-sm">
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono text-tars-text-tertiary">
+              <div className="flex items-center gap-2 text-xs font-mono text-[#8E8E93]">
                 <span>DAY {currentModule.day} MODULE</span>
                 <span>•</span>
-                <span className="text-tars-accent font-semibold">{currentModule.status}</span>
+                <span className="text-[#0071E3] dark:text-[#0A84FF] font-semibold">{currentModule.status}</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-tars-text-primary mt-1">
+              <h3 className="text-lg sm:text-xl font-bold tracking-tight text-black dark:text-white mt-1">
                 {currentModule.title}
               </h3>
-              <p className="text-xs sm:text-sm text-tars-text-secondary mt-1.5 leading-relaxed">
+              <p className="text-xs sm:text-sm text-[#6E6E73] dark:text-[#8E8E93] mt-1.5 leading-relaxed">
                 {currentModule.description}
               </p>
             </div>
 
             {/* Checklist Items */}
-            <div className="space-y-3 pt-3 border-t border-tars-separator/60">
-              <div className="text-xs font-semibold text-tars-text-secondary uppercase tracking-wider">
+            <div className="space-y-3 pt-3 border-t border-black/[0.08] dark:border-white/[0.08]">
+              <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                 Verifiable Milestone Checklist
               </div>
               <div className="space-y-2.5">
@@ -186,17 +183,19 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                   return (
                     <label
                       key={idx}
-                      className={`flex items-start gap-3 p-3 rounded-control border border-tars-separator transition-colors cursor-pointer select-none ${
-                        isChecked ? 'bg-tars-surface-secondary/40 line-through opacity-75' : 'bg-tars-surface hover:bg-tars-surface-secondary/30'
+                      className={`flex items-start gap-3 p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] transition-colors cursor-pointer select-none ${
+                        isChecked
+                          ? 'bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 line-through opacity-75'
+                          : 'bg-white dark:bg-[#1C1C1E] hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => toggleTask(currentModule.day, idx)}
-                        className="mt-0.5 rounded border-tars-separator text-tars-text-primary focus:ring-tars-accent shrink-0"
+                        className="mt-0.5 rounded border-black/[0.20] dark:border-white/[0.20] text-black dark:text-white focus:ring-[#0071E3] shrink-0"
                       />
-                      <span className="text-xs sm:text-sm text-tars-text-primary leading-snug">
+                      <span className="text-xs sm:text-sm text-black dark:text-white leading-snug">
                         {task}
                       </span>
                     </label>
@@ -206,7 +205,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
             </div>
 
             {/* Stepper Navigation Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-tars-separator/60">
+            <div className="flex items-center justify-between pt-4 border-t border-black/[0.08] dark:border-white/[0.08]">
               <Button
                 variant="secondary"
                 size="sm"
@@ -227,37 +226,37 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                 Next Day
               </Button>
             </div>
-          </Surface>
+          </div>
         </div>
 
         {/* Right Column: Audio Milestone Tour & Socratic Trigger (4 cols) */}
         <div className="lg:col-span-4 space-y-4">
           {/* Founding Milestone Tour */}
-          <Surface className="p-4 sm:p-5 space-y-3">
-            <div className="text-xs font-semibold text-tars-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              <BookOpen className="w-4 h-4 text-tars-accent" />
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 space-y-3 shadow-sm">
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider flex items-center gap-1.5">
+              <BookOpen className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
               <span>Founding Thesis Tour</span>
             </div>
-            <div className="p-3 rounded-control border border-tars-separator bg-tars-surface-secondary/50 space-y-2">
-              <div className="text-xs font-semibold text-tars-text-primary">
+            <div className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+              <div className="text-xs font-bold text-black dark:text-white">
                 Why Startups Die of Context Decay
               </div>
-              <p className="text-[11px] text-tars-text-secondary leading-snug">
+              <p className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
                 Founder Aryan debriefs the 4 frictions that destroy early-stage engineering velocity.
               </p>
               <div className="pt-2 flex items-center justify-between text-xs">
-                <span className="font-mono text-tars-text-tertiary">3m 45s</span>
+                <span className="font-mono text-[#8E8E93]">3m 45s</span>
                 <Button variant="secondary" size="sm" icon={<Play className="w-3 h-3" />}>
                   Listen
                 </Button>
               </div>
             </div>
-          </Surface>
+          </div>
 
           {/* Socratic Mentor Quick Prompts */}
-          <Surface className="p-4 sm:p-5 space-y-3">
-            <div className="text-xs font-semibold text-tars-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-              <HelpCircle className="w-4 h-4 text-tars-accent" />
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 space-y-3 shadow-sm">
+            <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider flex items-center gap-1.5">
+              <HelpCircle className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
               <span>Suggested Mentor Queries</span>
             </div>
             <div className="space-y-1.5 text-xs">
@@ -272,13 +271,13 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                     setMentorDrawerOpen(true);
                     handleAskMentor(q);
                   }}
-                  className="w-full text-left p-2.5 rounded-control border border-tars-separator bg-tars-surface hover:bg-tars-surface-secondary text-tars-text-primary transition-colors text-xs leading-snug"
+                  className="w-full text-left p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] hover:bg-black/[0.02] dark:hover:bg-white/[0.04] text-black dark:text-white transition-colors text-xs leading-snug"
                 >
                   "{q}"
                 </button>
               ))}
             </div>
-          </Surface>
+          </div>
         </div>
       </div>
 
@@ -302,7 +301,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
               value={mentorQuery}
               onChange={(e) => setMentorQuery(e.target.value)}
               placeholder="Ask anything about company terminology, past decisions..."
-              className="flex-1 px-3 py-2 text-xs rounded-control border border-tars-separator bg-tars-canvas text-tars-text-primary focus:outline-none focus:ring-1 focus:ring-tars-accent"
+              className="flex-1 px-3.5 py-2 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
             />
             <Button
               type="submit"
@@ -320,25 +319,25 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           {mentorMessages.map((m, idx) => (
             <div
               key={idx}
-              className={`p-3.5 rounded-control text-xs leading-relaxed space-y-1.5 ${
+              className={`p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 ${
                 m.sender === 'user'
-                  ? 'bg-tars-surface-tertiary ml-8 text-tars-text-primary border border-tars-separator'
-                  : 'bg-tars-surface mr-4 text-tars-text-primary border border-tars-separator'
+                  ? 'bg-black/[0.05] dark:bg-white/[0.08] ml-8 text-black dark:text-white border border-black/[0.08] dark:border-white/[0.10]'
+                  : 'bg-white dark:bg-[#1C1C1E] mr-4 text-black dark:text-white border border-black/[0.08] dark:border-white/[0.10]'
               }`}
             >
-              <div className="font-semibold text-[11px] text-tars-text-secondary uppercase tracking-wider">
+              <div className="font-semibold text-[11px] text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                 {m.sender === 'user' ? 'You' : 'TARS Socratic Mentor'}
               </div>
               <p>{m.text}</p>
               {m.citation && (
-                <div className="pt-1.5 mt-1 border-t border-tars-separator/40 text-[11px] font-mono text-tars-accent">
+                <div className="pt-1.5 mt-1 border-t border-black/[0.06] dark:border-white/[0.06] text-[11px] font-mono text-[#0071E3] dark:text-[#0A84FF]">
                   Source Reference: {m.citation}
                 </div>
               )}
             </div>
           ))}
           {mentorLoading && (
-            <div className="p-3 text-xs text-tars-text-tertiary font-mono animate-pulse">
+            <div className="p-3 text-xs text-[#8E8E93] font-mono animate-pulse">
               Synthesising institutional answer from local knowledge graph...
             </div>
           )}

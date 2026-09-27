@@ -15,22 +15,22 @@ export const Surface: React.FC<SurfaceProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    primary: 'bg-tars-surface',
-    secondary: 'bg-tars-surface-secondary',
-    tertiary: 'bg-tars-surface-tertiary',
+    primary: 'bg-white dark:bg-[#1C1C1E]',
+    secondary: 'bg-[#F5F5F7] dark:bg-[#2C2C2E]',
+    tertiary: 'bg-[#E5E5EA] dark:bg-[#3A3A3C]',
   };
 
   const radiusStyles = {
-    control: 'rounded-control',
-    card: 'rounded-card',
-    large: 'rounded-large',
+    control: 'rounded-[12px]',
+    card: 'rounded-[18px]',
+    large: 'rounded-[24px]',
     none: 'rounded-none',
   };
 
   return (
     <div
       className={`${variantStyles[variant]} ${radiusStyles[radius]} ${
-        bordered ? 'border border-tars-separator' : ''
+        bordered ? 'border border-black/[0.08] dark:border-white/[0.10]' : ''
       } ${className}`}
       {...props}
     >

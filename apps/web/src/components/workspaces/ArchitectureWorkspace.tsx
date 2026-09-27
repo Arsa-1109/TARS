@@ -128,8 +128,8 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
         actions={
           <div className="flex items-center gap-2">
             {executionTime && (
-              <span className="text-xs font-mono text-tars-text-secondary bg-tars-surface px-3 py-1.5 rounded-xl border border-tars-separator">
-                AST Scan: <span className="text-tars-text-primary font-bold">{executionTime} ms</span>
+              <span className="text-xs font-mono text-[#6E6E73] dark:text-[#8E8E93] bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-[10px] border border-black/[0.08] dark:border-white/[0.12] shadow-xs">
+                AST Scan: <span className="text-black dark:text-white font-bold">{executionTime} ms</span>
               </span>
             )}
             <Button
@@ -156,14 +156,14 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 setSelectedRule(inv);
                 onSelectFinding(inv.rule_id);
               }}
-              className={`apple-card p-4 cursor-pointer transition-all ${
+              className={`p-4 rounded-[16px] border cursor-pointer transition-all ${
                 isSelected
-                  ? 'border-tars-border-strong bg-tars-surface shadow-apple ring-1 ring-tars-accent/40'
-                  : 'bg-tars-surface/50 hover:bg-tars-surface'
+                  ? 'border-black/[0.25] dark:border-white/[0.30] bg-white dark:bg-[#1C1C1E] shadow-sm ring-1 ring-black/[0.08] dark:ring-white/[0.12]'
+                  : 'border-black/[0.08] dark:border-white/[0.08] bg-white/70 dark:bg-[#1C1C1E]/60 hover:bg-white dark:hover:bg-[#1C1C1E]'
               }`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-mono font-bold text-tars-text-primary">
+                <span className="font-mono font-bold text-black dark:text-white">
                   {inv.rule_id}
                 </span>
                 <StatusLabel
@@ -172,10 +172,10 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                   label={inv.is_breached ? 'BREACHED' : 'PASSING'}
                 />
               </div>
-              <p className="text-xs font-semibold text-tars-text-primary line-clamp-2 leading-snug">
+              <p className="text-xs font-semibold text-black dark:text-white line-clamp-2 leading-snug">
                 {inv.rule_name}
               </p>
-              <div className="mt-2.5 text-[11px] font-mono text-tars-text-tertiary truncate">
+              <div className="mt-2.5 text-[11px] font-mono text-[#8E8E93] truncate">
                 {inv.violating_file}:{inv.line_number}
               </div>
             </div>
@@ -187,9 +187,9 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: AST Finding Detail & Code Diff View (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="apple-card p-6 space-y-5">
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-6 space-y-5 shadow-sm">
             {/* View Switcher: Code Diff vs Living MADR vs Git Pre-Commit Simulator */}
-            <div className="flex items-center justify-between border-b border-tars-separator/60 pb-3">
+            <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
               <SegmentedControl
                 size="sm"
                 options={[
@@ -219,7 +219,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-tars-accent">
+                      <span className="font-mono text-xs font-bold text-[#0071E3] dark:text-[#0A84FF]">
                         {selectedRule.rule_id}
                       </span>
                       <StatusLabel
@@ -228,23 +228,23 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                         label={selectedRule.is_breached ? 'COMMIT BLOCKED' : 'PASSING'}
                       />
                     </div>
-                    <h3 className="text-base font-semibold text-tars-text-primary mt-1">
+                    <h3 className="text-base font-bold tracking-tight text-black dark:text-white mt-1">
                       {selectedRule.rule_name}
                     </h3>
                   </div>
-                  <span className="text-[11px] font-mono text-tars-text-tertiary bg-tars-surface-tertiary px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-mono text-[#8E8E93] bg-black/[0.05] dark:bg-white/[0.08] px-2 py-0.5 rounded">
                     pre-commit hook
                   </span>
                 </div>
 
                 {/* Syntax Highlighted Code Diff Container */}
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-tars-text-secondary">
+                  <div className="flex items-center justify-between text-xs text-[#6E6E73] dark:text-[#8E8E93]">
                     <span className="font-mono font-medium">{selectedRule.violating_file}:{selectedRule.line_number}</span>
-                    <span className="text-[11px] text-tars-text-tertiary font-mono">Tree-sitter AST C-bindings</span>
+                    <span className="text-[11px] text-[#8E8E93] font-mono">Tree-sitter AST C-bindings</span>
                   </div>
 
-                  <div className="rounded-xl border border-tars-separator bg-[#1A1A1C] text-neutral-200 p-4 font-mono text-xs overflow-x-auto leading-relaxed select-text shadow-inner">
+                  <div className="rounded-[14px] border border-black/[0.12] dark:border-white/[0.14] bg-[#121214] text-neutral-200 p-4 font-mono text-xs overflow-x-auto leading-relaxed select-text shadow-inner">
                     {selectedRule.observed_code ? (
                       <pre className="space-y-1">
                         {selectedRule.observed_code.split('\n').map((line, i) => {
@@ -256,9 +256,9 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                               key={i}
                               className={`flex items-start gap-3 px-2 py-0.5 rounded ${
                                 isViolatingLine
-                                  ? 'bg-red-950/80 text-red-200 border-l-2 border-red-500 font-semibold'
+                                  ? 'bg-[#FF3B30]/[0.15] text-[#FF453A] border-l-2 border-[#FF3B30] font-semibold'
                                   : line.includes('REFACTORED')
-                                  ? 'bg-emerald-950/70 text-emerald-300 border-l-2 border-emerald-500'
+                                  ? 'bg-[#34C759]/[0.15] text-[#30D158] border-l-2 border-[#34C759]'
                                   : 'text-neutral-400'
                               }`}
                             >
@@ -278,18 +278,18 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
 
                 {/* Rationale & Suggested Refactor */}
                 <div className="space-y-3">
-                  <div className="text-xs font-semibold text-tars-text-secondary uppercase tracking-wider">
+                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                     Architectural Rationale
                   </div>
-                  <p className="text-xs sm:text-sm text-tars-text-primary leading-relaxed font-sans">
+                  <p className="text-xs sm:text-sm text-[#1D1D1F] dark:text-[#EBEBF5] leading-relaxed font-sans">
                     {selectedRule.rationale}
                   </p>
 
-                  <div className="p-4 rounded-xl border border-tars-separator bg-tars-surface-secondary/50 space-y-1.5 border-l-4 border-l-tars-accent">
-                    <div className="text-xs font-semibold text-tars-text-primary uppercase tracking-wider">
+                  <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-1.5 border-l-4 border-l-[#0071E3] dark:border-l-[#0A84FF]">
+                    <div className="text-xs font-bold text-black dark:text-white uppercase tracking-wider">
                       Deterministic Suggested Refactor
                     </div>
-                    <p className="text-xs sm:text-sm text-tars-text-primary leading-relaxed font-medium">
+                    <p className="text-xs sm:text-sm text-black dark:text-white leading-relaxed font-medium">
                       {selectedRule.suggested_refactor}
                     </p>
                   </div>
@@ -300,30 +300,30 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
             {/* TAB 2: LIVING MADR VIEWER */}
             {activeTab === 'madr' && (
               <div className="space-y-4 text-xs font-sans select-text">
-                <div className="p-4 rounded-xl border border-tars-separator bg-tars-surface-secondary/40 space-y-2">
-                  <div className="text-xs font-mono font-bold text-tars-accent">
+                <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+                  <div className="text-xs font-mono font-bold text-[#0071E3] dark:text-[#0A84FF]">
                     docs/adr/{selectedRule.adr_ref}
                   </div>
-                  <h4 className="text-sm font-semibold text-tars-text-primary">
+                  <h4 className="text-sm font-bold text-black dark:text-white">
                     MADR: {selectedRule.rule_name}
                   </h4>
-                  <div className="text-tars-text-tertiary font-mono">
+                  <div className="text-[#8E8E93] font-mono text-[11px]">
                     Status: Living • Generated by Local Qwen 8B • Hash: sha256:7f81a9
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl border border-tars-separator bg-tars-surface space-y-3 leading-relaxed">
-                  <h5 className="font-semibold text-tars-text-primary uppercase tracking-wider text-[11px]">
+                <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 leading-relaxed">
+                  <h5 className="font-bold text-black dark:text-white uppercase tracking-wider text-[11px]">
                     1. Context & Problem Statement
                   </h5>
-                  <p className="text-tars-text-secondary">
+                  <p className="text-[#3C3C43] dark:text-[#EBEBF5]">
                     Wrapping third-party network I/O within a database transaction holds row-level locks indefinitely during network latency spikes, resulting in DB pool exhaustion.
                   </p>
 
-                  <h5 className="font-semibold text-tars-text-primary uppercase tracking-wider text-[11px] pt-2">
+                  <h5 className="font-bold text-black dark:text-white uppercase tracking-wider text-[11px] pt-2">
                     2. Decision Outcome
                   </h5>
-                  <p className="text-tars-text-secondary">
+                  <p className="text-[#3C3C43] dark:text-[#EBEBF5]">
                     Chosen pattern: **Transactional Outbox Pattern**. All database state changes are committed first; an independent dispatcher reads outbox events and executes external network calls asynchronously.
                   </p>
                 </div>
@@ -334,7 +334,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
             {activeTab === 'tester' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-tars-text-primary">
+                  <span className="text-xs font-semibold text-black dark:text-white">
                     Simulate Staged Diff Inspection:
                   </span>
                   <div className="flex gap-1.5 text-xs">
@@ -342,10 +342,10 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                       <button
                         key={rule}
                         onClick={() => setTestScenario(rule)}
-                        className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                        className={`px-2.5 py-1 rounded-[8px] text-xs font-mono transition-all ${
                           testScenario === rule
-                            ? 'bg-tars-surface-tertiary text-tars-text-primary font-bold border border-tars-separator'
-                            : 'text-tars-text-secondary hover:text-tars-text-primary'
+                            ? 'bg-black text-white dark:bg-white dark:text-black font-bold shadow-xs'
+                            : 'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                         }`}
                       >
                         {rule}
@@ -354,23 +354,23 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-black text-emerald-400 font-mono text-xs p-4 space-y-1.5 select-text overflow-x-auto">
+                <div className="rounded-[14px] bg-black text-[#30D158] font-mono text-xs p-4 space-y-1.5 select-text overflow-x-auto border border-black/[0.12] dark:border-white/[0.12]">
                   <div className="text-neutral-500 font-bold">$ git commit -m "feat(payments): execute stripe charge"</div>
                   {terminalLog.map((log, i) => (
                     <div
                       key={i}
                       className={
                         log.includes('BREACH') || log.includes('ERROR')
-                          ? 'text-red-400 font-bold'
+                          ? 'text-[#FF453A] font-bold'
                           : log.includes('Violating')
-                          ? 'text-yellow-300'
-                          : 'text-emerald-400'
+                          ? 'text-[#FF9F0A]'
+                          : 'text-[#30D158]'
                       }
                     >
                       {log}
                     </div>
                   ))}
-                  <div className="text-neutral-400 pt-1">
+                  <div className="text-neutral-400 pt-1 text-[11px]">
                     Executed in 38.4ms on local Apple/x86 silicon • 0.00 KB egress.
                   </div>
                 </div>
@@ -381,43 +381,43 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
 
         {/* Right Column: System Topology & Call Graph (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="apple-card p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-tars-separator/60 pb-3">
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
               <div>
-                <h4 className="text-xs font-semibold text-tars-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu className="w-4 h-4 text-tars-accent" />
+                <h4 className="text-xs font-bold text-black dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Cpu className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
                   <span>Kùzu System Call Topology</span>
                 </h4>
-                <p className="text-[11px] text-tars-text-tertiary">
+                <p className="text-[11px] text-[#8E8E93]">
                   Embedded Graph Cypher verification
                 </p>
               </div>
             </div>
 
             {/* 2D Call Graph Canvas */}
-            <div className="rounded-xl border border-tars-separator bg-tars-surface-secondary/30 h-72 flex items-center justify-center p-2 relative overflow-hidden">
+            <div className="rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/40 h-72 flex items-center justify-center p-2 relative overflow-hidden">
               <svg className="w-full h-full" viewBox="0 0 500 240">
                 {/* Edges */}
-                <line x1="140" y1="100" x2="200" y2="60" stroke="var(--separator)" strokeWidth="1.5" />
+                <line x1="140" y1="100" x2="200" y2="60" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
                 <line
                   x1="140"
                   y1="100"
                   x2="200"
                   y2="160"
-                  stroke={!refactorApplied ? 'var(--critical-text)' : 'var(--separator)'}
+                  stroke={!refactorApplied ? '#FF453A' : 'rgba(142, 142, 147, 0.4)'}
                   strokeWidth="2"
                   strokeDasharray={!refactorApplied ? '3 3' : 'none'}
                 />
-                <line x1="300" y1="60" x2="380" y2="100" stroke="var(--separator)" strokeWidth="1.5" />
+                <line x1="300" y1="60" x2="380" y2="100" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
                 <line
                   x1="300"
                   y1="160"
                   x2="380"
                   y2="100"
-                  stroke={!refactorApplied ? 'var(--critical-text)' : 'var(--separator)'}
+                  stroke={!refactorApplied ? '#FF453A' : 'rgba(142, 142, 147, 0.4)'}
                   strokeWidth="1.5"
                 />
-                <line x1="300" y1="160" x2="380" y2="180" stroke="var(--separator)" strokeWidth="1.5" />
+                <line x1="300" y1="160" x2="380" y2="180" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
 
                 {/* Nodes */}
                 {graphNodes.map((gn) => {
@@ -433,25 +433,25 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                         width="110"
                         height="50"
                         rx="10"
-                        fill="var(--surface)"
+                        fill="currentColor"
+                        className="text-white dark:text-[#2C2C2E]"
                         stroke={
                           gn.isBreached
-                            ? 'var(--critical-text)'
+                            ? '#FF453A'
                             : isSelected
-                            ? 'var(--accent)'
-                            : 'var(--separator)'
+                            ? '#0071E3'
+                            : 'rgba(142, 142, 147, 0.3)'
                         }
                         strokeWidth={gn.isBreached || isSelected ? '2' : '1'}
-                        className="transition-all"
                       />
-                      <text x="8" y="16" fill="var(--text-tertiary)" fontSize="8.5" fontWeight="bold">
+                      <text x="8" y="16" fill="#8E8E93" fontSize="8.5" fontWeight="bold">
                         {gn.layer}
                       </text>
-                      <text x="8" y="32" fill="var(--text-primary)" fontSize="10.5" fontWeight="bold">
+                      <text x="8" y="32" fill="currentColor" className="text-black dark:text-white" fontSize="10.5" fontWeight="bold">
                         {gn.name.length > 14 ? gn.name.slice(0, 14) + '..' : gn.name}
                       </text>
                       {gn.isBreached && (
-                        <circle cx="98" cy="14" r="3.5" fill="var(--critical-text)" />
+                        <circle cx="98" cy="14" r="3.5" fill="#FF453A" />
                       )}
                     </g>
                   );
@@ -460,18 +460,18 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
             </div>
 
             {/* Graph Node Inspector */}
-            <div className="p-3.5 rounded-xl border border-tars-separator bg-tars-surface-secondary/40 text-xs space-y-1">
+            <div className="p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 text-xs space-y-1">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-tars-text-primary">
+                <span className="font-semibold text-black dark:text-white">
                   Selected Node: {graphNodes.find((n) => n.id === selectedGraphNode)?.name}
                 </span>
                 {graphNodes.find((n) => n.id === selectedGraphNode)?.isBreached && (
-                  <span className="text-[10px] text-tars-critical-text font-bold uppercase font-mono">
+                  <span className="text-[10px] text-[#C0392B] dark:text-[#FF453A] font-bold uppercase font-mono">
                     Breach Detected
                   </span>
                 )}
               </div>
-              <p className="text-tars-text-secondary text-[11px] leading-relaxed">
+              <p className="text-[#6E6E73] dark:text-[#8E8E93] text-[11px] leading-relaxed">
                 {selectedGraphNode === 'payments' && !refactorApplied
                   ? "Direct call to external Stripe API inside transaction boundary violates INV-017."
                   : "All ingress and egress edges adhere to Hexagonal layer isolation invariants."}
