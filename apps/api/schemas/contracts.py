@@ -1,11 +1,7 @@
 # apps/api/schemas/contracts.py
-"""
-TARS: Contract-First Frozen Schemas
-Shared contract definitions for all 4 tracks. Frozen across all contributors.
-"""
-from typing import List, Optional
+"""Frozen Contract Boundary for TARS Monorepo (Version 2.0.0)."""
 from pydantic import BaseModel, Field
-
+from typing import List, Optional, Dict, Any
 
 # ==========================================
 # WORKSPACE 1: UNIVERSAL KNOWLEDGE BASE
@@ -15,20 +11,17 @@ class SearchRequest(BaseModel):
     department: Optional[str] = "ALL"
     clearance: str = "ALL_TEAM"
 
-
 class SearchCitation(BaseModel):
     doc_id: str
     doc_title: str
     page_number: int
     snippet: str
 
-
 class SearchResponse(BaseModel):
     query: str
     answer: str
     citations: List[SearchCitation]
     latency_ms: float
-
 
 # ==========================================
 # WORKSPACE 2: CLIENT CALL STUDIO
@@ -43,7 +36,6 @@ class VoiceToSpecResponse(BaseModel):
     commitments: List[str]
     audio_duration_seconds: float
 
-
 # ==========================================
 # WORKSPACE 4 & 5: DECISIONS & SIMULATION
 # ==========================================
@@ -56,19 +48,16 @@ class DecisionItem(BaseModel):
     timestamp: int
     clearance: str = "ALL_TEAM"
 
-
 class ContradictionCheckResponse(BaseModel):
     has_conflict: bool
     severity: str  # STRICT, BALANCED, RELAXED
     conflicting_decision_id: Optional[str] = None
     explanation: Optional[str] = None
 
-
 class SimulationRequest(BaseModel):
     proposal: str
-    delay_days: int
-    reallocated_devs: int
-
+    delay_days: int = 0
+    reallocated_devs: int = 0
 
 class SimulationResponse(BaseModel):
     runway_impact_months: float
@@ -76,7 +65,6 @@ class SimulationResponse(BaseModel):
     affected_client_promises: List[str]
     affected_code_modules: List[str]
     executive_synthesis: str
-
 
 # ==========================================
 # WORKSPACE 6: TECH & CODE INVARIANTS
@@ -91,16 +79,25 @@ class InvariantCheckResult(BaseModel):
     adr_ref: str
     suggested_refactor: str
 
-
 # ==========================================
-# UNIFIED ACTION HUB
+# UNIFIED ACTION HUB (FULL CRUD DTO)
 # ==========================================
 class ActionItemDTO(BaseModel):
     id: str
-    description: str
-    owner: str
+    title: str
+    description: Optional[str] = None
+    owner: str = "Unassigned"
+    department: str = "General"
+    priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
     deadline: Optional[int] = None
-    status: str = "OPEN"  # OPEN, IN_PROGRESS, DONE
-    source_type: str  # CALL, DECISION, CHAT
+    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE
+    source_type: str          # CLIENT_CALL, DECISION, THINK_TANK
     source_id: str
-    source_offset: str
+    source_offset: Optional[str] = None
+
+# ==========================================
+# MCP INTERNAL LOOPBACK DISPATCH
+# ==========================================
+class MCPToolInvocation(BaseModel):
+    tool: str
+    args: Dict[str, Any] = Field(default_factory=dict)

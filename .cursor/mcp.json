@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "tars-cortex": {
+      "command": "python",
+      "args": [
+        "apps/api/cortex/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "TARS_GATEWAY_URL": "http://127.0.0.1:7777"
+      }
+    }
+  }
+}
