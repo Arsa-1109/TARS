@@ -74,6 +74,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.agents
 
 # Markdown Rule: Ignore all markdown files except README.md
 *.md

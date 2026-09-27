@@ -1,9 +1,12 @@
 # apps/api/ingestion/routes.py
 """
-Track 3: Ingestion & Audio Intelligence API Router
-Exposes endpoints for mobile voice memos, ambient drop folder inspection,
-multi-format document ingestion, and the Unified Action Hub CRUD operations.
-Implements specifications from SDD Section 4.3 & 7.1.
+Track 3: Ingestion & Audio Intelligence API Router (TARS v2.0.0)
+Exposes endpoints for:
+- Multi-format document ingestion & Excel table flattening (MarkitdownParser)
+- Ambient drop folder watcher & real-time events (AmbientDropWatcher)
+- CPU-pinned speech-to-text transcription (WhisperTranscriber - Patch P-03)
+- Sub-second Voice-to-Spec 4-part extraction with XML framing (VoiceToSpecExtractor - Patch P-08, P-06)
+- Institutional memory & temporal graph traversal (KuzuGraphEngine - SDD 3.1)
 """
 import os
 import shutil
@@ -14,34 +17,17 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, sta
 from pydantic import BaseModel
 
 from apps.api.schemas.contracts import VoiceToSpecResponse, ActionItemDTO
-from apps.api.ingestion.action_hub import action_hub_repo
-from apps.api.ingestion.whisper_worker import whisper_worker, WhisperTask
-from apps.api.ingestion.voice_to_spec import voice_to_spec
+from apps.api.ingestion.markitdown_parser import markitdown_parser
+from apps.api.ingestion.whisper_transcriber import whisper_transcriber, WhisperTask
+from apps.api.ingestion.spec_extractor import spec_extractor
 from apps.api.ingestion.drop_watcher import drop_watcher
-from apps.api.ingestion.doc_ingester import doc_ingester
+from apps.api.ingestion.kuzu_sync import kuzu_sync
+from apps.api.ingestion.action_hub import action_hub_repo
 
 router = APIRouter()
 
 UPLOAD_DIR = os.path.abspath(os.path.join(os.getcwd(), "drop"))
-
-
-# Automatic hook: extract 4-part spec upon transcription completion
-def _auto_spec_callback(task: WhisperTask):
-    if task.transcript:
-        try:
-            spec = voice_to_spec.extract_spec(
-                transcript=task.transcript,
-                call_id=task.task_id.replace("WSP-", "CALL-"),
-                client_name=task.client_name,
-                audio_duration=task.duration_seconds,
-                auto_create_action_items=True,
-            )
-            task.spec_result = spec.model_dump()
-        except Exception as err:
-            task.error = f"Spec extraction error: {err}"
-
-
-whisper_worker.on_complete_callback = _auto_spec_callback
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ============================================================
@@ -49,13 +35,14 @@ whisper_worker.on_complete_callback = _auto_spec_callback
 # ============================================================
 @router.get("/status")
 def get_ingestion_status():
-    """Returns the live status of the drop folder watcher, Whisper worker, and ingested docs."""
+    """Returns the live status of the drop folder watcher, Whisper worker, Markitdown and Kùzu graph."""
     return {
         "status": "online",
         "track": "Track 3: Ingestion & Audio Intelligence",
         "watcher": drop_watcher.get_status(),
-        "whisper": whisper_worker.get_stats(),
-        "ingested_docs_count": len(doc_ingester.ingested_hashes),
+        "whisper": whisper_transcriber.get_stats(),
+        "graph": kuzu_sync.get_stats(),
+        "ingested_docs_count": len(markitdown_parser.ingested_hashes),
     }
 
 
@@ -78,132 +65,230 @@ def start_watcher():
 @router.post("/watcher/scan")
 def trigger_folder_scan():
     """Triggers an immediate scan over files currently sitting in the drop directory."""
-    drop_watcher.scan_existing()
-    return {"message": "Drop folder scanned", "status": drop_watcher.get_status()}
-
-
-# ============================================================
-# 2. AUDIO UPLOAD & MEMO INGESTION (SDD 7.1 /api/calls/transcribe)
-# ============================================================
-class MemoUploadResponse(BaseModel):
-    task_id: str
-    filename: str
-    status: str
-    message: str
-
-
-@router.post("/memo", response_model=MemoUploadResponse, status_code=status.HTTP_202_ACCEPTED)
-@router.post("/calls/transcribe", response_model=MemoUploadResponse, status_code=status.HTTP_202_ACCEPTED)
-async def upload_memo(
-    file: UploadFile = File(...),
-    client_name: str = Form("Client Call"),
-):
-    """
-    Direct audio upload endpoint for mobile memos or client call recordings (SDD 7.1).
-    Saves file to local drop directory and dispatches non-blocking Whisper transcription.
-    """
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    file_ext = os.path.splitext(file.filename or "")[1] or ".wav"
-    safe_filename = f"call_{uuid.uuid4().hex[:8]}{file_ext}"
-    dest_path = os.path.join(UPLOAD_DIR, safe_filename)
-
-    with open(dest_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    task_id = whisper_worker.enqueue(file_path=dest_path, client_name=client_name)
-
-    return MemoUploadResponse(
-        task_id=task_id,
-        filename=file.filename or safe_filename,
-        status="QUEUED",
-        message="Voice memo enqueued for background transcription and 4-part spec extraction.",
-    )
-
-
-@router.get("/tasks/{task_id}")
-def get_transcription_task(task_id: str):
-    """Retrieves the status, transcript, and extracted specification of an audio task."""
-    task = whisper_worker.get_task(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail=f"Task {task_id} not found.")
-
+    scanned_count = drop_watcher.scan_existing()
     return {
-        "task_id": task.task_id,
-        "client_name": task.client_name,
-        "status": task.status,
-        "duration_seconds": task.duration_seconds,
-        "transcript": task.transcript,
-        "spec_result": task.spec_result,
-        "error": task.error,
-        "created_at": task.created_at,
-        "completed_at": task.completed_at,
+        "message": f"Drop folder scan complete. {scanned_count} files processed.",
+        "status": drop_watcher.get_status(),
     }
 
 
 # ============================================================
-# 3. MULTI-FORMAT DOCUMENT INGESTION (SDD 2.2 & 7.1)
+# 2. DOCUMENT INGESTION & EXCEL FLATTENING (Markitdown)
 # ============================================================
-@router.post("/upload")
-@router.post("/ingest/upload")
+class DocumentIngestResponse(BaseModel):
+    doc_id: str
+    filename: str
+    file_hash: str
+    department: str
+    format: str
+    file_size_bytes: int
+    page_count: int
+    table_count: int
+    character_count: int
+    preview: str
+
+
+@router.post("/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/documents/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
     department: str = Form("GENERAL"),
+    clearance: str = Form("ALL_TEAM"),
 ):
     """
-    Direct multipart document upload endpoint for PDFs, Word docs, CSVs, and markdown (SDD 7.1).
-    Validates SHA-256 hash and extracts plain text.
+    Uploads and parses a document (.pdf, .docx, .xlsx, .pptx, .csv, .json, .txt, .md).
+    Flattens multi-sheet spreadsheets into semantic Markdown tables.
+    Registers document into the Kùzu graph database.
     """
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    safe_filename = f"doc_{uuid.uuid4().hex[:8]}_{file.filename}"
-    dest_path = os.path.join(UPLOAD_DIR, safe_filename)
+    safe_filename = os.path.basename(file.filename or f"upload_{uuid.uuid4().hex[:6]}.bin")
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
-    with open(dest_path, "wb") as buffer:
+    with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    doc_record = doc_ingester.ingest_document(dest_path, department=department)
+    try:
+        doc_record = markitdown_parser.parse_file(
+            file_path=file_path,
+            department=department,
+            clearance=clearance,
+        )
+
+        # Synchronize to Kùzu graph
+        kuzu_sync.sync_document(
+            doc_id=doc_record["doc_id"],
+            title=safe_filename,
+            department=department,
+            clearance=clearance,
+        )
+
+        preview = doc_record["content"][:400] + ("..." if len(doc_record["content"]) > 400 else "")
+
+        return DocumentIngestResponse(
+            doc_id=doc_record["doc_id"],
+            filename=doc_record["filename"],
+            file_hash=doc_record["file_hash"],
+            department=doc_record["department"],
+            format=doc_record["format"],
+            file_size_bytes=doc_record["file_size_bytes"],
+            page_count=doc_record["page_count"],
+            table_count=doc_record["table_count"],
+            character_count=doc_record["character_count"],
+            preview=preview,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Document parsing failed: {e}")
+
+
+@router.get("/documents")
+def list_ingested_documents():
+    """Lists all documents processed by Markitdown in this session."""
     return {
-        "status": "INGESTED",
-        "doc_id": doc_record["doc_id"],
-        "filename": doc_record["filename"],
-        "file_hash": doc_record["file_hash"],
-        "department": doc_record["department"],
-        "page_count": doc_record["page_count"],
-        "character_count": doc_record["character_count"],
+        "documents": list(markitdown_parser.ingested_hashes.values()),
+        "total": len(markitdown_parser.ingested_hashes),
     }
 
 
 # ============================================================
-# 4. VOICE-TO-SPEC EXTRACTION
+# 3. AUDIO TRANSCRIPTION & CLIENT CALL STUDIO (SDD 7.1)
+# ============================================================
+class AudioUploadResponse(BaseModel):
+    task_id: str
+    filename: str
+    status: str
+    client_name: str
+    message: str
+
+
+@router.post("/memo", response_model=AudioUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/calls/transcribe", response_model=AudioUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+async def upload_audio_memo(
+    file: UploadFile = File(...),
+    client_name: str = Form("Enterprise Client"),
+):
+    """
+    Receives call audio or transcript file (.wav, .mp3, .m4a, .vtt, .srt) and enqueues
+    for CPU Faster-Whisper transcription (Patch P-03, 0.00 MB VRAM).
+    """
+    safe_filename = os.path.basename(file.filename or f"call_{uuid.uuid4().hex[:6]}.wav")
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    task_id = whisper_transcriber.enqueue(file_path, client_name=client_name)
+
+    return AudioUploadResponse(
+        task_id=task_id,
+        filename=safe_filename,
+        status="QUEUED",
+        client_name=client_name,
+        message=f"Audio enqueued for CPU transcription task {task_id}",
+    )
+
+
+@router.get("/calls/{task_id}")
+def get_call_task_status(task_id: str):
+    """Retrieves transcription progress and auto-extracted 4-part Voice-to-Spec payload."""
+    task = whisper_transcriber.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Audio task '{task_id}' not found.")
+    return task.to_dict()
+
+
+@router.get("/calls")
+def list_call_tasks():
+    """Lists all queued, processing, and completed audio calls."""
+    tasks = whisper_transcriber.list_tasks()
+    return {
+        "calls": [t.to_dict() for t in tasks],
+        "total": len(tasks),
+    }
+
+
+# ============================================================
+# 4. SUB-SECOND VOICE-TO-SPEC EXTRACTION (Patch P-08, P-06)
 # ============================================================
 class ExtractSpecRequest(BaseModel):
     transcript: str
     client_name: Optional[str] = "Acme Corp"
     call_id: Optional[str] = None
     audio_duration_seconds: Optional[float] = 180.0
-    auto_create_action_items: Optional[bool] = True
+    sync_to_graph: Optional[bool] = True
 
 
 @router.post("/extract-spec", response_model=VoiceToSpecResponse)
-def extract_spec(payload: ExtractSpecRequest):
+@router.post("/spec/extract", response_model=VoiceToSpecResponse)
+def extract_spec_endpoint(payload: ExtractSpecRequest):
     """
-    Extracts the 4-part specification (Summary, Pain Points, Feature Requests, Commitments)
-    from raw conversation text and syncs commitments into the Unified Action Hub.
+    Directly extracts the 4-part specification from text transcript using qwen3:1.7b and XML framing.
+    Synchronizes ClientCall and ActionItem entities into the Kùzu graph.
     """
     if not payload.transcript.strip():
         raise HTTPException(status_code=400, detail="Transcript text cannot be empty.")
 
-    spec = voice_to_spec.extract_spec(
+    spec = spec_extractor.extract_spec(
         transcript=payload.transcript,
         call_id=payload.call_id,
         client_name=payload.client_name or "Acme Corp",
         audio_duration=payload.audio_duration_seconds or 180.0,
-        auto_create_action_items=payload.auto_create_action_items if payload.auto_create_action_items is not None else True,
+        sync_to_graph=payload.sync_to_graph if payload.sync_to_graph is not None else True,
     )
     return spec
 
 
 # ============================================================
-# 5. UNIFIED ACTION HUB CRUD (SDD 7.1 /api/actions/list)
+# 5. KÙZU GRAPH INSTITUTIONAL MEMORY & SUPERSEDES TRAVERSAL
+# ============================================================
+@router.get("/graph/stats")
+def get_graph_stats():
+    """Returns node and relationship statistics from Kùzu columnar graph database."""
+    return kuzu_sync.get_stats()
+
+
+class SyncDecisionRequest(BaseModel):
+    decision_id: str
+    title: str
+    category: Optional[str] = "ARCHITECTURE"
+    status: Optional[str] = "ACTIVE"
+    context: Optional[str] = ""
+    chosen_option: Optional[str] = ""
+    supersedes_id: Optional[str] = None
+    supersedes_reason: Optional[str] = None
+
+
+@router.post("/graph/sync/decision")
+def sync_decision_node(req: SyncDecisionRequest):
+    """Inserts a decision and optionally forms a temporal [:SUPERSEDES] edge."""
+    success = kuzu_sync.sync_decision(
+        decision_id=req.decision_id,
+        title=req.title,
+        category=req.category or "ARCHITECTURE",
+        status=req.status or "ACTIVE",
+        context=req.context or "",
+        chosen_option=req.chosen_option or "",
+        supersedes_id=req.supersedes_id,
+        supersedes_reason=req.supersedes_reason,
+    )
+    return {
+        "status": "success" if success else "failed",
+        "decision_id": req.decision_id,
+        "supersedes_id": req.supersedes_id,
+    }
+
+
+@router.get("/graph/superseded/{decision_id}")
+def get_superseded_chain(decision_id: str):
+    """Traverses temporal [:SUPERSEDES*] chain to trace decision history."""
+    chain = kuzu_sync.get_superseded_chain(decision_id)
+    return {
+        "decision_id": decision_id,
+        "superseded_chain": chain,
+        "chain_length": len(chain),
+    }
+
+
+# ============================================================
+# 6. UNIFIED ACTION HUB COMPATIBILITY ENDPOINTS (SDD 7.1)
 # ============================================================
 @router.get("/action-items", response_model=List[ActionItemDTO])
 @router.get("/actions/list", response_model=List[ActionItemDTO])
@@ -212,19 +297,16 @@ def list_action_items(
     owner: Optional[str] = Query(None, description="Filter by owner"),
     source_type: Optional[str] = Query(None, description="Filter by source: CALL, DECISION, CHAT"),
 ):
-    """Lists all action items from the Unified Action Hub database (SDD 7.1)."""
     return action_hub_repo.list_items(status=status, owner=owner, source_type=source_type)
 
 
 @router.post("/action-items", response_model=ActionItemDTO, status_code=status.HTTP_201_CREATED)
 def create_action_item(item: ActionItemDTO):
-    """Manually creates a new action item in the Unified Action Hub."""
     return action_hub_repo.create(item)
 
 
 @router.get("/action-items/{item_id}", response_model=ActionItemDTO)
 def get_action_item(item_id: str):
-    """Retrieves an individual action item by ID."""
     item = action_hub_repo.get_by_id(item_id)
     if not item:
         raise HTTPException(status_code=404, detail=f"Action item {item_id} not found.")
@@ -243,7 +325,6 @@ class UpdateActionItemRequest(BaseModel):
 
 @router.patch("/action-items/{item_id}", response_model=ActionItemDTO)
 def update_action_item(item_id: str, updates: UpdateActionItemRequest):
-    """Updates status or details of an existing action item."""
     updated = action_hub_repo.update(item_id, updates.model_dump(exclude_unset=True))
     if not updated:
         raise HTTPException(status_code=404, detail=f"Action item {item_id} not found.")
@@ -252,7 +333,6 @@ def update_action_item(item_id: str, updates: UpdateActionItemRequest):
 
 @router.delete("/action-items/{item_id}")
 def delete_action_item(item_id: str):
-    """Deletes an action item by ID."""
     deleted = action_hub_repo.delete(item_id)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Action item {item_id} not found.")

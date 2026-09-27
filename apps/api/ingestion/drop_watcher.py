@@ -3,7 +3,8 @@
 Track 3: Ambient Drop Folder Watcher (SDD Section 4.3)
 Monitors `./drop/` or SMB network share using watchdog for spontaneous document and audio capture.
 Computes SHA-256 hashes to guarantee zero-duplicate ingestion.
-Automatically queues audio to WhisperWorker and document files to the DocIngester pipeline.
+Dispatches office files to MarkitdownParser, audio files to WhisperTranscriber,
+and registers entities in the embedded Kùzu graph database.
 """
 import hashlib
 import logging
@@ -23,16 +24,43 @@ try:
 except ImportError:
     _WATCHDOG_AVAILABLE = False
 
-from apps.api.ingestion.whisper_worker import whisper_worker
-from apps.api.ingestion.doc_ingester import doc_ingester
+from apps.api.ingestion.whisper_transcriber import whisper_transcriber, WhisperTask
+from apps.api.ingestion.markitdown_parser import markitdown_parser
+from apps.api.ingestion.spec_extractor import spec_extractor
+from apps.api.ingestion.kuzu_sync import kuzu_sync
 
 DEFAULT_DROP_DIR = os.path.abspath(os.path.join(os.getcwd(), "drop"))
-AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac", ".wma"}
-DOC_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".csv", ".json"}
+AUDIO_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aac", ".wma", ".vtt", ".srt"}
+DOC_EXTENSIONS = {".pdf", ".txt", ".md", ".docx", ".doc", ".csv", ".json", ".xlsx", ".xls", ".xlsm", ".pptx", ".ppt"}
+
+
+# Completion hook: automatically trigger sub-second spec extraction upon transcription
+def _ambient_transcription_hook(task: WhisperTask):
+    if task.transcript:
+        try:
+            logger.info(f"Triggering Voice-to-Spec extraction for completed audio task {task.task_id}...")
+            spec = spec_extractor.extract_spec(
+                transcript=task.transcript,
+                call_id=task.task_id.replace("WSP-", "CALL-"),
+                client_name=task.client_name,
+                audio_duration=task.duration_seconds,
+                audio_path=task.file_path,
+                sync_to_graph=True,
+            )
+            task.spec_result = spec.model_dump()
+            logger.info(f"Spec successfully generated for {task.task_id}: sentiment={spec.sentiment}")
+        except Exception as err:
+            logger.error(f"Spec extraction error on task {task.task_id}: {err}", exc_info=True)
+            task.error = f"Spec extraction error: {err}"
+
+
+# Register hook with transcriber
+whisper_transcriber.on_complete_callback = _ambient_transcription_hook
 
 
 class DropFileHandler:
     """Handles newly arrived files in the ambient drop folder with SHA-256 deduplication."""
+
     def __init__(self, on_event_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         self.on_event_callback = on_event_callback
         self.processed_hashes: Dict[str, Dict[str, Any]] = {}
@@ -84,7 +112,7 @@ class DropFileHandler:
         if ext in AUDIO_EXTENSIONS:
             record["type"] = "AUDIO"
             record["status"] = "QUEUED_FOR_TRANSCRIPTION"
-            task_id = whisper_worker.enqueue(file_path, client_name=f"Drop: {filename}")
+            task_id = whisper_transcriber.enqueue(file_path, client_name=f"Drop: {filename}")
             record["task_id"] = task_id
             logger.info(f"Queued audio drop file '{filename}' as task {task_id}")
             self._notify({"event": "AUDIO_QUEUED", "filename": filename, "task_id": task_id, "hash": file_hash})
@@ -92,14 +120,31 @@ class DropFileHandler:
         elif ext in DOC_EXTENSIONS:
             record["type"] = "DOCUMENT"
             try:
-                doc_record = doc_ingester.ingest_document(file_path)
+                doc_record = markitdown_parser.parse_file(file_path)
                 record["status"] = "INGESTED"
                 record["doc_id"] = doc_record["doc_id"]
-                logger.info(f"Ingested document '{filename}' as {doc_record['doc_id']}")
-                self._notify({"event": "DOCUMENT_INGESTED", "filename": filename, "doc_id": doc_record["doc_id"], "hash": file_hash})
+                record["tables_extracted"] = doc_record.get("table_count", 0)
+
+                # Sync to Kùzu graph database
+                kuzu_sync.sync_document(
+                    doc_id=doc_record["doc_id"],
+                    title=filename,
+                    department=doc_record.get("department", "GENERAL"),
+                    clearance=doc_record.get("clearance", "ALL_TEAM"),
+                )
+
+                logger.info(f"Ingested document '{filename}' as {doc_record['doc_id']} into Markitdown & Kùzu")
+                self._notify({
+                    "event": "DOCUMENT_INGESTED",
+                    "filename": filename,
+                    "doc_id": doc_record["doc_id"],
+                    "hash": file_hash,
+                    "tables": doc_record.get("table_count", 0),
+                })
             except Exception as doc_err:
                 record["status"] = "EXTRACTION_FAILED"
                 record["error"] = str(doc_err)
+                logger.error(f"Failed to ingest drop document '{filename}': {doc_err}", exc_info=True)
 
         self.processed_hashes[file_hash] = record
         self.processed_files[file_path] = record
@@ -181,50 +226,51 @@ class AmbientDropWatcher:
     def stop(self):
         self._stop_event.set()
         if self._observer:
-            self._observer.stop()
-            self._observer.join(timeout=1.0)
+            try:
+                self._observer.stop()
+                self._observer.join(timeout=2.0)
+            except Exception:
+                pass
             self._observer = None
+
         if self._poll_thread and self._poll_thread.is_alive():
-            self._poll_thread.join(timeout=1.0)
+            self._poll_thread.join(timeout=2.0)
             self._poll_thread = None
+
         self.is_running = False
         logger.info("Ambient drop watcher stopped.")
 
-    def _poll_loop(self):
-        seen_files = set()
-        while not self._stop_event.is_set():
-            try:
-                if os.path.exists(self.drop_dir):
-                    current_files = set(os.listdir(self.drop_dir))
-                    new_files = current_files - seen_files
-                    for name in new_files:
-                        full_path = os.path.join(self.drop_dir, name)
-                        if os.path.isfile(full_path):
-                            self.handler.process_file(full_path)
-                    seen_files = current_files
-            except Exception as err:
-                logger.error(f"Error in drop poll loop: {err}")
-            time.sleep(1.0)
-
-    def scan_existing(self):
-        """Immediately ingest any existing files present in the drop directory."""
+    def scan_existing(self) -> int:
+        """Manually trigger scan of all current files in the drop directory."""
         if not os.path.exists(self.drop_dir):
-            return
-        for name in os.listdir(self.drop_dir):
-            full_path = os.path.join(self.drop_dir, name)
-            if os.path.isfile(full_path) and not name.startswith("."):
-                self.handler.process_file(full_path)
+            return 0
+
+        count = 0
+        for entry in os.listdir(self.drop_dir):
+            full_path = os.path.join(self.drop_dir, entry)
+            if os.path.isfile(full_path):
+                rec = self.handler.process_file(full_path)
+                if rec:
+                    count += 1
+        return count
 
     def get_status(self) -> Dict[str, Any]:
         return {
-            "drop_directory": self.drop_dir,
             "is_running": self.is_running,
-            "watchdog_available": _WATCHDOG_AVAILABLE,
-            "unique_hashes_count": len(self.handler.processed_hashes),
-            "processed_file_count": len(self.handler.processed_files),
-            "recent_events": self.recent_events[-10:],
+            "drop_directory": self.drop_dir,
+            "engine": "watchdog" if self._observer else "polling",
+            "files_processed_count": len(self.handler.processed_hashes),
+            "recent_events_count": len(self.recent_events),
         }
 
+    def _poll_loop(self):
+        while not self._stop_event.is_set():
+            try:
+                self.scan_existing()
+            except Exception as e:
+                logger.debug(f"Error during drop folder poll: {e}")
+            time.sleep(2.0)
 
-# Global singleton watcher instance
+
+# Global singleton instance
 drop_watcher = AmbientDropWatcher()
