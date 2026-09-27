@@ -32,21 +32,31 @@ def health_check():
     }
 
 
-# Modular Track Routers will be mounted dynamically or when imported
+# Modular Track Routers mounted dynamically
 try:
     from apps.api.ingestion.routes import router as ingestion_router
     app.include_router(ingestion_router, prefix="/api/ingestion", tags=["Track 3: Ingestion"])
-except ImportError:
-    pass
+except ImportError as e:
+    print(f"Warning: Ingestion router not mounted: {e}")
 
 try:
     from apps.api.core.routes import router as core_router
     app.include_router(core_router, prefix="/api/core", tags=["Track 1: Core"])
-except ImportError:
-    pass
+except ImportError as e:
+    print(f"Warning: Core router not mounted: {e}")
 
 try:
-    from apps.api.cortex.routes import router as cortex_router
-    app.include_router(cortex_router, prefix="/api/cortex", tags=["Track 2: Cortex"])
+    from apps.api.cortex.routes import router as cortex_router, mcp_router
+    app.include_router(cortex_router)
+    app.include_router(mcp_router)
+except ImportError as e:
+    print(f"Warning: Cortex router not mounted: {e}")
+
+try:
+    from apps.api.core.events.models import Event
+    from apps.api.core.orchestrator import orchestrator, OrchestrationResult
+    @app.post("/events", response_model=OrchestrationResult, tags=["Gateway Events"])
+    async def process_event(event: Event):
+        return await orchestrator.process_event(event)
 except ImportError:
     pass

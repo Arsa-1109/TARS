@@ -31,11 +31,16 @@ class SearchResponse(BaseModel):
 # ==========================================
 class VoiceToSpecResponse(BaseModel):
     call_id: str
-    action_items: List[str]
-    detected_constraints: List[str]
-    scope_creeping_warnings: List[str]
-    commitments: List[str]
-    audio_duration_seconds: float
+    client_name: str = "Enterprise Client"
+    sentiment: str = "NEUTRAL"
+    summary: str = "Call summary pending."
+    pain_points: List[str] = Field(default_factory=list)
+    feature_requests: List[str] = Field(default_factory=list)
+    commitments: List[str] = Field(default_factory=list)
+    audio_duration_seconds: float = 0.0
+    action_items: List[str] = Field(default_factory=list)
+    detected_constraints: List[str] = Field(default_factory=list)
+    scope_creeping_warnings: List[str] = Field(default_factory=list)
 
 # ==========================================
 # WORKSPACE 4 & 5: DECISIONS & SIMULATION
@@ -43,10 +48,17 @@ class VoiceToSpecResponse(BaseModel):
 class DecisionItem(BaseModel):
     id: str
     title: str
-    rationale: str
-    department: str
+    category: str = "ENGINEERING"
+    context: str = ""
+    chosen_option: str = ""
+    rationale: Optional[str] = None
+    department: Optional[str] = None
     timestamp: int
     clearance: str = "ALL_TEAM"
+    lifecycle_status: Optional[str] = "ACTIVE"
+    superseded_by: Optional[str] = None
+    drivers: List[str] = Field(default_factory=list)
+    options_considered: List[str] = Field(default_factory=list)
 
 class ContradictionCheckResponse(BaseModel):
     has_conflict: bool
@@ -62,36 +74,42 @@ class SimulationRequest(BaseModel):
 class SimulationResponse(BaseModel):
     runway_impact_months: float
     delivery_delay_weeks: float
-    risk_score: float
-    affected_code_modules: List[str]
-    executive_synthesis: str
+    risk_score: Optional[float] = 0.0
+    affected_client_promises: List[str] = Field(default_factory=list)
+    affected_code_modules: List[str] = Field(default_factory=list)
+    executive_synthesis: str = ""
 
 # ==========================================
 # WORKSPACE 6: TECH & CODE INVARIANTS
 # ==========================================
 class InvariantCheckResult(BaseModel):
-    file_path: str
-    invariant_id: str
-    line_number: int
-    rationale: str
-    adr_ref: str
-    suggested_refactor: str
+    is_breached: bool = True
+    rule_id: str = ""
+    rule_name: str = ""
+    violating_file: str = ""
+    line_number: int = 0
+    rationale: str = ""
+    adr_ref: str = ""
+    suggested_refactor: str = ""
+    file_path: Optional[str] = None
+    invariant_id: Optional[str] = None
+    observed_code: Optional[str] = None
 
 # ==========================================
 # UNIFIED ACTION HUB
 # ==========================================
 class ActionItemDTO(BaseModel):
     id: str
+    description: str = ""
     title: Optional[str] = None
-    description: Optional[str] = None
     owner: str = "Unassigned"
     assignee: Optional[str] = None
     department: Optional[str] = "General"
     priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
     deadline: Optional[int] = None
     status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED
-    source_type: str          # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT
-    source_id: str
+    source_type: str = "CALL" # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT, ARCHITECTURE
+    source_id: str = ""
     source_offset: Optional[str] = None
 
 # ==========================================
