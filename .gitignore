@@ -137,3 +137,8 @@ scripts/validate-*
 **/*.md
 !**/README.md
 !**/readme.md
+
+# PDF Rule: Ignore all PDF files
+*.pdf
+**/*.pdf
+
