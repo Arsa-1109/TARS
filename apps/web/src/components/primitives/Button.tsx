@@ -24,11 +24,11 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
   const base =
     'inline-flex items-center justify-center font-medium transition-all duration-150 ' +
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tars-accent/40 ' +
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]/40 dark:focus-visible:ring-[#0A84FF]/40 ' +
     'disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.98]';
 
   const sizes = {
-    xs: 'text-[11px] px-2 py-1 h-7 gap-1 rounded-lg',
+    xs: 'text-[11px] px-2.5 py-1 h-7 gap-1 rounded-lg',
     sm: 'text-xs px-3 py-1.5 h-8 gap-1.5 rounded-[10px]',
     md: 'text-sm px-4 py-2 h-9 gap-2 rounded-[12px]',
     lg: 'text-sm px-5 py-2.5 h-11 gap-2 rounded-[14px]',
@@ -36,17 +36,17 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variants = {
     primary:
-      'bg-tars-text-primary text-tars-canvas hover:opacity-90 shadow-subtle',
+      'bg-black text-white hover:bg-[#1C1C1E] dark:bg-white dark:text-black dark:hover:bg-[#E5E5EA] shadow-sm',
     accent:
-      'bg-tars-accent text-white hover:bg-tars-accent-dark shadow-subtle',
+      'bg-[#0071E3] text-white hover:bg-[#0077ED] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] shadow-sm',
     secondary:
-      'bg-tars-surface border border-tars-separator text-tars-text-primary ' +
-      'hover:bg-tars-surface-secondary hover:border-tars-border-strong',
+      'bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.12] text-black dark:text-white ' +
+      'hover:bg-black/[0.04] dark:hover:bg-white/[0.08] shadow-xs',
     ghost:
-      'text-tars-text-secondary hover:text-tars-text-primary hover:bg-tars-surface-secondary',
+      'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]',
     destructive:
-      'border border-tars-critical-border text-tars-critical-text ' +
-      'hover:bg-tars-critical-bg',
+      'border border-[#FF3B30]/30 text-[#FF3B30] dark:text-[#FF453A] ' +
+      'hover:bg-[#FF3B30]/10',
   };
 
   return (

@@ -42,7 +42,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Talent & Operations Domain',
     tagline: 'Team onboarding, company knowledge & culture flight plans',
     allowedRoles: ['FOUNDER', 'NEW_HIRE', 'ENGINEER', 'PRODUCT', 'SALES'],
-    allowedWorkspaces: ['knowledge', 'thinktank'],
+    allowedWorkspaces: ['onboarding', 'knowledge', 'thinktank'],
     requiredClearance: 'ALL_TEAM',
   },
 };

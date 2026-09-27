@@ -293,7 +293,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                     <Button
                       variant="secondary"
                       size="sm"
-                      icon={copiedBundle ? <Check className="w-3.5 h-3.5 text-tars-success-text" /> : <Copy className="w-3.5 h-3.5" />}
+                      icon={copiedBundle ? <Check className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" /> : <Copy className="w-3.5 h-3.5" />}
                       onClick={handleCopyCitationBundle}
                     >
                       {copiedBundle ? 'Copied' : 'Export Citations'}
@@ -346,11 +346,11 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                   p.{c.page_number}
                                 </span>
                               </div>
-                              <p className="text-xs text-tars-text-secondary line-clamp-2 mt-1.5 italic leading-relaxed">
+                              <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] line-clamp-2 mt-1.5 italic leading-relaxed">
                                 "{c.snippet}"
                               </p>
                             </div>
-                            <div className="mt-2.5 pt-1.5 border-t border-tars-separator/40 flex items-center justify-between text-[11px] text-tars-accent font-medium">
+                            <div className="mt-2.5 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between text-[11px] text-[#0071E3] dark:text-[#0A84FF] font-medium">
                               <span>Inspect Source Snippet</span>
                               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                             </div>
@@ -361,7 +361,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   </div>
                 ) : (
                   <EmptyState
-                    icon={<Search className="w-5 h-5 text-tars-text-tertiary" />}
+                    icon={<Search className="w-5 h-5 text-[#8E8E93]" />}
                     title="Search company memory"
                     description="Enter a query above to retrieve exact references across contracts, meeting recordings, and strategic decisions."
                   />
@@ -383,31 +383,40 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   setDragOver(false);
                   handleFileUpload(e.dataTransfer.files);
                 }}
-                className={`p-6 rounded-2xl border-2 border-dashed text-center transition-all ${
+                className={`relative p-6 rounded-[18px] border-2 border-dashed text-center transition-all cursor-pointer ${
                   dragOver
-                    ? 'border-tars-accent bg-tars-surface-secondary scale-102'
-                    : 'border-tars-separator bg-tars-surface/50 hover:bg-tars-surface'
+                    ? 'border-[#0071E3] dark:border-[#0A84FF] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.12] scale-[1.01]'
+                    : 'border-black/[0.12] dark:border-white/[0.14] bg-white dark:bg-[#1C1C1E] hover:border-black/[0.24] dark:hover:border-white/[0.28]'
                 }`}
               >
-                <UploadCloud className="w-8 h-8 text-tars-text-tertiary mx-auto mb-2" />
-                <h4 className="text-sm font-semibold text-tars-text-primary">
-                  Drop Files Here
+                <input
+                  type="file"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
+                  onChange={(e) => handleFileUpload(e.target.files)}
+                  title="Click or drop files to ingest"
+                />
+                <div className="w-10 h-10 rounded-full bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center mx-auto mb-2 text-[#6E6E73] dark:text-[#8E8E93]">
+                  <UploadCloud className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
+                </div>
+                <h4 className="text-[14px] font-semibold text-black dark:text-white">
+                  Drop Files Here or Click to Upload
                 </h4>
-                <p className="text-xs text-tars-text-secondary mt-1 max-w-xs mx-auto leading-relaxed">
-                  Drop PDFs, Word documents, spreadsheets, or audio notes. Automatically indexed.
+                <p className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] mt-1 max-w-xs mx-auto leading-relaxed">
+                  Drop PDFs, Word documents, spreadsheets, or audio notes. Automatically indexed into local Tantivy.
                 </p>
-                <div className="mt-3 text-[11px] font-mono text-tars-text-tertiary">
-                  Local folder: ~/Documents/TARS/
+                <div className="mt-3 text-[11px] font-mono text-[#8E8E93]">
+                  0.00 KB Egress • Local SQLite Vector Store
                 </div>
               </div>
 
               {/* Indexed Documents Summary */}
               <div className="apple-card p-4 space-y-3">
-                <div className="flex items-center justify-between text-xs font-semibold text-tars-text-secondary uppercase tracking-wider">
+                <div className="flex items-center justify-between text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                   <span>Recent Documents</span>
                   <button
                     onClick={() => setActiveView('lake')}
-                    className="text-tars-accent hover:underline text-xs font-medium"
+                    className="text-[#0071E3] dark:text-[#0A84FF] hover:underline text-xs font-medium"
                   >
                     View All
                   </button>
@@ -426,18 +435,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                           content: doc.content,
                         })
                       }
-                      className="p-3 rounded-xl border border-tars-separator bg-tars-surface hover:bg-tars-surface-secondary cursor-pointer transition-colors flex items-start gap-2.5 group"
+                      className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] hover:bg-black/[0.02] dark:hover:bg-white/[0.04] cursor-pointer transition-colors flex items-start gap-2.5 group"
                     >
-                      <FileText className="w-4 h-4 text-tars-accent shrink-0 mt-0.5" />
+                      <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0 mt-0.5" />
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-tars-text-primary truncate group-hover:text-tars-accent transition-colors">
+                        <div className="font-semibold text-black dark:text-white truncate group-hover:text-[#0071E3] dark:group-hover:text-[#0A84FF] transition-colors">
                           {doc.title}
                         </div>
-                        <div className="text-[11px] text-tars-text-tertiary mt-0.5">
+                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
                           {doc.department} • {doc.type} • {doc.clearance}
                         </div>
                       </div>
-                      <Eye className="w-3.5 h-3.5 text-tars-text-tertiary group-hover:text-tars-text-primary shrink-0 mt-1" />
+                      <Eye className="w-3.5 h-3.5 text-[#8E8E93] group-hover:text-black dark:group-hover:text-white shrink-0 mt-1" />
                     </div>
                   ))}
                 </div>
@@ -449,27 +458,27 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 2: DOCUMENT LAKE BROWSER */}
       {activeView === 'lake' && (
-        <div className="apple-card p-6 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-tars-separator/60 pb-4">
+        <div className="rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-6 space-y-5 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/[0.08] dark:border-white/[0.08] pb-4">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-tars-text-primary">
+              <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
                 Company Document Lake & Ingestion Repository
               </h3>
-              <p className="text-xs text-tars-text-secondary mt-0.5">
+              <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
                 All unredacted startup IP indexed locally under sovereign encryption
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-tars-text-tertiary">
+              <span className="text-xs font-mono text-[#8E8E93]">
                 Total Files: {indexedLakeDocuments.length}
               </span>
             </div>
           </div>
 
           {/* Document Lake Table */}
-          <div className="overflow-x-auto rounded-xl border border-tars-separator">
+          <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10]">
             <table className="w-full text-left text-xs">
-              <thead className="bg-tars-surface-secondary text-tars-text-secondary font-semibold uppercase tracking-wider text-[10px] border-b border-tars-separator">
+              <thead className="bg-[#F5F5F7] dark:bg-[#2C2C2E] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px] border-b border-black/[0.08] dark:border-white/[0.08]">
                 <tr>
                   <th className="py-3 px-4">Document Title</th>
                   <th className="py-3 px-4">Department</th>
@@ -479,11 +488,11 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-tars-separator bg-tars-surface">
+              <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
                 {indexedLakeDocuments.map((doc) => (
                   <tr
                     key={doc.id}
-                    className="hover:bg-tars-surface-secondary/50 transition-colors cursor-pointer group"
+                    className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
                     onClick={() =>
                       setReaderModal({
                         open: true,
@@ -494,18 +503,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                       })
                     }
                   >
-                    <td className="py-3 px-4 font-semibold text-tars-text-primary flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-tars-accent shrink-0" />
+                    <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                       <span className="truncate max-w-xs">{doc.title}</span>
                     </td>
-                    <td className="py-3 px-4 text-tars-text-secondary">{doc.department}</td>
-                    <td className="py-3 px-4 text-tars-text-secondary font-mono">{doc.type}</td>
+                    <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{doc.department}</td>
+                    <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{doc.type}</td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-tars-surface-tertiary text-tars-text-secondary">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
                         {doc.clearance}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-tars-text-tertiary font-mono">{doc.date}</td>
+                    <td className="py-3 px-4 text-[#8E8E93] font-mono">{doc.date}</td>
                     <td className="py-3 px-4 text-right">
                       <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
                         Read
