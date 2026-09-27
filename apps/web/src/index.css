@@ -1,0 +1,276 @@
+/* Import Apple's preferred font: Inter as fallback for SF Pro */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Apple Light Mode — crisp, high-contrast white canvas */
+  --canvas: #F5F5F7;
+  --surface: #FFFFFF;
+  --surface-secondary: #F2F2F7;
+  --surface-tertiary: #E5E5EA;
+  --surface-elevated: #FFFFFF;
+  --surface-glass: rgba(255, 255, 255, 0.88);
+
+  /* Separators & Borders */
+  --separator: rgba(0, 0, 0, 0.09);
+  --separator-opaque: #E1E1E1;
+  --border-strong: rgba(0, 0, 0, 0.20);
+
+  /* Typography — maximum contrast */
+  --text-primary: #000000;
+  --text-secondary: #3C3C43;
+  --text-tertiary: #6E6E73;
+  --text-quaternary: #AEAEB2;
+
+  /* Accent — Apple System Blue */
+  --accent: #0071E3;
+  --accent-dark: #0058B4;
+  --accent-soft: rgba(0, 113, 227, 0.10);
+  --accent-soft-border: rgba(0, 113, 227, 0.20);
+
+  /* Semantic — precise Apple values */
+  --success-text: #1D8348;
+  --success-bg: rgba(52, 199, 89, 0.12);
+  --success-border: rgba(52, 199, 89, 0.25);
+  --warning-text: #B25000;
+  --warning-bg: rgba(255, 149, 0, 0.12);
+  --warning-border: rgba(255, 149, 0, 0.25);
+  --critical-text: #C0392B;
+  --critical-bg: rgba(255, 59, 48, 0.10);
+  --critical-border: rgba(255, 59, 48, 0.22);
+  --info-text: #0071E3;
+  --info-bg: rgba(0, 113, 227, 0.08);
+}
+
+.dark {
+  /* Apple Dark Mode — pure OLED black, obsidian surfaces */
+  --canvas: #000000;
+  --surface: #1C1C1E;
+  --surface-secondary: #2C2C2E;
+  --surface-tertiary: #3A3A3C;
+  --surface-elevated: #242424;
+  --surface-glass: rgba(28, 28, 30, 0.92);
+
+  /* Separators & Borders — white at low opacity */
+  --separator: rgba(255, 255, 255, 0.11);
+  --separator-opaque: #38383A;
+  --border-strong: rgba(255, 255, 255, 0.26);
+
+  /* Typography — white hierarchy */
+  --text-primary: #FFFFFF;
+  --text-secondary: #EBEBF5;
+  --text-tertiary: #8E8E93;
+  --text-quaternary: #48484A;
+
+  /* Accent — Apple System Blue (Dark) */
+  --accent: #0A84FF;
+  --accent-dark: #0065D1;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --accent-soft-border: rgba(10, 132, 255, 0.30);
+
+  /* Semantic — dark variants */
+  --success-text: #30D158;
+  --success-bg: rgba(48, 209, 88, 0.14);
+  --success-border: rgba(48, 209, 88, 0.26);
+  --warning-text: #FF9F0A;
+  --warning-bg: rgba(255, 159, 10, 0.14);
+  --warning-border: rgba(255, 159, 10, 0.26);
+  --critical-text: #FF453A;
+  --critical-bg: rgba(255, 69, 58, 0.14);
+  --critical-border: rgba(255, 69, 58, 0.26);
+  --info-text: #0A84FF;
+  --info-bg: rgba(10, 132, 255, 0.12);
+}
+
+/* ============================================================
+   BASE RESET & TYPOGRAPHY
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: var(--canvas);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
+  letter-spacing: -0.013em;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   APPLE MATERIAL SYSTEM
+   ============================================================ */
+
+/* Frosted Glass — Apple macOS vibrancy equivalent */
+.apple-glass {
+  background-color: var(--surface-glass);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Solid Surface Card — dark mode preferred over glass */
+.apple-card {
+  background-color: var(--surface);
+  border: 1px solid var(--separator);
+  border-radius: 18px;
+  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Light mode card shadow */
+.apple-card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05);
+}
+
+/* Dark mode card shadow — richer, deeper */
+.dark .apple-card {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
+}
+
+.apple-card:hover {
+  border-color: var(--border-strong);
+}
+
+/* Specular top highlight for modals */
+.apple-specular::after {
+  content: '';
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ============================================================
+   SCROLLBAR — Apple thin style
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--separator);
+  border-radius: 9999px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ============================================================
+   ANIMATION SYSTEM — Apple Spring Physics
+   ============================================================ */
+@keyframes appleModalIn {
+  0%   { opacity: 0; transform: scale(0.96) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes appleSlideUp {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes appleFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes appleSlideInRight {
+  0%   { opacity: 0; transform: translateX(24px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes subtlePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+@keyframes recordingPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); }
+  50%       { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
+}
+@keyframes waveBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+@keyframes successBounce {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.animate-apple-in    { animation: appleModalIn 0.30s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-up    { animation: appleSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in     { animation: appleFadeIn 0.20s ease both; }
+.animate-slide-right { animation: appleSlideInRight 0.30s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-subtle-pulse { animation: subtlePulse 2s ease-in-out infinite; }
+.animate-success-bounce { animation: successBounce 0.40s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+.wave-bar {
+  animation: waveBar 0.8s ease-in-out infinite;
+}
+.wave-bar:nth-child(2)  { animation-delay: 0.08s; }
+.wave-bar:nth-child(3)  { animation-delay: 0.16s; }
+.wave-bar:nth-child(4)  { animation-delay: 0.24s; }
+.wave-bar:nth-child(5)  { animation-delay: 0.32s; }
+.wave-bar:nth-child(6)  { animation-delay: 0.08s; }
+.wave-bar:nth-child(7)  { animation-delay: 0.16s; }
+.wave-bar:nth-child(8)  { animation-delay: 0.24s; }
+.wave-bar:nth-child(9)  { animation-delay: 0.32s; }
+.wave-bar:nth-child(10) { animation-delay: 0.08s; }
+
+.animate-recording-pulse { animation: recordingPulse 1.5s ease-in-out infinite; }
+
+/* ============================================================
+   UTILITY CLASSES
+   ============================================================ */
+
+/* Tabular numbers for metrics */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Safe area padding */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+
+/* Apple-style focus ring */
+.apple-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent);
+}
+
+/* Smooth transitions for theme switching */
+html {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Status badge styling */
+.status-open        { color: var(--warning-text); background: var(--warning-bg); border-color: var(--warning-border); }
+.status-in-progress { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-soft-border); }
+.status-done        { color: var(--success-text); background: var(--success-bg); border-color: var(--success-border); }
+.status-critical    { color: var(--critical-text); background: var(--critical-bg); border-color: var(--critical-border); }
+
+/* ============================================================
+   ACCESSIBILITY
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

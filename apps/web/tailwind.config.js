@@ -1,0 +1,132 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        tars: {
+          canvas: 'var(--canvas)',
+          surface: 'var(--surface)',
+          'surface-secondary': 'var(--surface-secondary)',
+          'surface-tertiary': 'var(--surface-tertiary)',
+          'surface-elevated': 'var(--surface-elevated)',
+          'surface-glass': 'var(--surface-glass)',
+          separator: 'var(--separator)',
+          'separator-opaque': 'var(--separator-opaque)',
+          'border-strong': 'var(--border-strong)',
+          'text-primary': 'var(--text-primary)',
+          'text-secondary': 'var(--text-secondary)',
+          'text-tertiary': 'var(--text-tertiary)',
+          'text-quaternary': 'var(--text-quaternary)',
+          accent: 'var(--accent)',
+          'accent-dark': 'var(--accent-dark)',
+          'accent-soft': 'var(--accent-soft)',
+          'accent-soft-border': 'var(--accent-soft-border)',
+          // Semantic
+          'success-text': 'var(--success-text)',
+          'success-bg': 'var(--success-bg)',
+          'success-border': 'var(--success-border)',
+          'warning-text': 'var(--warning-text)',
+          'warning-bg': 'var(--warning-bg)',
+          'warning-border': 'var(--warning-border)',
+          'critical-text': 'var(--critical-text)',
+          'critical-bg': 'var(--critical-bg)',
+          'critical-border': 'var(--critical-border)',
+          'info-text': 'var(--info-text)',
+          'info-bg': 'var(--info-bg)',
+        },
+      },
+      borderRadius: {
+        'control': '10px',
+        'card': '16px',
+        'large': '20px',
+        'sheet': '28px',
+        'squircle': '22px',
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px rgba(0,0,0,0.04)',
+        'card': '0 2px 8px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06)',
+        'card-dark': '0 2px 8px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06) inset',
+        'popover': '0 8px 24px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)',
+        'modal': '0 24px 60px rgba(0,0,0,0.20), 0 8px 20px rgba(0,0,0,0.10)',
+        'modal-dark': '0 32px 80px rgba(0,0,0,0.80)',
+        'focus': '0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent)',
+      },
+      fontFamily: {
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Text"',
+          '"SF Pro Display"',
+          '"Inter"',
+          '"Segoe UI"',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: [
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          '"Liberation Mono"',
+          'monospace',
+        ],
+      },
+      animation: {
+        'apple-in': 'appleModalIn 0.30s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'slide-up': 'appleSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'fade-in': 'appleFadeIn 0.20s ease both',
+        'slide-right': 'appleSlideInRight 0.30s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'subtle-pulse': 'subtlePulse 2s ease-in-out infinite',
+        'success-bounce': 'successBounce 0.40s cubic-bezier(0.16, 1, 0.3, 1) both',
+        'recording-pulse': 'recordingPulse 1.5s ease-in-out infinite',
+        'wave': 'waveBar 0.8s ease-in-out infinite',
+      },
+      keyframes: {
+        appleModalIn: {
+          '0%':   { opacity: '0', transform: 'scale(0.96) translateY(6px)' },
+          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        appleSlideUp: {
+          '0%':   { opacity: '0', transform: 'translateY(12px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        appleFadeIn: {
+          '0%':   { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        appleSlideInRight: {
+          '0%':   { opacity: '0', transform: 'translateX(24px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        subtlePulse: {
+          '0%, 100%': { opacity: '1' },
+          '50%':       { opacity: '0.55' },
+        },
+        successBounce: {
+          '0%':   { transform: 'scale(0.6)', opacity: '0' },
+          '60%':  { transform: 'scale(1.12)', opacity: '1' },
+          '100%': { transform: 'scale(1)' },
+        },
+        recordingPulse: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(255, 59, 48, 0.4)' },
+          '50%':       { boxShadow: '0 0 0 10px rgba(255, 59, 48, 0)' },
+        },
+        waveBar: {
+          '0%, 100%': { transform: 'scaleY(0.3)' },
+          '50%':       { transform: 'scaleY(1)' },
+        },
+      },
+      transitionTimingFunction: {
+        'apple-spring': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'apple-bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      },
+    },
+  },
+  plugins: [],
+};
