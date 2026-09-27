@@ -4,10 +4,11 @@ __pycache__/
 *$py.class
 *.so
 
-# C extensions
+# C extensions & Python builds
 build/
 develop-eggs/
 dist/
+dist-ssr/
 downloads/
 eggs/
 .eggs/
@@ -24,11 +25,18 @@ wheels/
 # Testing & Coverage
 .pytest_cache/
 .coverage
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
 htmlcov/
 *.log
 
-# Virtual Environments
+# Virtual Environments & Secrets
 .env
+.env.*
+!.env.example
 .venv/
 env/
 venv/
@@ -38,12 +46,20 @@ venv.bak/
 
 # Frontend / Node
 node_modules/
+.pnp
+.pnp.js
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 .pnpm-debug.log*
+lerna-debug.log*
 apps/web/dist/
 apps/web/.turbo/
+out/
+.next/
+*.tsbuildinfo
+next-env.d.ts
 
 # Databases & Graph Store
 *.db
@@ -77,14 +93,26 @@ drop/*
 *.ogg
 *.webm
 
+# Runtime data & temp files
+tmp/
+temp/
+scratch/
+*.tmp
+*~
+
 # OS & Editor Files
 .DS_Store
 Thumbs.db
+desktop.ini
+*.bak
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-project
+*.sublime-workspace
 *.swp
 *.swo
-.agents
 
 # Antigravity tooling
 .agent/
