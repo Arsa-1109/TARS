@@ -21,9 +21,15 @@ wheels/
 .installed.cfg
 *.egg
 
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
 # Virtual Environments
 .env
-.venv
+.venv/
 env/
 venv/
 ENV/
@@ -45,6 +51,10 @@ apps/web/.turbo/
 *.sqlite3
 *.db-journal
 *.sqlite-journal
+tars_local.db
+*.kuzu_lock
+*.kuzu
+*.kuzu/
 .tars/*.kuzu*
 .tars/graph.kuzu/
 .tars/test_graph.kuzu/
@@ -75,8 +85,18 @@ Thumbs.db
 *.swp
 *.swo
 
-# Markdown Rule: Ignore all markdown files except README.md
-*.md
-!README.md
-**/*.md
-!**/README.md
+# Antigravity tooling
+.agent/
+.agents/
+.gemini/
+.gsd/
+GSD-STYLE.md
+PROJECT_RULES.md
+adapters/
+docs/model-selection-playbook.md
+docs/runbook.md
+docs/token-optimization-guide.md
+model_capabilities.yaml
+scripts/search_repo.*
+scripts/setup_search.*
+scripts/validate-*

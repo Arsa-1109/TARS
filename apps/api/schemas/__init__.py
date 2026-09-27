@@ -1,5 +1,6 @@
-# Frozen Contract Boundary Package
-from apps.api.schemas.contracts import (
+# apps/api/schemas/__init__.py
+"""Frozen Contract Boundary for TARS Monorepo."""
+from .contracts import (
     SearchRequest,
     SearchCitation,
     SearchResponse,
@@ -10,6 +11,10 @@ from apps.api.schemas.contracts import (
     SimulationResponse,
     InvariantCheckResult,
     ActionItemDTO,
+    MemoryRecord,
+    ToolExecutionRequest,
+    ToolAuditRecord,
+    SystemStatus,
 )
 
 __all__ = [
@@ -23,4 +28,8 @@ __all__ = [
     "SimulationResponse",
     "InvariantCheckResult",
     "ActionItemDTO",
+    "MemoryRecord",
+    "ToolExecutionRequest",
+    "ToolAuditRecord",
+    "SystemStatus",
 ]

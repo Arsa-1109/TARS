@@ -1,1 +1,2 @@
-# TARS Monorepo Root Package
+# apps/__init__.py
+"""TARS Monorepo Root Package."""

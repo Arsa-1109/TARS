@@ -1,26 +1,114 @@
-# TARS Declarative Invariant Rules
+# .tars/invariants.yaml
+# TARS Core Invariant Registry (Version 1.0)
+# Evaluated deterministically via Tree-sitter C-AST queries in <45ms
+
 version: "1.0"
+repository: "https://github.com/Arsa-1109/TARS"
+enforcement_mode: "STRICT" # STRICT | BALANCED | AUDIT_ONLY
+
 invariants:
+  # ============================================================================
+  # KILLER RULE 1: External HTTP Calls inside Database Transactions (INV-017)
+  # Post-Mortem Context: Shopify/GitHub Connection Pool Collapse
+  # ============================================================================
   - id: "INV-017"
-    name: "Transaction External HTTP Call Prohibition"
-    severity: "HIGH"
-    rationale: "External HTTP calls inside database transactions cause connection pool exhaustion."
-    adr_ref: "ADR-017"
+    name: "HTTP Call Inside Database Transaction Block"
+    category: "database/concurrency"
+    severity: "CRITICAL"
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
+    prohibited_ast_nodes:
+      - "transaction_block_contains_http_call"
+    rationale: "Invoking external HTTP endpoints (e.g. Stripe, webhooks, fetch, requests) inside a database transaction block holds connection locks open, exhausting pool limits and causing cascading timeouts."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-14"
+      adr_ref: "docs/adr/ADR-017-outbox-pattern.md"
+    suggested_refactor: "Use the Transactional Outbox Pattern: persist the outbound event to an outbox table within the transaction, and dispatch the external HTTP call in a background worker."
 
+  # ============================================================================
+  # KILLER RULE 2: Parameter Count / Schema Mismatch in Dynamic Dispatch (INV-021)
+  # Post-Mortem Context: CrowdStrike Channel 291 Global Outage
+  # ============================================================================
   - id: "INV-021"
-    name: "Schema Parameter Arity Guard"
+    name: "Parameter Count Mismatch in Dynamic Dispatch / Interpreter"
+    category: "concurrency/reliability"
     severity: "CRITICAL"
-    rationale: "Parameter count mismatch between schema definition and runtime dispatcher causes kernel panics."
-    adr_ref: "ADR-021"
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
+    prohibited_ast_nodes:
+      - "signature_parameter_count_mismatch"
+    rationale: "Dynamic dispatch or rule evaluation where callers supply fewer or more arguments than declared in the schema triggers out-of-bounds evaluation or unhandled TypeError crashes in production interpreters."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-20"
+      adr_ref: "docs/adr/ADR-021-schema-dispatch-validation.md"
+    suggested_refactor: "Assert exact parameter matching between schema definitions and interpreter dispatch call signatures via static type models."
 
+  # ============================================================================
+  # KILLER RULE 3: Dead Code / Dormant Feature Flag Resuscitation (INV-014)
+  # Post-Mortem Context: Knight Capital $440M 45-Minute Trading Collapse
+  # ============================================================================
   - id: "INV-014"
-    name: "Dormant Feature Flag Elimination"
-    severity: "MEDIUM"
-    rationale: "Dead code paths and reused legacy flags risk catastrophic unintended activation."
-    adr_ref: "ADR-014"
-
-  - id: "INV-008"
-    name: "Plaintext Secret Emission Ban"
+    name: "Dormant / Pruned Feature Flag Resuscitation"
+    category: "architecture/reliability"
     severity: "CRITICAL"
-    rationale: "Plaintext password, token, or private key printing in log streams violates compliance."
-    adr_ref: "ADR-008"
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
+    prohibited_ast_nodes:
+      - "deprecated_flag_reference"
+    rationale: "Re-activating or referencing deprecated/pruned feature flags executes dormant legacy paths with obsolete business logic, causing state corruption."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-22"
+      adr_ref: "docs/adr/ADR-014-feature-flag-lifecycle.md"
+    suggested_refactor: "Remove references to pruned flags. Verify all active flags against .tars/flags.yaml."
+
+  # ============================================================================
+  # KILLER RULE 4: Plaintext Password / Secret Logging (INV-008)
+  # Post-Mortem Context: Twitter/X Plaintext Password Log Exposure
+  # ============================================================================
+  - id: "INV-008"
+    name: "Plaintext Sensitive Entity / Token Logging"
+    category: "security/compliance"
+    severity: "CRITICAL"
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
+    prohibited_ast_nodes:
+      - "logger_call_with_sensitive_identifier"
+    rationale: "Passing sensitive identifiers (password, secret, token, api_key, ssn, pan, card) directly into loggers exposes credentials in plain-text logs and audit trails."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-25"
+      adr_ref: "docs/adr/ADR-008-pii-masking-policy.md"
+    suggested_refactor: "Mask sensitive fields or log only sanitized, redacted Value Objects: logger.info('auth_event', user_id=user.id, token_hash=hash(token))."
+
+  # ============================================================================
+  # FOUNDATIONAL RULE: Presentation to Database Coupling (INV-001)
+  # ============================================================================
+  - id: "INV-001"
+    name: "Presentation-to-Database Direct Coupling"
+    category: "architecture/hexagonal"
+    severity: "HIGH"
+    target_files: ["apps/web/**", "src/ui/**", "src/views/**", "src/controllers/**"]
+    prohibited_ast_nodes:
+      - "direct_db_import_in_ui"
+    rationale: "UI presentation components or frontend routes must never directly import database clients or execute raw SQL/ORM mutations."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-10"
+      adr_ref: "docs/adr/ADR-001-hexagonal-layering.md"
+    suggested_refactor: "Route requests through application service interfaces or API client adapters."
+
+  # ============================================================================
+  # FOUNDATIONAL RULE: Auth Token in LocalStorage (INV-004)
+  # ============================================================================
+  - id: "INV-004"
+    name: "Auth Token Storage Invariant"
+    category: "security/auth"
+    severity: "HIGH"
+    target_files: ["**/*.ts", "**/*.js", "**/*.tsx"]
+    prohibited_ast_nodes:
+      - "localstorage_token_assignment"
+    rationale: "Tokens must remain in HttpOnly SameSite cookies to prevent XSS leakage and race conditions."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-12"
+      adr_ref: "docs/adr/ADR-004-auth-cookies.md"
+    suggested_refactor: "Use setSecureCookie(res, token) or HttpOnly cookie sessions instead of window.localStorage."
