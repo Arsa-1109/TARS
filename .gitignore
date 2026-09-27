@@ -129,3 +129,11 @@ model_capabilities.yaml
 scripts/search_repo.*
 scripts/setup_search.*
 scripts/validate-*
+
+# Markdown Rule: Ignore all markdown files except README.md
+*.md
+!README.md
+!readme.md
+**/*.md
+!**/README.md
+!**/readme.md
