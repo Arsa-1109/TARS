@@ -30,6 +30,9 @@ class LocalDB:
 
     def initialize(self):
         conn = self.get_connection()
+        # Ensure WAL mode for safe concurrency
+        conn.execute('PRAGMA journal_mode=WAL;')
+
         cursor = conn.cursor()
         
         # Memory table
@@ -58,6 +61,30 @@ class LocalDB:
                 approval_state TEXT NOT NULL,
                 result TEXT,
                 error TEXT
+            )
+        ''')
+        
+        # Action Hub table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS action_items (
+                id TEXT PRIMARY KEY,
+                description TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                deadline INTEGER,
+                status TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_offset TEXT NOT NULL
+            )
+        ''')
+
+        # Session table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                session_id TEXT PRIMARY KEY,
+                tars_user TEXT NOT NULL,
+                tars_role TEXT NOT NULL,
+                created_at INTEGER NOT NULL
             )
         ''')
         
