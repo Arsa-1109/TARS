@@ -59,26 +59,35 @@ class TarsASTParser:
                 current_in_tx = in_tx
                 # Check for "with transaction.atomic():" or "with db.transaction():"
                 if node.type == "with_statement":
-                    node_text = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                    if any(t in node_text for t in tx_indicators):
+                    with_clause = ""
+                    for child in node.children:
+                        if child.type in ("with_item", "with_clause"):
+                            with_clause += " " + code_bytes[child.start_byte:child.end_byte].decode("utf-8", errors="ignore")
+                    if not with_clause:
+                        with_clause = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore").splitlines()[0]
+                    if any(t in with_clause for t in tx_indicators):
                         current_in_tx = True
 
                 # Check for @transactional decorator
                 if node.type == "decorated_definition":
-                    node_text = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                    if any(t in node_text for t in tx_indicators):
+                    decorators_text = ""
+                    for child in node.children:
+                        if child.type == "decorator":
+                            decorators_text += " " + code_bytes[child.start_byte:child.end_byte].decode("utf-8", errors="ignore")
+                    if any(t in decorators_text for t in tx_indicators):
                         current_in_tx = True
 
                 # If inside transaction, check for call expressions with HTTP clients
                 if current_in_tx and node.type == "call":
-                    call_text = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                    if any(h in call_text for h in http_indicators):
+                    fn_node = node.child_by_field_name("function")
+                    call_target = code_bytes[fn_node.start_byte:fn_node.end_byte].decode("utf-8", errors="ignore").lower() if fn_node else ""
+                    if any(h in call_target for h in http_indicators):
                         line_no = node.start_point[0] + 1
                         violations.append({
                             "rule_id": "INV-017",
                             "line_number": line_no,
-                            "violating_code": lines[line_no - 1].strip() if line_no <= len(lines) else call_text[:60],
-                            "snippet": call_text[:120],
+                            "violating_code": lines[line_no - 1].strip() if line_no <= len(lines) else call_target[:60],
+                            "snippet": code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")[:120],
                         })
 
                 for child in node.children:
@@ -92,19 +101,21 @@ class TarsASTParser:
                 current_in_tx = in_tx
                 # Check for db.transaction(async () => { ... })
                 if node.type in ("call_expression", "await_expression"):
-                    node_text = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                    if any(t in node_text for t in tx_indicators):
+                    fn_node = node.child_by_field_name("function")
+                    fn_text = code_bytes[fn_node.start_byte:fn_node.end_byte].decode("utf-8", errors="ignore") if fn_node else ""
+                    if any(t in fn_text for t in tx_indicators):
                         current_in_tx = True
 
                 if current_in_tx and node.type == "call_expression":
-                    call_text = code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")
-                    if any(h in call_text for h in http_indicators) and "transaction" not in call_text:
+                    fn_node = node.child_by_field_name("function")
+                    call_target = code_bytes[fn_node.start_byte:fn_node.end_byte].decode("utf-8", errors="ignore").lower() if fn_node else ""
+                    if any(h in call_target for h in http_indicators) and "transaction" not in call_target:
                         line_no = node.start_point[0] + 1
                         violations.append({
                             "rule_id": "INV-017",
                             "line_number": line_no,
-                            "violating_code": lines[line_no - 1].strip() if line_no <= len(lines) else call_text[:60],
-                            "snippet": call_text[:120],
+                            "violating_code": lines[line_no - 1].strip() if line_no <= len(lines) else call_target[:60],
+                            "snippet": code_bytes[node.start_byte:node.end_byte].decode("utf-8", errors="ignore")[:120],
                         })
 
                 for child in node.children:

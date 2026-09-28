@@ -239,48 +239,213 @@ export const MOCK_INVARIANTS: InvariantCheckResult[] = [
   {
     is_breached: true,
     rule_id: "INV-017",
-    rule_name: "External HTTP calls inside database transactions",
+    rule_name: "HTTP Call Inside Database Transaction Block",
     violating_file: "src/payments/service.py",
     line_number: 84,
     observed_code: "async with db.transaction():\n    order = await create_order(db, payload)\n    # BREACH: External HTTP call inside transaction\n    charge = await stripe_client.charges.create(amount=order.total)\n    await mark_paid(db, order.id, charge.id)",
+    refactored_code: "# REFACTORED: Outbox pattern applied\nasync with db.transaction():\n    order = await create_order(db, payload)\n    await outbox.publish('order.created', order.id)\n# Stripe dispatch executed asynchronously post-commit",
     rationale: "Holding a database transaction open while awaiting external network I/O exhausts database connection pools during downstream latency spikes. This is the exact pattern that triggered major Shopify and GitHub outages.",
-    adr_ref: "ADR-017-outbox-pattern.md",
-    suggested_refactor: "Commit order in PENDING state within local transaction, then dispatch payment via background worker or post-commit Outbox event."
+    adr_ref: "docs/adr/ADR-017-outbox-pattern.md",
+    suggested_refactor: "Use the Transactional Outbox Pattern: persist the outbound event to an outbox table within the transaction, and dispatch the external HTTP call in a background worker.",
+    category: "database/concurrency",
+    severity: "CRITICAL",
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
   },
   {
     is_breached: false,
     rule_id: "INV-021",
-    rule_name: "Parameter count mismatch between schema & dispatcher",
-    violating_file: "src/api/dispatcher.py",
+    rule_name: "Parameter Count Mismatch in Dynamic Dispatch / Interpreter",
+    violating_file: "apps/api/core/dispatcher.py",
     line_number: 42,
-    observed_code: "def dispatch_event(event_type: str, payload: dict, trace_id: str) -> None:\n    handler = REGISTRY.get(event_type)\n    return handler(payload, trace_id)",
-    rationale: "Prevents runtime TypeError crashes caused by schema updates adding or removing parameters without updating internal dispatch callers (CrowdStrike kernel dispatch failure pattern).",
-    adr_ref: "ADR-021-strict-dispatch-validation.md",
-    suggested_refactor: "All parameters match schema contract (3/3 parameters aligned)."
+    observed_code: "def dispatch_event(event_type: str, payload: dict, trace_id: str) -> None:\n    handler = REGISTRY.get(event_type)\n    # Call signature matches declared schema (3 parameters)\n    return handler(event_type, payload, trace_id)",
+    refactored_code: "def dispatch_event(event_type: str, payload: dict, trace_id: str) -> None:\n    handler = REGISTRY.get(event_type)\n    # REFACTORED: Exact schema signature match (3/3 parameters)\n    return handler(event_type, payload, trace_id)",
+    rationale: "Dynamic dispatch or rule evaluation where callers supply fewer or more arguments than declared in the schema triggers out-of-bounds evaluation or unhandled TypeError crashes in production interpreters (CrowdStrike channel 291 outage pattern).",
+    adr_ref: "docs/adr/ADR-021-schema-dispatch-validation.md",
+    suggested_refactor: "Assert exact parameter matching between schema definitions and interpreter dispatch call signatures via static type models.",
+    category: "concurrency/reliability",
+    severity: "CRITICAL",
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
   },
   {
     is_breached: false,
     rule_id: "INV-014",
-    rule_name: "Dead code / dormant flag resuscitation",
+    rule_name: "Dormant / Pruned Feature Flag Resuscitation",
     violating_file: ".tars/flags.yaml",
     line_number: 16,
     observed_code: "flags:\n  enable_vector_cache: true\n  enable_local_whisper: true\n  # legacy_cloud_s3_sync: PRUNED_2026_08",
-    rationale: "Blocks commits reviving unreferenced legacy flags or deprecated code paths that could trigger dormant logic in production (Knight Capital Group $440M outage pattern).",
-    adr_ref: "ADR-014-flag-lifecycle-governance.md",
-    suggested_refactor: "Flag registry is healthy. No dormant flags resurrected."
+    refactored_code: "flags:\n  enable_vector_cache: true\n  enable_local_whisper: true\n  # REFACTORED: Deprecated flag pruned from active lifecycle",
+    rationale: "Re-activating or referencing deprecated/pruned feature flags executes dormant legacy paths with obsolete business logic, causing state corruption (Knight Capital $440M outage pattern).",
+    adr_ref: "docs/adr/ADR-014-feature-flag-lifecycle.md",
+    suggested_refactor: "Remove references to pruned flags. Verify all active flags against .tars/flags.yaml.",
+    category: "architecture/reliability",
+    severity: "CRITICAL",
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
   },
   {
     is_breached: false,
     rule_id: "INV-008",
-    rule_name: "Plaintext password, token, or secret logging",
-    violating_file: "src/auth/jwt.py",
+    rule_name: "Plaintext Sensitive Entity / Token Logging",
+    violating_file: "apps/api/core/session.py",
     line_number: 29,
-    observed_code: "logger.info('User authenticated successfully', extra={'user_id': user.id})",
-    rationale: "Scans AST Call nodes invoking logger.* and print() to ensure JWT tokens, passwords, and authorization headers are never written to disk logs (Twitter / X token logging pattern).",
-    adr_ref: "ADR-008-redacted-telemetry.md",
-    suggested_refactor: "Zero sensitive token references detected in logging statements."
+    observed_code: "def log_auth_success(user, auth_token):\n    # Redacted sanitized telemetry\n    logger.info('User authenticated successfully', extra={'user_id': user.id})",
+    refactored_code: "def log_auth_success(user, auth_token):\n    # REFACTORED: Token redacted and masked\n    logger.info('User auth success', extra={'user_id': user.id, 'token_hash': hash_token(auth_token)})",
+    rationale: "Passing sensitive identifiers (password, secret, token, api_key, ssn, pan, card) directly into loggers exposes credentials in plain-text logs and audit trails (Twitter / X token logging pattern).",
+    adr_ref: "docs/adr/ADR-008-pii-masking-policy.md",
+    suggested_refactor: "Mask sensitive fields or log only sanitized, redacted Value Objects: logger.info('auth_event', user_id=user.id, token_hash=hash(token)).",
+    category: "security/compliance",
+    severity: "CRITICAL",
+    target_files: ["**/*.py", "**/*.ts", "**/*.js"]
+  },
+  {
+    is_breached: false,
+    rule_id: "INV-001",
+    rule_name: "Presentation-to-Database Direct Coupling",
+    violating_file: "apps/web/src/components/workspaces/ArchitectureWorkspace.tsx",
+    line_number: 8,
+    observed_code: "// Presentation boundary decoupled\nimport { api } from '../../services/client';\nconst invariants = await api.getInvariants();",
+    refactored_code: "// REFACTORED: Clean API service port abstraction\nimport { api } from '../../services/client';",
+    rationale: "UI presentation components or frontend routes must never directly import database clients or execute raw SQL/ORM mutations.",
+    adr_ref: "docs/adr/ADR-001-hexagonal-layering.md",
+    suggested_refactor: "Route requests through application service interfaces or API client adapters.",
+    category: "architecture/hexagonal",
+    severity: "HIGH",
+    target_files: ["apps/web/**", "src/ui/**", "src/views/**"]
+  },
+  {
+    is_breached: false,
+    rule_id: "INV-004",
+    rule_name: "Auth Token Storage Invariant",
+    violating_file: "apps/web/src/services/auth.ts",
+    line_number: 14,
+    observed_code: "// Session cookies managed via HttpOnly\ndocument.cookie = `session_token=${token}; Secure; HttpOnly; SameSite=Strict`;",
+    refactored_code: "// REFACTORED: HttpOnly SameSite cookie session active",
+    rationale: "Tokens must remain in HttpOnly SameSite cookies to prevent XSS leakage and race conditions.",
+    adr_ref: "docs/adr/ADR-004-auth-cookies.md",
+    suggested_refactor: "Use setSecureCookie(res, token) or HttpOnly cookie sessions instead of window.localStorage.",
+    category: "security/auth",
+    severity: "HIGH",
+    target_files: ["**/*.ts", "**/*.js", "**/*.tsx"]
+  },
+  {
+    is_breached: false,
+    rule_id: "INV-API01",
+    rule_name: "Zero Egress Rule",
+    violating_file: "apps/api/core/gateway.py",
+    line_number: 55,
+    observed_code: "# Sovereign local socket binding\nserver = socket.create_server(('127.0.0.1', 8000))\n# Outbound WAN egress: 0.00 KB",
+    refactored_code: "# REFACTORED: Air-gapped socket verification confirmed",
+    rationale: "All outbound socket connections must terminate locally to preserve sovereign air-gap isolation and prevent corporate intelligence leakage.",
+    adr_ref: "docs/adr/ADR-002-zero-egress-architecture.md",
+    suggested_refactor: "Block external network sockets at socket level (0.00 KB egress) and route calls exclusively to local embedded models.",
+    category: "security/sovereignty",
+    severity: "CRITICAL",
+    target_files: ["apps/api/core/gateway.py", "**/*.py"]
   }
 ];
+
+export const MOCK_PRECOMMIT_SIMULATIONS: Record<string, import('../types/contracts').PreCommitSimulationResponse> = {
+  "INV-017": {
+    rule_id: "INV-017",
+    git_command: 'git commit -m "feat(payments): execute stripe charge"',
+    execution_time_ms: 38.4,
+    target_file: "src/payments/service.py:84",
+    is_breached: true,
+    terminal_logs: [
+      "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
+      "[tars-hook] Checking 4 staged files (285 additions, 42 deletions)...",
+      "[tars-hook] BREACH DETECTED: INV-017 (HTTP Call Inside Database Transaction Block)",
+      "[tars-hook] Violating AST node: CallExpression 'stripe_client.charges.create' at src/payments/service.py:84",
+      "[tars-hook] Architectural Rationale: External HTTP calls inside DB transactions hold connection pool locks open.",
+      "[tars-hook] ERROR: Commit blocked in 38.4ms. Transactional Outbox pattern required."
+    ]
+  },
+  "INV-021": {
+    rule_id: "INV-021",
+    git_command: 'git commit -m "feat(dispatcher): update telemetry event dispatch schema"',
+    execution_time_ms: 21.6,
+    target_file: "apps/api/core/dispatcher.py:42",
+    is_breached: true,
+    terminal_logs: [
+      "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
+      "[tars-hook] Checking staged file: apps/api/core/dispatcher.py (42 additions, 8 deletions)...",
+      "[tars-hook] BREACH DETECTED: INV-021 (Parameter Count Mismatch in Dynamic Dispatch / Interpreter)",
+      "[tars-hook] Violating AST node: CallExpression 'handler(payload)' expects 3 parameters, caller supplied 1 at line 42",
+      "[tars-hook] Architectural Rationale: Dynamic dispatch argument divergence causes production TypeError crashes.",
+      "[tars-hook] ERROR: Commit blocked in 21.6ms. Assert exact parameter matching with schema contract."
+    ]
+  },
+  "INV-014": {
+    rule_id: "INV-014",
+    git_command: 'git commit -m "fix(flags): re-enable legacy cloud sync feature flag"',
+    execution_time_ms: 18.2,
+    target_file: ".tars/flags.yaml:16",
+    is_breached: true,
+    terminal_logs: [
+      "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
+      "[tars-hook] Checking staged file: .tars/flags.yaml (14 additions, 2 deletions)...",
+      "[tars-hook] BREACH DETECTED: INV-014 (Dormant / Pruned Feature Flag Resuscitation)",
+      "[tars-hook] Violating AST node: Flag 'legacy_cloud_s3_sync' matches pruned registry at line 16",
+      "[tars-hook] Architectural Rationale: Resurrecting deprecated flags executes dormant unmaintained logic.",
+      "[tars-hook] ERROR: Commit blocked in 18.2ms. Pruned feature flags must remain deleted."
+    ]
+  },
+  "INV-008": {
+    rule_id: "INV-008",
+    git_command: 'git commit -m "chore(auth): add debug logging to jwt verification"',
+    execution_time_ms: 15.8,
+    target_file: "apps/api/core/session.py:29",
+    is_breached: true,
+    terminal_logs: [
+      "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
+      "[tars-hook] Checking staged file: apps/api/core/session.py (18 additions, 3 deletions)...",
+      "[tars-hook] BREACH DETECTED: INV-008 (Plaintext Sensitive Entity / Token Logging)",
+      "[tars-hook] Violating AST node: CallExpression 'logger.info' referencing raw credential at line 29",
+      "[tars-hook] Architectural Rationale: Logging authentication tokens leaks credentials into disk audit logs.",
+      "[tars-hook] ERROR: Commit blocked in 15.8ms. Sensitive credentials must be masked or hashed."
+    ]
+  },
+  "CLEAN": {
+    rule_id: "CLEAN",
+    git_command: 'git commit -m "refactor(architecture): enforce hexagonal invariants"',
+    execution_time_ms: 24.1,
+    target_file: "all staged files",
+    is_breached: false,
+    terminal_logs: [
+      "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
+      "[tars-hook] Checking 6 staged files (142 additions, 89 deletions)...",
+      "[tars-hook] PASS: All 7 architectural invariants satisfied.",
+      "[tars-hook] Zero syntax invariant violations detected.",
+      "[tars-hook] Pre-commit hook passed in 24.1ms. Clean commit allowed."
+    ]
+  }
+};
+
+export const MOCK_TOPOLOGY: import('../types/contracts').TopologyResponse = {
+  active_rule_id: "INV-017",
+  refactored: false,
+  nodes: [
+    { id: 'gateway', name: 'FastAPI Gateway', layer: 'Entry', x: 40, y: 70, file_path: 'apps/api/core/gateway.py', isBreached: false },
+    { id: 'auth', name: 'Auth Session', layer: 'Core', x: 200, y: 30, file_path: 'apps/api/core/session.py', isBreached: false },
+    { id: 'payments', name: 'Payments Service', layer: 'Core', x: 200, y: 130, file_path: 'src/payments/service.py', isBreached: true },
+    { id: 'db', name: 'SQLite Connection Pool', layer: 'Data', x: 380, y: 70, file_path: 'apps/api/core/db.py', isBreached: false },
+    { id: 'webhook', name: 'Outbox Dispatcher', layer: 'Event', x: 380, y: 150, file_path: 'apps/api/core/events/outbox.py', isBreached: false }
+  ],
+  edges: [
+    { source: 'gateway', target: 'auth', x1: 140, y1: 100, x2: 200, y2: 60, isBreached: false },
+    { source: 'gateway', target: 'payments', x1: 140, y1: 100, x2: 200, y2: 160, isBreached: true },
+    { source: 'auth', target: 'db', x1: 300, y1: 60, x2: 380, y2: 100, isBreached: false },
+    { source: 'payments', target: 'db', x1: 300, y1: 160, x2: 380, y2: 100, isBreached: true },
+    { source: 'payments', target: 'webhook', x1: 300, y1: 160, x2: 380, y2: 180, isBreached: false }
+  ],
+  descriptions: {
+    gateway: "Entrypoint routing all incoming client requests through middleware ports.",
+    auth: "Centralized session and clearance verification provider.",
+    payments: "Direct call to external Stripe API inside transaction boundary violates INV-017.",
+    db: "SQLite connection pool locks guarded by Tree-sitter transaction AST parser.",
+    webhook: "Transactional Outbox dispatcher processes outbound events asynchronously post-commit."
+  }
+};
+
 
 export const MOCK_ACTION_ITEMS: ActionItemDTO[] = [
   {

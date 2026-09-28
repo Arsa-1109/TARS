@@ -349,10 +349,32 @@ async def upload_document(
 
 @router.get("/documents")
 def list_ingested_documents():
-    """Lists all documents processed by Markitdown in this session."""
+    """Lists all documents processed by Markitdown, queried from persistent SQLite storage."""
+    docs = []
+    try:
+        from apps.api.core.db import db
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM documents ORDER BY ingested_at DESC")
+        rows = cursor.fetchall()
+        for r in rows:
+            docs.append(dict(r))
+    except Exception as e:
+        logger.warning(f"Failed to query documents from database: {e}")
+
+    # Fall back to or merge in-memory documents
+    if not docs:
+        docs = list(markitdown_parser.ingested_hashes.values())
+    else:
+        # Ensure in-memory parser cache also stays warm
+        for d in docs:
+            fhash = d.get("file_hash")
+            if fhash and fhash not in markitdown_parser.ingested_hashes:
+                markitdown_parser.ingested_hashes[fhash] = d
+
     return {
-        "documents": list(markitdown_parser.ingested_hashes.values()),
-        "total": len(markitdown_parser.ingested_hashes),
+        "documents": docs,
+        "total": len(docs),
     }
 
 

@@ -8,9 +8,18 @@ import {
   SimulationResponse,
   InvariantCheckResult,
   ActionItemDTO,
+  CompanyProfile,
+  GenesisBloomPayload,
+  GenesisBloomResponse,
 } from '../types/contracts';
 
 export interface TarsApi {
+  // Genesis Onboarding & Sovereign Company Profile
+  getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null>;
+  saveCompanyProfile(profile: Partial<CompanyProfile>): Promise<CompanyProfile>;
+  bloomGenesis(payload: GenesisBloomPayload): Promise<GenesisBloomResponse>;
+  uploadSeedDocument(file: File): Promise<{ doc_id: string; title: string; pages?: number; message?: string }>;
+
   // Workspace 1: Knowledge
   search(req: SearchRequest): Promise<SearchResponse>;
   uploadDocument(file: File): Promise<{ doc_id: string; title: string; pages: number }>;
@@ -31,9 +40,23 @@ export interface TarsApi {
   // Workspace 6: Tech & Architecture
   getInvariants(): Promise<InvariantCheckResult[]>;
   triggerASTCheck(): Promise<{ execution_time_ms: number; results: InvariantCheckResult[] }>;
+  applyRefactor(ruleId: string): Promise<{ success: boolean; invariants: InvariantCheckResult[] }>;
+  resetRefactors(): Promise<{ success: boolean; invariants: InvariantCheckResult[] }>;
+  getMadr(ruleId: string): Promise<import('../types/contracts').MadrResponse>;
+  simulatePreCommit(ruleId: string): Promise<import('../types/contracts').PreCommitSimulationResponse>;
+  getTopology(activeRuleId?: string): Promise<import('../types/contracts').TopologyResponse>;
+
 
   // Central: Unified Action Hub
   getActionItems(): Promise<ActionItemDTO[]>;
   updateActionStatus(id: string, status: ActionItemDTO['status']): Promise<ActionItemDTO>;
   createActionItem(item: Omit<ActionItemDTO, 'id'>): Promise<ActionItemDTO>;
+
+  // User & Identity Registry
+  getUsers(): Promise<import('../types/contracts').UserDTO[]>;
+  createUser(payload: import('../types/contracts').UserCreateDTO): Promise<import('../types/contracts').UserDTO>;
+
+  // Sovereign Workspace Management & Data Isolation
+  resetWorkspace(payload?: import('../types/contracts').WorkspaceResetRequest): Promise<import('../types/contracts').WorkspaceResetResponse>;
 }
+

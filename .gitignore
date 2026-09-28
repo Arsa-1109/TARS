@@ -105,3 +105,4 @@ drop/*
 *.pdf
 *.md
 !README.md
+docs/

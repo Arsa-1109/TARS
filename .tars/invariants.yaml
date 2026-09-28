@@ -112,3 +112,21 @@ invariants:
       date: "2026-08-12"
       adr_ref: "docs/adr/ADR-004-auth-cookies.md"
     suggested_refactor: "Use setSecureCookie(res, token) or HttpOnly cookie sessions instead of window.localStorage."
+
+  # ============================================================================
+  # SOVEREIGN RULE: Zero Egress Invariant (INV-API01)
+  # ============================================================================
+  - id: "INV-API01"
+    name: "Zero Egress Rule"
+    category: "security/sovereignty"
+    severity: "CRITICAL"
+    target_files: ["apps/api/core/gateway.py", "src/network/**", "**/*.py"]
+    prohibited_ast_nodes:
+      - "outbound_external_socket_connection"
+    rationale: "All outbound socket connections must terminate locally to preserve sovereign air-gap isolation and prevent corporate intelligence leakage."
+    provenance:
+      author: "Arya <salimattarya@gmail.com>"
+      date: "2026-08-01"
+      adr_ref: "docs/adr/ADR-002-zero-egress-architecture.md"
+    suggested_refactor: "Block external network sockets at socket level (0.00 KB egress) and route calls exclusively to local embedded models."
+

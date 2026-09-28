@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Shield,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { WorkspaceId } from '../../types/contracts';
 
@@ -24,7 +25,9 @@ interface CommandPaletteProps {
   onOpenActionHub: () => void;
   onOpenSettings: () => void;
   onOpenMemo: () => void;
+  onOpenGenesis?: () => void;
 }
+
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
@@ -33,6 +36,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenActionHub,
   onOpenSettings,
   onOpenMemo,
+  onOpenGenesis,
 }) => {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -70,6 +74,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   }, [isOpen, onClose, activeIndex]);
 
   const quickActions = [
+    { id: 'genesis-wizard', title: 'TARS Genesis Onboarding Wizard', category: 'Genesis',   icon: <Sparkles className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />, action: () => { if (onOpenGenesis) onOpenGenesis(); else onOpenSettings(); onClose(); } },
     { id: 'knowledge',    title: 'Knowledge Base',           category: 'Workspace', icon: <Layers className="w-4 h-4" />,       action: () => { onNavigateWorkspace('knowledge');    onClose(); } },
     { id: 'calls',        title: 'Call Studio',              category: 'Workspace', icon: <Phone className="w-4 h-4" />,        action: () => { onNavigateWorkspace('calls');        onClose(); } },
     { id: 'decisions',    title: 'Decision Registry',        category: 'Workspace', icon: <Scale className="w-4 h-4" />,        action: () => { onNavigateWorkspace('decisions');    onClose(); } },
@@ -80,6 +85,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'memo',         title: 'Record Voice Memo',        category: 'Capture',   icon: <Mic className="w-4 h-4 text-[#B25000] dark:text-[#FF9F0A]" />,         action: () => { onOpenMemo();       onClose(); } },
     { id: 'settings',     title: 'Company Setup',            category: 'System',    icon: <Sliders className="w-4 h-4 text-[#6E6E73] dark:text-[#8E8E93]" />,     action: () => { onOpenSettings();   onClose(); } },
   ];
+
 
   const filtered = quickActions.filter((item) =>
     item.title.toLowerCase().includes(query.toLowerCase()) ||

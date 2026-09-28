@@ -9,6 +9,9 @@ import {
   SimulationResponse,
   InvariantCheckResult,
   ActionItemDTO,
+  CompanyProfile,
+  GenesisBloomPayload,
+  GenesisBloomResponse,
 } from '../types/contracts';
 import {
   MOCK_SEARCH_RESULTS,
@@ -18,16 +21,103 @@ import {
   MOCK_SIMULATION_RESULT,
   MOCK_INVARIANTS,
   MOCK_ACTION_ITEMS,
+  MOCK_PRECOMMIT_SIMULATIONS,
+  MOCK_TOPOLOGY,
 } from '../mocks/fixtures';
+import {
+  TopologyResponse,
+  PreCommitSimulationResponse,
+  MadrResponse,
+} from '../types/contracts';
+
 
 // Helper for simulated local latency (40-100ms)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class MockTarsApi implements TarsApi {
+  private companyProfile: CompanyProfile | null = {
+    id: 'CMP-GENESIS-01',
+    company_name: 'AetherFlow AI',
+    website: 'https://aetherflow.ai',
+    industry: 'AI / DevTools',
+    stage: 'Seed',
+    team_size: '6–15',
+    runway_months: 24,
+    one_liner: 'Autonomous self-healing streaming pipelines for distributed data architectures.',
+    core_thesis: 'Data engineering teams waste 40% of sprint capacity maintaining fragile pipelines.',
+    icp: 'Series A-C Data Platform Engineers and VP Engineering',
+    tech_stack: 'Python, TypeScript, Rust, SQLite, Apache Kafka',
+    enterprise_policy: 'REJECT_CUSTOM_FORKS',
+    pricing_model: 'USAGE_BASED',
+    tars_tone: 'CONCISE_EXECUTIVE',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
   private decisions: DecisionItem[] = [...MOCK_DECISIONS];
   private calls: VoiceToSpecResponse[] = [...MOCK_CALLS];
   private invariants: InvariantCheckResult[] = [...MOCK_INVARIANTS];
   private actions: ActionItemDTO[] = [...MOCK_ACTION_ITEMS];
+
+  async getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null> {
+    await sleep(40);
+    if (!this.companyProfile) return null;
+    if (companyIdOrName) {
+      const match =
+        this.companyProfile.id === companyIdOrName ||
+        this.companyProfile.company_name.toLowerCase() === companyIdOrName.toLowerCase();
+      if (!match) return null;
+    }
+    return { ...this.companyProfile };
+  }
+
+  async saveCompanyProfile(profile: Partial<CompanyProfile>): Promise<CompanyProfile> {
+    await sleep(80);
+    const updated: CompanyProfile = {
+      id: this.companyProfile?.id || `CMP-${Date.now()}`,
+      company_name: profile.company_name || this.companyProfile?.company_name || 'Autonomous Venture',
+      website: profile.website ?? this.companyProfile?.website,
+      industry: profile.industry || this.companyProfile?.industry || 'B2B SaaS',
+      stage: profile.stage || this.companyProfile?.stage || 'Seed',
+      team_size: profile.team_size || this.companyProfile?.team_size || '1–5',
+      runway_months: profile.runway_months ?? this.companyProfile?.runway_months ?? 18,
+      one_liner: profile.one_liner || this.companyProfile?.one_liner || '',
+      core_thesis: profile.core_thesis ?? this.companyProfile?.core_thesis,
+      icp: profile.icp ?? this.companyProfile?.icp,
+      tech_stack: profile.tech_stack ?? this.companyProfile?.tech_stack,
+      enterprise_policy: profile.enterprise_policy ?? this.companyProfile?.enterprise_policy ?? 'REJECT_CUSTOM_FORKS',
+      pricing_model: profile.pricing_model ?? this.companyProfile?.pricing_model ?? 'USAGE_BASED',
+      tars_tone: profile.tars_tone ?? this.companyProfile?.tars_tone ?? 'CONCISE_EXECUTIVE',
+      updated_at: new Date().toISOString(),
+    };
+    this.companyProfile = updated;
+    return { ...updated };
+  }
+
+  async bloomGenesis(payload: GenesisBloomPayload): Promise<GenesisBloomResponse> {
+    await sleep(150);
+    const profile = await this.saveCompanyProfile(payload);
+    return {
+      status: 'BLOOMED',
+      company_profile: profile,
+      seeded_decisions: ['DEC-GEN-001', 'DEC-GEN-002', 'DEC-GEN-003'],
+      flight_plans_count: 4,
+      loaded_assets: payload.load_sample_assets ? ['Financial Model', 'Discovery Call'] : [],
+      nodes_bloomed: 18,
+      timestamp: Date.now(),
+    };
+  }
+
+  async uploadSeedDocument(file: File): Promise<{ doc_id: string; title: string; pages?: number; message?: string }> {
+    await sleep(200);
+    return {
+      doc_id: `DOC-SEED-${Date.now()}`,
+      title: file.name,
+      pages: 3,
+      message: `Parsed and indexed ${file.name} into local sovereign memory.`
+    };
+  }
+
 
   async search(req: SearchRequest): Promise<SearchResponse> {
     await sleep(65);
@@ -166,6 +256,84 @@ export class MockTarsApi implements TarsApi {
     };
   }
 
+  async applyRefactor(ruleId: string): Promise<{ success: boolean; invariants: InvariantCheckResult[] }> {
+    await sleep(40);
+    this.invariants = this.invariants.map((inv) => {
+      if (inv.rule_id === ruleId) {
+        return {
+          ...inv,
+          is_breached: false,
+          observed_code: inv.refactored_code || inv.observed_code,
+        };
+      }
+      return inv;
+    });
+    return { success: true, invariants: [...this.invariants] };
+  }
+
+  async resetRefactors(): Promise<{ success: boolean; invariants: InvariantCheckResult[] }> {
+    await sleep(30);
+    this.invariants = [...MOCK_INVARIANTS];
+    return { success: true, invariants: [...this.invariants] };
+  }
+
+  async getMadr(ruleId: string): Promise<MadrResponse> {
+    await sleep(25);
+    const inv = this.invariants.find((i) => i.rule_id === ruleId) || this.invariants[0];
+    return {
+      rule_id: inv.rule_id,
+      rule_name: inv.rule_name,
+      file_name: `${inv.rule_id.toLowerCase()}-adr.md`,
+      path: `docs/adr/${inv.adr_ref}`,
+      content: `# ${inv.rule_id}: ${inv.rule_name}\n\n* **Status:** Accepted\n* **Scope:** \`${inv.violating_file}\`\n\n## Context & Problem Statement\n${inv.rationale}\n\n## Decision Outcome\n${inv.suggested_refactor}\n`,
+      problem_statement: inv.rationale,
+      decision_outcome: inv.suggested_refactor,
+    };
+  }
+
+  async simulatePreCommit(ruleId: string): Promise<PreCommitSimulationResponse> {
+    await sleep(35);
+    const sim = MOCK_PRECOMMIT_SIMULATIONS[ruleId] || MOCK_PRECOMMIT_SIMULATIONS['INV-017'];
+    const inv = this.invariants.find((i) => i.rule_id === ruleId);
+    if (inv && !inv.is_breached) {
+      return MOCK_PRECOMMIT_SIMULATIONS['CLEAN'];
+    }
+    return sim;
+  }
+
+  async getTopology(activeRuleId?: string): Promise<TopologyResponse> {
+    await sleep(20);
+    const currentRule = activeRuleId || "INV-017";
+    const breached = this.invariants.some((i) => i.rule_id === currentRule && i.is_breached);
+    return {
+      ...MOCK_TOPOLOGY,
+      active_rule_id: currentRule,
+      refactored: !breached,
+      nodes: MOCK_TOPOLOGY.nodes.map((node) => {
+        if (node.id === 'payments' && currentRule === 'INV-017') {
+          return { ...node, isBreached: breached };
+        }
+        if (node.id === 'auth' && (currentRule === 'INV-008' || currentRule === 'INV-004')) {
+          return { ...node, isBreached: breached };
+        }
+        if (node.id === 'gateway' && (currentRule === 'INV-API01' || currentRule === 'INV-001')) {
+          return { ...node, isBreached: breached };
+        }
+        return { ...node, isBreached: false };
+      }),
+      edges: MOCK_TOPOLOGY.edges.map((edge) => {
+        if (edge.source === 'payments' && edge.target === 'db' && currentRule === 'INV-017') {
+          return { ...edge, isBreached: breached };
+        }
+        if (edge.source === 'gateway' && edge.target === 'payments' && currentRule === 'INV-017') {
+          return { ...edge, isBreached: breached };
+        }
+        return { ...edge, isBreached: false };
+      }),
+    };
+  }
+
+
   async getActionItems(): Promise<ActionItemDTO[]> {
     await sleep(35);
     return [...this.actions];
@@ -187,5 +355,84 @@ export class MockTarsApi implements TarsApi {
     };
     this.actions.unshift(newItem);
     return newItem;
+  }
+
+  // --- User & Identity Registry ---
+  private mockUsers: import('../types/contracts').UserDTO[] = [
+    { id: 'usr-aryan', name: 'Aryan', email: 'aryan@tars.local', role: 'FOUNDER', department: 'Executive', clearance: 'EXECUTIVE_ONLY', created_at: Date.now() - 86400000 },
+    { id: 'usr-elena', name: 'Elena Rostova', email: 'elena@tars.local', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 72000000 },
+    { id: 'usr-marcus', name: 'Marcus Vance', email: 'marcus@tars.local', role: 'PRODUCT', department: 'Product', clearance: 'ALL_TEAM', created_at: Date.now() - 54000000 },
+    { id: 'usr-sarah', name: 'Sarah Vance', email: 'sarah@tars.local', role: 'SALES', department: 'Sales & Growth', clearance: 'ALL_TEAM', created_at: Date.now() - 36000000 },
+    { id: 'usr-maya', name: 'Maya Lin', email: 'maya@tars.local', role: 'NEW_HIRE', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 18000000 },
+  ];
+
+  async getUsers(): Promise<import('../types/contracts').UserDTO[]> {
+    await sleep(30);
+    return [...this.mockUsers];
+  }
+
+  async createUser(payload: import('../types/contracts').UserCreateDTO): Promise<import('../types/contracts').UserDTO> {
+    await sleep(50);
+    const role = payload.role || 'ENGINEER';
+    const dept = payload.department || (role === 'FOUNDER' ? 'Executive' : role === 'PRODUCT' ? 'Product' : role === 'SALES' ? 'Sales & Growth' : 'Engineering');
+    const clr = (payload.clearance as any) || (role === 'FOUNDER' ? 'EXECUTIVE_ONLY' : 'ALL_TEAM');
+    const companyId = payload.company_id || (payload.company_name ? `CMP-${Date.now().toString().slice(-4)}` : undefined);
+    const companyName = payload.company_name || undefined;
+
+    if (payload.company_name) {
+      this.companyProfile = {
+        id: companyId || `CMP-${Date.now().toString().slice(-4)}`,
+        company_name: payload.company_name,
+        website: '',
+        industry: 'B2B SaaS',
+        stage: 'Seed',
+        team_size: '1–5',
+        runway_months: 18,
+        one_liner: `${payload.company_name} sovereign intelligence workspace.`,
+        enterprise_policy: 'REJECT_CUSTOM_FORKS',
+        pricing_model: 'USAGE_BASED',
+        tars_tone: 'CONCISE_EXECUTIVE',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    const newUser: import('../types/contracts').UserDTO = {
+      id: `usr-${Date.now().toString(36)}`,
+      name: payload.name,
+      email: payload.email,
+      role: role,
+      department: dept,
+      clearance: clr,
+      created_at: Date.now(),
+      company_id: companyId,
+      company_name: companyName,
+    };
+    this.mockUsers.push(newUser);
+    return newUser;
+  }
+
+  async resetWorkspace(payload?: import('../types/contracts').WorkspaceResetRequest): Promise<import('../types/contracts').WorkspaceResetResponse> {
+    await sleep(60);
+    const resetType = payload?.reset_type || 'ALL';
+    if (resetType === 'ALL' || resetType === 'ACTIONS') {
+      this.actions = [];
+    }
+    if (resetType === 'ALL' || resetType === 'DECISIONS') {
+      this.decisions = [];
+    }
+    if (resetType === 'ALL' && !payload?.preserve_company_profile) {
+      this.companyProfile = null;
+    }
+    return {
+      status: 'SUCCESS',
+      message: `Workspace reset executed successfully (${resetType}).`,
+      cleared: {
+        documents: 0,
+        action_items: resetType === 'ALL' || resetType === 'ACTIONS' ? 5 : 0,
+        decisions: resetType === 'ALL' || resetType === 'DECISIONS' ? 3 : 0,
+      },
+      timestamp: Date.now(),
+    };
   }
 }

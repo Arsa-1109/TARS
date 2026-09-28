@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { Drawer } from '../primitives/Drawer';
-import { MOCK_ONBOARDING_DATA } from '../../mocks/fixtures';
-import { UserRole } from '../../types/contracts';
+import { EmptyState } from '../primitives/EmptyState';
+import { UserRole, CompanyProfile } from '../../types/contracts';
 import { api } from '../../services/client';
 import {
   CheckCircle2,
@@ -22,17 +22,93 @@ import {
 
 interface OnboardingWorkspaceProps {
   userRole: UserRole;
+  companyProfile?: CompanyProfile | null;
+  onOpenGenesis?: () => void;
   onOpenCitation: (docTitle: string, snippet: string) => void;
 }
 
 export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   userRole,
+  companyProfile: propProfile,
+  onOpenGenesis,
   onOpenCitation,
 }) => {
-  const [data] = useState(MOCK_ONBOARDING_DATA);
+  const [profile, setProfile] = useState<CompanyProfile | null>(propProfile || null);
   const [activeDay, setActiveDay] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   const [tourPlaying, setTourPlaying] = useState(false);
+
+  useEffect(() => {
+    if (propProfile) {
+      setProfile(propProfile);
+    } else {
+      api.getCompanyProfile().then((p) => {
+        if (p) setProfile(p);
+      }).catch(() => {});
+    }
+  }, [propProfile]);
+
+  const companyName = profile?.company_name || 'Sovereign Startup';
+  const techStack = profile?.tech_stack || 'Python, TypeScript, SQLite';
+  const enterprisePolicy = profile?.enterprise_policy || 'Strict Rejection of Bespoke Forks';
+
+  const data = {
+    role: userRole,
+    title: `${companyName} Flight-Plan`,
+    total_days: 14,
+    current_day: 1,
+    modules: [
+      {
+        day: 1,
+        title: `Sovereignty & The Air-Gap Invariant (${companyName})`,
+        status: 'COMPLETED',
+        description: `Understand why ${companyName} enforces zero cloud egress ($E_{net} = 0.00\\text{ KB}$) and how local on-premise execution protects company IP.`,
+        tasks: [
+          `Inspect ${companyName} institutional identity and core thesis in Knowledge Base`,
+          `Verify .tars/invariants.yaml and install local pre-commit AST guards`,
+          `Run airplane-mode verification script in local terminal with 0.00 KB egress`,
+        ],
+        milestone_tour: {
+          title: `Founding Thesis: Why Startups Die of Context Decay`,
+          audio_duration: '3m 45s',
+          speaker: `Founder (${companyName})`,
+        },
+      },
+      {
+        day: 2,
+        title: `Deterministic AST Enforcement & ${techStack}`,
+        status: 'COMPLETED',
+        description: `Learn how Tree-sitter parses staged Git diffs in <50ms to enforce ${companyName}'s architectural standards before commits land in main.`,
+        tasks: [
+          `Review architectural invariants in Architecture Workspace`,
+          `Test local AST query runner against staged diffs in <50ms`,
+          `Inspect living MADR generator output in docs/adr/`,
+        ],
+      },
+      {
+        day: 3,
+        title: `Institutional Memory & Strategic Policies`,
+        status: 'CURRENT',
+        description: `Explore the sovereign graph connecting ADR decisions, customer commitments, and code entities.`,
+        tasks: [
+          `Review policy decisions regarding ${enterprisePolicy}`,
+          `Trace customer commitments into the Unified Action Hub`,
+          `Ask the Socratic Mentor about architectural boundaries and cash runway`,
+        ],
+      },
+      {
+        day: 4,
+        title: `First Compliant Pull Request`,
+        status: 'UPCOMING',
+        description: `Author and commit your first feature passing all invariant gates for ${companyName}.`,
+        tasks: [
+          `Implement new service component adhering to Hexagonal architecture`,
+          `Verify sub-50ms pre-commit hook execution without regressions`,
+          `Submit PR with automated institutional executive summary`,
+        ],
+      },
+    ],
+  };
 
   const [mentorDrawerOpen, setMentorDrawerOpen] = useState(false);
   const [mentorQuery, setMentorQuery] = useState('');
@@ -187,16 +263,47 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   const strokeOffset = circ - (progressPct / 100) * circ;
 
   const suggestedQueries = [
-    'Why does Decision #14 restrict enterprise customisation?',
-    'What is the rationale behind invariant INV-017?',
-    'How does TARS prove zero cloud egress on stage?',
+    `What are the founding principles of ${companyName}?`,
+    `What is our policy on enterprise customisations?`,
+    `How does TARS prove zero cloud egress for ${companyName}?`,
   ];
+
+  if (!profile || !profile.company_name) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          eyebrow="Onboarding"
+          title="Fast Onboarding Hub"
+          description="Role-tailored flight-plans and Socratic mentor sandbox to bring new hires to day-3 productivity."
+          actions={
+            onOpenGenesis && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Sparkles className="w-4 h-4" />}
+                onClick={onOpenGenesis}
+              >
+                Launch Genesis
+              </Button>
+            )
+          }
+        />
+        <EmptyState
+          icon={<Compass className="w-5 h-5 text-[#8E8E93]" />}
+          title="No Sovereign Flight-Plan Initialized"
+          description="Genesis Onboarding has not yet been executed for this sovereign instance. Configure your startup identity, tech stack, and strategic boundaries to generate role-adaptive flight plans."
+          actionLabel="Run Genesis Onboarding"
+          onAction={onOpenGenesis}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <PageHeader
         eyebrow="Onboarding"
-        title="Fast Onboarding Hub"
+        title={`${companyName} Onboarding Hub`}
         description="Role-tailored flight-plans and Socratic mentor sandbox to bring new hires to day-3 productivity."
         actions={
           <Button

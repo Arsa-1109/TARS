@@ -1,35 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { StatusLabel } from '../primitives/StatusLabel';
 import { SegmentedControl } from '../primitives/SegmentedControl';
-import { InvariantCheckResult } from '../../types/contracts';
+import {
+  InvariantCheckResult,
+  TopologyResponse,
+  PreCommitSimulationResponse,
+  MadrResponse,
+} from '../../types/contracts';
 import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
 import {
   Cpu,
-  AlertOctagon,
-  CheckCircle2,
-  FileCode,
-  GitCommit,
   RefreshCw,
-  Terminal,
-  ShieldCheck,
-  ArrowRight,
-  ExternalLink,
   Wand2,
-  Play,
-  RotateCw,
+  RotateCcw,
+  CheckCircle2,
+  Terminal,
+  FileText,
+  Code2,
 } from 'lucide-react';
 
 interface ArchitectureWorkspaceProps {
   activeFindingId: string | null;
   onSelectFinding: (ruleId: string) => void;
+  onOpenCursorConfig?: () => void;
 }
 
 export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   activeFindingId,
   onSelectFinding,
+  onOpenCursorConfig,
 }) => {
   const [invariants, setInvariants] = useState<InvariantCheckResult[]>([]);
   const [selectedRule, setSelectedRule] = useState<InvariantCheckResult | null>(null);
@@ -39,53 +41,80 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   const [activeTab, setActiveTab] = useState<'diff' | 'madr' | 'tester'>('diff');
   const [refactorApplied, setRefactorApplied] = useState(false);
 
-  // Staged Diff Tester state
-  const [testScenario, setTestScenario] = useState<'INV-017' | 'INV-021' | 'INV-014' | 'INV-008'>('INV-017');
-  const [terminalLog, setTerminalLog] = useState<string[]>([]);
+  // Dynamic Topology State
+  const [topology, setTopology] = useState<TopologyResponse | null>(null);
 
-  useEffect(() => {
-    const scenarioLogs: Record<string, string[]> = {
-      'INV-017': [
-        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
-        '[tars-hook] Checking 4 staged files (285 additions, 42 deletions)...',
-        '[tars-hook] BREACH DETECTED: INV-017 (External HTTP calls inside database transactions)',
-        "[tars-hook] Violating AST node: CallExpression 'stripe_client.charges.create' at src/payments/service.py:84",
-        '[tars-hook] ERROR: Commit blocked in 38.4ms. Outbox pattern required.'
-      ],
-      'INV-021': [
-        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
-        '[tars-hook] Checking 2 staged files in src/storage/...',
-        '[tars-hook] BREACH DETECTED: INV-021 (Cloud S3 sync import in offline binary)',
-        "[tars-hook] Violating AST node: ImportDeclaration 'boto3.client(\"s3\")' in src/storage/sync.py:12",
-        '[tars-hook] ERROR: Commit blocked in 21.3ms. Local disk Tantivy storage required by sovereign NDA.'
-      ],
-      'INV-014': [
-        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
-        '[tars-hook] Checking 3 staged files in .tars/flags.yaml and config...',
-        '[tars-hook] Invariant check PASS: INV-014 (Dead feature flag resurrection)',
-        '[tars-hook] All 14 dormant feature flags confirmed purged.',
-        '[tars-hook] Pre-commit AST scan succeeded in 19.8ms.'
-      ],
-      'INV-008': [
-        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
-        '[tars-hook] Checking 1 staged file in src/auth/jwt.py...',
-        '[tars-hook] Invariant check PASS: INV-008 (Sensitive token logging prevention)',
-        '[tars-hook] Zero raw token identifiers found in logger calls.',
-        '[tars-hook] Pre-commit AST scan succeeded in 15.2ms.'
-      ]
-    };
-    setTerminalLog(scenarioLogs[testScenario] || scenarioLogs['INV-017']);
-  }, [testScenario]);
+  // Dynamic Living MADR State
+  const [madrData, setMadrData] = useState<MadrResponse | null>(null);
+  const [loadingMadr, setLoadingMadr] = useState(false);
 
-  useEffect(() => {
-    api.getInvariants().then((data) => {
+  // Dynamic Pre-Commit Simulator State
+  const [testScenario, setTestScenario] = useState<string>('INV-017');
+  const [simData, setSimData] = useState<PreCommitSimulationResponse | null>(null);
+
+  // Initial Data Load
+  const loadInvariants = useCallback(async () => {
+    try {
+      const data = await api.getInvariants();
       setInvariants(data);
       if (data.length > 0) {
-        const found = data.find((inv) => inv.rule_id === activeFindingId) || data[0];
+        const found = (activeFindingId && data.find((inv) => inv.rule_id === activeFindingId)) || data[0];
         setSelectedRule(found);
       }
-    });
+    } catch (e) {
+      console.error('Failed to load invariants:', e);
+    }
   }, [activeFindingId]);
+
+  useEffect(() => {
+    loadInvariants();
+  }, [loadInvariants]);
+
+  // Load Topology when selected rule or refactor state changes
+  useEffect(() => {
+    if (!selectedRule) return;
+    api.getTopology(selectedRule.rule_id)
+      .then((res) => {
+        setTopology(res);
+        // Automatically align node focus based on rule
+        if (selectedRule.rule_id === 'INV-017') setSelectedGraphNode('payments');
+        else if (selectedRule.rule_id === 'INV-008' || selectedRule.rule_id === 'INV-004') setSelectedGraphNode('auth');
+        else if (selectedRule.rule_id === 'INV-API01' || selectedRule.rule_id === 'INV-001') setSelectedGraphNode('gateway');
+        else if (selectedRule.rule_id === 'INV-021') setSelectedGraphNode('webhook');
+      })
+      .catch((err) => console.error('Topology error:', err));
+  }, [selectedRule?.rule_id, refactorApplied]);
+
+  // Load MADR when tab or selected rule changes
+  useEffect(() => {
+    if (activeTab === 'madr' && selectedRule) {
+      setLoadingMadr(true);
+      api.getMadr(selectedRule.rule_id)
+        .then((res) => setMadrData(res))
+        .catch((err) => {
+          console.error('MADR error:', err);
+          setMadrData({
+            rule_id: selectedRule.rule_id,
+            rule_name: selectedRule.rule_name,
+            file_name: `${selectedRule.rule_id.toLowerCase()}-adr.md`,
+            path: `docs/adr/${selectedRule.adr_ref}`,
+            content: '',
+            problem_statement: selectedRule.rationale,
+            decision_outcome: selectedRule.suggested_refactor,
+          });
+        })
+        .finally(() => setLoadingMadr(false));
+    }
+  }, [activeTab, selectedRule?.rule_id]);
+
+  // Load Simulator Logs when tab or scenario changes
+  useEffect(() => {
+    if (activeTab === 'tester') {
+      api.simulatePreCommit(testScenario)
+        .then((res) => setSimData(res))
+        .catch((err) => console.error('Simulator error:', err));
+    }
+  }, [activeTab, testScenario]);
 
   const handleRunASTCheck = async () => {
     setRunningCheck(true);
@@ -102,49 +131,55 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
     }
   };
 
-  const handleApplyRefactor = () => {
+  const handleApplyRefactor = async () => {
+    if (!selectedRule) return;
     setRefactorApplied(true);
-    setInvariants((prev) =>
-      prev.map((inv) =>
-        inv.rule_id === 'INV-017'
-          ? {
-              ...inv,
-              is_breached: false,
-              observed_code:
-                "# REFACTORED: Outbox pattern applied\nasync with db.transaction():\n    order = await create_order(db, payload)\n    await outbox.publish('order.created', order.id)\n# Stripe dispatch executed asynchronously post-commit",
-            }
-          : inv
-      )
-    );
-    if (selectedRule?.rule_id === 'INV-017') {
+    try {
+      const res = await api.applyRefactor(selectedRule.rule_id);
+      if (res.invariants) {
+        setInvariants(res.invariants);
+        const updated = res.invariants.find((i) => i.rule_id === selectedRule.rule_id);
+        if (updated) setSelectedRule(updated);
+      }
+    } catch {
+      setInvariants((prev) =>
+        prev.map((inv) =>
+          inv.rule_id === selectedRule.rule_id
+            ? {
+                ...inv,
+                is_breached: false,
+                observed_code: inv.refactored_code || inv.observed_code,
+              }
+            : inv
+        )
+      );
       setSelectedRule((prev) =>
         prev
           ? {
               ...prev,
               is_breached: false,
-              observed_code:
-                "# REFACTORED: Outbox pattern applied\nasync with db.transaction():\n    order = await create_order(db, payload)\n    await outbox.publish('order.created', order.id)\n# Stripe dispatch executed asynchronously post-commit",
+              observed_code: prev.refactored_code || prev.observed_code,
             }
           : null
       );
     }
   };
 
-  // 2D Topology Graph entities
-  const graphNodes = [
-    { id: 'gateway', name: 'FastAPI Gateway', layer: 'Entry', x: 40, y: 70 },
-    { id: 'auth', name: 'Auth Session', layer: 'Core', x: 200, y: 30 },
-    {
-      id: 'payments',
-      name: 'Payments Service',
-      layer: 'Core',
-      x: 200,
-      y: 130,
-      isBreached: !refactorApplied,
-    },
-    { id: 'db', name: 'SQLite Connection Pool', layer: 'Data', x: 380, y: 70 },
-    { id: 'webhook', name: 'Outbox Dispatcher', layer: 'Event', x: 380, y: 150 },
-  ];
+  const handleResetRefactors = async () => {
+    setRefactorApplied(false);
+    try {
+      const res = await api.resetRefactors();
+      if (res.invariants) {
+        setInvariants(res.invariants);
+        if (selectedRule) {
+          const updated = res.invariants.find((i) => i.rule_id === selectedRule.rule_id);
+          if (updated) setSelectedRule(updated);
+        }
+      }
+    } catch {
+      loadInvariants();
+    }
+  };
 
   if (!selectedRule) {
     return (
@@ -176,6 +211,52 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
     );
   }
 
+  // Fallback nodes and edges if topology endpoint is loading
+  const graphNodes = topology?.nodes || [
+    { id: 'gateway', name: 'FastAPI Gateway', layer: 'Entry', x: 40, y: 70, isBreached: false },
+    { id: 'auth', name: 'Auth Session', layer: 'Core', x: 200, y: 30, isBreached: false },
+    {
+      id: 'payments',
+      name: 'Payments Service',
+      layer: 'Core',
+      x: 200,
+      y: 130,
+      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+    },
+    { id: 'db', name: 'SQLite Connection Pool', layer: 'Data', x: 380, y: 70, isBreached: false },
+    { id: 'webhook', name: 'Outbox Dispatcher', layer: 'Event', x: 380, y: 150, isBreached: false },
+  ];
+
+  const graphEdges = topology?.edges || [
+    { source: 'gateway', target: 'auth', x1: 140, y1: 100, x2: 200, y2: 60, isBreached: false },
+    {
+      source: 'gateway',
+      target: 'payments',
+      x1: 140,
+      y1: 100,
+      x2: 200,
+      y2: 160,
+      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+    },
+    { source: 'auth', target: 'db', x1: 300, y1: 60, x2: 380, y2: 100, isBreached: false },
+    {
+      source: 'payments',
+      target: 'db',
+      x1: 300,
+      y1: 160,
+      x2: 380,
+      y2: 100,
+      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+    },
+    { source: 'payments', target: 'webhook', x1: 300, y1: 160, x2: 380, y2: 180, isBreached: false },
+  ];
+
+  const activeNodeDesc =
+    topology?.descriptions?.[selectedGraphNode] ||
+    (selectedGraphNode === 'payments' && selectedRule?.rule_id === 'INV-017' && selectedRule?.is_breached
+      ? 'Direct call to external Stripe API inside transaction boundary violates INV-017.'
+      : 'All ingress and egress edges adhere to Hexagonal layer isolation invariants.');
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -188,6 +269,16 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
               <span className="text-xs font-mono text-[#6E6E73] dark:text-[#8E8E93] bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-[10px] border border-black/[0.08] dark:border-white/[0.12] shadow-xs">
                 AST Scan: <span className="text-black dark:text-white font-bold">{executionTime} ms</span>
               </span>
+            )}
+            {onOpenCursorConfig && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Code2 className="w-3.5 h-3.5" />}
+                onClick={onOpenCursorConfig}
+              >
+                Export Cursor MCP
+              </Button>
             )}
             <Button
               variant="primary"
@@ -202,11 +293,21 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
         }
       />
 
-      {/* Invariant Rules Ribbon */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {invariants.map((inv) => {
-          const isSelected = selectedRule.rule_id === inv.rule_id;
-          return (
+      {/* Invariant Rules Ribbon or Empty State */}
+      {invariants.length === 0 || !selectedRule ? (
+        <EmptyState
+          icon={<Cpu className="w-5 h-5 text-[#8E8E93]" />}
+          title="No architectural invariants configured yet"
+          description="Complete Genesis Onboarding or configure custom Tree-sitter AST invariants to enforce sovereign architectural guarantees."
+          actionLabel="Scan Repository"
+          onAction={handleRunASTCheck}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {invariants.map((inv) => {
+              const isSelected = selectedRule.rule_id === inv.rule_id;
+              return (
             <div
               key={inv.rule_id}
               onClick={() => {
@@ -237,7 +338,8 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 {inv.rule_name}
               </p>
               <div className="mt-2.5 text-[11px] text-[#86868B] dark:text-[#8E8E93] truncate font-mono">
-                {inv.violating_file}:{inv.line_number}
+                {inv.violating_file}
+                {inv.line_number && inv.line_number > 0 ? `:${inv.line_number}` : ''}
               </div>
             </div>
           );
@@ -262,16 +364,27 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 onChange={(v) => setActiveTab(v as any)}
               />
 
-              {selectedRule.is_breached && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={<Wand2 className="w-3.5 h-3.5" />}
-                  onClick={handleApplyRefactor}
-                >
-                  Apply Outbox Refactor
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedRule.is_breached ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<Wand2 className="w-3.5 h-3.5" />}
+                    onClick={handleApplyRefactor}
+                  >
+                    Apply Suggested Refactor
+                  </Button>
+                ) : refactorApplied ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<RotateCcw className="w-3.5 h-3.5" />}
+                    onClick={handleResetRefactors}
+                  >
+                    Reset Baseline
+                  </Button>
+                ) : null}
+              </div>
             </div>
 
             {/* TAB 1: CODE DIFF VIEW */}
@@ -301,7 +414,12 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 {/* Syntax Highlighted Code Diff Container */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs text-[#6E6E73] dark:text-[#8E8E93]">
-                    <span className="font-mono font-medium">{selectedRule.violating_file}:{selectedRule.line_number}</span>
+                    <span className="font-mono font-medium">
+                      {selectedRule.violating_file}
+                      {selectedRule.line_number && selectedRule.line_number > 0
+                        ? `:${selectedRule.line_number}`
+                        : ''}
+                    </span>
                     <span className="text-[11px] text-[#8E8E93] font-mono">Tree-sitter AST C-bindings</span>
                   </div>
 
@@ -310,8 +428,13 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                       <pre className="space-y-1">
                         {selectedRule.observed_code.split('\n').map((line, i) => {
                           const isViolatingLine =
-                            (line.includes('stripe_client') || line.includes('BREACH')) &&
-                            selectedRule.is_breached;
+                            selectedRule.is_breached &&
+                            (line.toLowerCase().includes('breach') ||
+                              line.toLowerCase().includes('fail') ||
+                              line.includes('stripe_client') ||
+                              line.includes('handler(payload)') ||
+                              line.includes('legacy_cloud_s3_sync') ||
+                              line.includes('logger.info'));
                           return (
                             <div
                               key={i}
@@ -324,7 +447,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                               }`}
                             >
                               <span className="text-neutral-600 select-none w-5 text-right shrink-0">
-                                {selectedRule.line_number - 2 + i}
+                                {Math.max(1, (selectedRule.line_number || 1) - 2 + i)}
                               </span>
                               <span>{line}</span>
                             </div>
@@ -358,18 +481,18 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
               </div>
             )}
 
-            {/* TAB 2: LIVING MADR VIEWER */}
+            {/* TAB 2: LIVING MADR VIEWER (Fully Dynamic) */}
             {activeTab === 'madr' && (
               <div className="space-y-4 text-xs font-sans select-text">
                 <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
                   <div className="text-xs font-mono font-bold text-[#0071E3] dark:text-[#0A84FF]">
-                    docs/adr/{selectedRule.adr_ref}
+                    docs/adr/{selectedRule.adr_ref || `${selectedRule.rule_id.toLowerCase()}-adr.md`}
                   </div>
                   <h4 className="text-sm font-bold text-black dark:text-white">
                     MADR: {selectedRule.rule_name}
                   </h4>
                   <div className="text-[#8E8E93] font-mono text-[11px]">
-                    Status: Living • Generated by Local Qwen 8B • Hash: sha256:7f81a9
+                    Status: Living • Generated by Local Qwen 8B • Invariant: {selectedRule.rule_id}
                   </div>
                 </div>
 
@@ -378,28 +501,38 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                     1. Context & Problem Statement
                   </h5>
                   <p className="text-[#3C3C43] dark:text-[#EBEBF5]">
-                    Wrapping third-party network I/O within a database transaction holds row-level locks indefinitely during network latency spikes, resulting in DB pool exhaustion.
+                    {madrData?.problem_statement || selectedRule.rationale}
                   </p>
 
                   <h5 className="font-bold text-black dark:text-white uppercase tracking-wider text-[11px] pt-2">
                     2. Decision Outcome
                   </h5>
                   <p className="text-[#3C3C43] dark:text-[#EBEBF5]">
-                    Chosen pattern: **Transactional Outbox Pattern**. All database state changes are committed first; an independent dispatcher reads outbox events and executes external network calls asynchronously.
+                    {madrData?.decision_outcome || selectedRule.suggested_refactor}
+                  </p>
+
+                  <h5 className="font-bold text-black dark:text-white uppercase tracking-wider text-[11px] pt-2">
+                    3. Target Scope & File Pattern
+                  </h5>
+                  <p className="text-[#3C3C43] dark:text-[#EBEBF5] font-mono">
+                    {selectedRule.violating_file}
+                    {selectedRule.target_files && selectedRule.target_files.length > 0
+                      ? ` (${selectedRule.target_files.join(', ')})`
+                      : ''}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* TAB 3: PRE-COMMIT GIT DIFF TESTER */}
+            {/* TAB 3: PRE-COMMIT GIT DIFF TESTER (Dynamic Scenarios) */}
             {activeTab === 'tester' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-black dark:text-white">
                     Simulate Staged Diff Inspection:
                   </span>
-                  <div className="flex gap-1.5 text-xs">
-                    {(['INV-017', 'INV-021', 'INV-014', 'INV-008'] as const).map((rule) => (
+                  <div className="flex gap-1.5 text-xs flex-wrap">
+                    {['INV-017', 'INV-021', 'INV-014', 'INV-008', 'CLEAN'].map((rule) => (
                       <button
                         key={rule}
                         onClick={() => setTestScenario(rule)}
@@ -416,13 +549,17 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 </div>
 
                 <div className="rounded-[14px] bg-black text-[#0A84FF] font-mono text-xs p-4 space-y-1.5 select-text overflow-x-auto border border-black/[0.12] dark:border-white/[0.12]">
-                  <div className="text-neutral-500 font-bold">$ git commit -m "feat(payments): execute stripe charge"</div>
-                  {terminalLog.map((log, i) => (
+                  <div className="text-neutral-500 font-bold">
+                    $ {simData?.git_command || `git commit -m "feat: check ${testScenario}"`}
+                  </div>
+                  {(simData?.terminal_logs || []).map((log, i) => (
                     <div
                       key={i}
                       className={
                         log.includes('BREACH') || log.includes('ERROR')
                           ? 'text-[#FF453A] font-bold'
+                          : log.includes('PASS')
+                          ? 'text-[#30D158] font-bold'
                           : log.includes('Violating')
                           ? 'text-[#FF9F0A]'
                           : 'text-[#0A84FF]'
@@ -432,7 +569,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                     </div>
                   ))}
                   <div className="text-neutral-400 pt-1 text-[11px]">
-                    Executed in 38.4ms on local Apple/x86 silicon • 0.00 KB egress.
+                    Executed in {simData?.execution_time_ms || 38.4}ms on local Apple/x86 silicon • 0.00 KB egress.
                   </div>
                 </div>
               </div>
@@ -440,7 +577,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
           </div>
         </div>
 
-        {/* Right Column: System Topology & Call Graph (5 cols) */}
+        {/* Right Column: Dynamic System Topology & Call Graph (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 space-y-4 shadow-sm">
             <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
@@ -458,29 +595,21 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
             {/* 2D Call Graph Canvas */}
             <div className="rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/40 h-72 flex items-center justify-center p-2 relative overflow-hidden">
               <svg className="w-full h-full" viewBox="0 0 500 240">
-                {/* Edges */}
-                <line x1="140" y1="100" x2="200" y2="60" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                <line
-                  x1="140"
-                  y1="100"
-                  x2="200"
-                  y2="160"
-                  stroke={!refactorApplied ? '#FF453A' : 'rgba(142, 142, 147, 0.4)'}
-                  strokeWidth="2"
-                  strokeDasharray={!refactorApplied ? '3 3' : 'none'}
-                />
-                <line x1="300" y1="60" x2="380" y2="100" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                <line
-                  x1="300"
-                  y1="160"
-                  x2="380"
-                  y2="100"
-                  stroke={!refactorApplied ? '#FF453A' : 'rgba(142, 142, 147, 0.4)'}
-                  strokeWidth="1.5"
-                />
-                <line x1="300" y1="160" x2="380" y2="180" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
+                {/* Dynamic Edges */}
+                {graphEdges.map((edge, idx) => (
+                  <line
+                    key={idx}
+                    x1={edge.x1}
+                    y1={edge.y1}
+                    x2={edge.x2}
+                    y2={edge.y2}
+                    stroke={edge.isBreached ? '#FF453A' : 'rgba(142, 142, 147, 0.4)'}
+                    strokeWidth={edge.isBreached ? '2' : '1.5'}
+                    strokeDasharray={edge.isBreached ? '3 3' : 'none'}
+                  />
+                ))}
 
-                {/* Nodes */}
+                {/* Dynamic Nodes */}
                 {graphNodes.map((gn) => {
                   const isSelected = selectedGraphNode === gn.id;
                   return (
@@ -508,7 +637,14 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                       <text x="8" y="16" fill="#8E8E93" fontSize="8.5" fontWeight="bold">
                         {gn.layer}
                       </text>
-                      <text x="8" y="32" fill="currentColor" className="text-black dark:text-white" fontSize="10.5" fontWeight="bold">
+                      <text
+                        x="8"
+                        y="32"
+                        fill="currentColor"
+                        className="text-black dark:text-white"
+                        fontSize="10.5"
+                        fontWeight="bold"
+                      >
                         {gn.name.length > 14 ? gn.name.slice(0, 14) + '..' : gn.name}
                       </text>
                       {gn.isBreached && (
@@ -520,11 +656,11 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
               </svg>
             </div>
 
-            {/* Graph Node Inspector */}
+            {/* Graph Node Inspector (Dynamic) */}
             <div className="p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 text-xs space-y-1">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-black dark:text-white">
-                  Selected Node: {graphNodes.find((n) => n.id === selectedGraphNode)?.name}
+                  Selected Node: {graphNodes.find((n) => n.id === selectedGraphNode)?.name || selectedGraphNode}
                 </span>
                 {graphNodes.find((n) => n.id === selectedGraphNode)?.isBreached && (
                   <span className="text-[10px] text-[#C0392B] dark:text-[#FF453A] font-bold uppercase font-mono">
@@ -533,14 +669,14 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 )}
               </div>
               <p className="text-[#6E6E73] dark:text-[#8E8E93] text-[11px] leading-relaxed">
-                {selectedGraphNode === 'payments' && !refactorApplied
-                  ? "Direct call to external Stripe API inside transaction boundary violates INV-017."
-                  : "All ingress and egress edges adhere to Hexagonal layer isolation invariants."}
+                {activeNodeDesc}
               </p>
             </div>
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

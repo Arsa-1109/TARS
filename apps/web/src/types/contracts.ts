@@ -73,6 +73,7 @@ export interface SimulationRequest {
 export interface SimulationResponse {
   runway_impact_months: number;
   delivery_delay_weeks: number;
+  risk_score?: number;
   affected_client_promises: string[];
   affected_code_modules: string[];
   executive_synthesis: string;
@@ -89,7 +90,60 @@ export interface InvariantCheckResult {
   adr_ref: string;
   suggested_refactor: string;
   observed_code?: string;
+  refactored_code?: string;
+  category?: string;
+  severity?: string;
+  target_files?: string[];
 }
+
+export interface TopologyNode {
+  id: string;
+  name: string;
+  layer: 'Entry' | 'Core' | 'Data' | 'Event' | string;
+  x: number;
+  y: number;
+  file_path?: string;
+  isBreached?: boolean;
+  enforced_by?: string[];
+}
+
+export interface TopologyEdge {
+  source: string;
+  target: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  isBreached?: boolean;
+}
+
+export interface TopologyResponse {
+  active_rule_id: string;
+  refactored: boolean;
+  nodes: TopologyNode[];
+  edges: TopologyEdge[];
+  descriptions: Record<string, string>;
+}
+
+export interface PreCommitSimulationResponse {
+  rule_id: string;
+  git_command: string;
+  execution_time_ms: number;
+  target_file: string;
+  is_breached: boolean;
+  terminal_logs: string[];
+}
+
+export interface MadrResponse {
+  rule_id: string;
+  rule_name: string;
+  file_name: string;
+  path: string;
+  content: string;
+  problem_statement: string;
+  decision_outcome: string;
+}
+
 
 // Unified Action Hub
 export interface ActionItemDTO {
@@ -122,10 +176,37 @@ export interface CursorMcpConfig {
 export type UserRole = 'FOUNDER' | 'PRODUCT' | 'SALES' | 'ENGINEER' | 'NEW_HIRE';
 
 export interface UserProfile {
+  id?: string;
   name: string;
+  email?: string;
   role: UserRole;
   department: string;
   clearance: 'ALL_TEAM' | 'EXECUTIVE_ONLY';
+  created_at?: number;
+  company_id?: string;
+  company_name?: string;
+}
+
+export interface UserDTO {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department: string;
+  clearance: 'ALL_TEAM' | 'EXECUTIVE_ONLY';
+  created_at: number;
+  company_id?: string;
+  company_name?: string;
+}
+
+export interface UserCreateDTO {
+  name: string;
+  email: string;
+  role: UserRole;
+  department?: string;
+  clearance?: string;
+  company_name?: string;
+  company_id?: string;
 }
 
 // Workspace Navigation
@@ -136,3 +217,65 @@ export type WorkspaceId =
   | 'thinktank'
   | 'decisions'
   | 'architecture';
+
+// Genesis Onboarding & Sovereign Company Profile
+export interface CompanyProfile {
+  id: string;
+  company_name: string;
+  website?: string;
+  industry: string;
+  stage: string;
+  team_size: string;
+  runway_months?: number;
+  one_liner: string;
+  core_thesis?: string;
+  icp?: string;
+  tech_stack?: string;
+  enterprise_policy?: 'REJECT_CUSTOM_FORKS' | 'CASE_BY_CASE' | 'OPEN_CUSTOMISATION' | string;
+  pricing_model?: 'USAGE_BASED' | 'FLAT_SEAT_BASED' | 'ENTERPRISE_TIERED' | 'OPEN_CORE' | string;
+  tars_tone?: 'CONCISE_EXECUTIVE' | 'SOCRATIC_MENTOR' | 'DEVILS_ADVOCATE' | string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface GenesisBloomPayload {
+  company_name: string;
+  website?: string;
+  industry: string;
+  stage: string;
+  team_size: string;
+  runway_months?: number;
+  one_liner: string;
+  core_thesis?: string;
+  icp?: string;
+  tech_stack?: string;
+  enterprise_policy?: string;
+  pricing_model?: string;
+  tars_tone?: string;
+  internal_acronyms?: { term: string; definition: string }[];
+  load_sample_assets?: boolean;
+}
+
+export interface GenesisBloomResponse {
+  status: string;
+  company_profile: CompanyProfile;
+  seeded_decisions: string[];
+  flight_plans_count: number;
+  loaded_assets: string[];
+  nodes_bloomed: number;
+  timestamp: number;
+}
+
+export interface WorkspaceResetRequest {
+  reset_type?: 'ALL' | 'DEMO_ONLY' | 'DOCUMENTS' | 'ACTIONS' | 'DECISIONS';
+  preserve_users?: boolean;
+  preserve_company_profile?: boolean;
+}
+
+export interface WorkspaceResetResponse {
+  status: string;
+  message: string;
+  cleared: Record<string, number>;
+  timestamp: number;
+}
+

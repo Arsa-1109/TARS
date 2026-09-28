@@ -87,8 +87,191 @@ class LocalDB:
                 created_at INTEGER NOT NULL
             )
         ''')
+
+        # Users table (Custom User Registry)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                role TEXT NOT NULL,
+                department TEXT NOT NULL,
+                clearance TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                company_id TEXT,
+                company_name TEXT
+            )
+        ''')
+
+        # Safe schema migration for existing SQLite databases
+        cursor.execute("PRAGMA table_info(users)")
+        existing_cols = [row[1] for row in cursor.fetchall()]
+        if "company_id" not in existing_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN company_id TEXT")
+        if "company_name" not in existing_cols:
+            cursor.execute("ALTER TABLE users ADD COLUMN company_name TEXT")
+
+
+        # Documents table (Persistent Ingestion Lake Catalog)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS documents (
+                doc_id TEXT PRIMARY KEY,
+                filename TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                file_hash TEXT UNIQUE NOT NULL,
+                department TEXT NOT NULL,
+                clearance TEXT NOT NULL,
+                format TEXT NOT NULL,
+                file_size_bytes INTEGER NOT NULL,
+                page_count INTEGER NOT NULL,
+                table_count INTEGER NOT NULL,
+                character_count INTEGER NOT NULL,
+                chunk_count INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                preview TEXT,
+                ingested_at INTEGER NOT NULL,
+                is_demo INTEGER DEFAULT 0
+            )
+        ''')
+
+        # Safe schema migrations for demo-tagging and data isolation
+        cursor.execute("PRAGMA table_info(documents)")
+        doc_cols = [row[1] for row in cursor.fetchall()]
+        if "is_demo" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN is_demo INTEGER DEFAULT 0")
+
+        cursor.execute("PRAGMA table_info(action_items)")
+        act_cols = [row[1] for row in cursor.fetchall()]
+        if "is_demo" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN is_demo INTEGER DEFAULT 0")
+
+        cursor.execute("PRAGMA table_info(memories)")
+        mem_cols = [row[1] for row in cursor.fetchall()]
+        if "is_demo" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN is_demo INTEGER DEFAULT 0")
+
+        # Company Profile table (Genesis Onboarding Institutional Memory)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS company_profile (
+                id TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                website TEXT,
+                industry TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                team_size TEXT NOT NULL,
+                runway_months INTEGER,
+                one_liner TEXT NOT NULL,
+                core_thesis TEXT,
+                icp TEXT,
+                tech_stack TEXT,
+                enterprise_policy TEXT DEFAULT 'REJECT_CUSTOM_FORKS',
+                pricing_model TEXT DEFAULT 'USAGE_BASED',
+                tars_tone TEXT DEFAULT 'CONCISE_EXECUTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Seed default demo personas if table is empty
+        default_personas = [
+            ("usr-aryan", "Aryan", "aryan@tars.local", "FOUNDER", "Executive", "EXECUTIVE_ONLY"),
+            ("usr-elena", "Elena Rostova", "elena@tars.local", "ENGINEER", "Engineering", "ALL_TEAM"),
+            ("usr-marcus", "Marcus Vance", "marcus@tars.local", "PRODUCT", "Product", "ALL_TEAM"),
+            ("usr-sarah", "Sarah Vance", "sarah@tars.local", "SALES", "Sales & Growth", "ALL_TEAM"),
+            ("usr-maya", "Maya Lin", "maya@tars.local", "NEW_HIRE", "Engineering", "ALL_TEAM"),
+        ]
+        import time as _t
+        now_ts = int(_t.time())
+        for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
+            cursor.execute('''
+                INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts))
         
         conn.commit()
 
+        # Guarantee synchronisation with sovereign vault database (.tars/vault.db)
+        try:
+            vault_dir = os.path.join(os.getcwd(), ".tars")
+            os.makedirs(vault_dir, exist_ok=True)
+            vault_path = os.path.join(vault_dir, "vault.db")
+            if os.path.abspath(vault_path) != os.path.abspath(DB_PATH):
+                vault_conn = sqlite3.connect(vault_path)
+                vault_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS users (
+                        id TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        email TEXT UNIQUE NOT NULL,
+                        role TEXT NOT NULL,
+                        department TEXT NOT NULL,
+                        clearance TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        company_id TEXT,
+                        company_name TEXT
+                    )
+                ''')
+                v_cursor = vault_conn.cursor()
+                v_cursor.execute("PRAGMA table_info(users)")
+                v_cols = [row[1] for row in v_cursor.fetchall()]
+                if "company_id" not in v_cols:
+                    vault_conn.execute("ALTER TABLE users ADD COLUMN company_id TEXT")
+                if "company_name" not in v_cols:
+                    vault_conn.execute("ALTER TABLE users ADD COLUMN company_name TEXT")
+
+                vault_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS documents (
+                        doc_id TEXT PRIMARY KEY,
+                        filename TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        file_hash TEXT UNIQUE NOT NULL,
+                        department TEXT NOT NULL,
+                        clearance TEXT NOT NULL,
+                        format TEXT NOT NULL,
+                        file_size_bytes INTEGER NOT NULL,
+                        page_count INTEGER NOT NULL,
+                        table_count INTEGER NOT NULL,
+                        character_count INTEGER NOT NULL,
+                        chunk_count INTEGER NOT NULL,
+                        content TEXT NOT NULL,
+                        preview TEXT,
+                        ingested_at INTEGER NOT NULL,
+                        is_demo INTEGER DEFAULT 0
+                    )
+                ''')
+                v_cursor.execute("PRAGMA table_info(documents)")
+                v_doc_cols = [row[1] for row in v_cursor.fetchall()]
+                if "is_demo" not in v_doc_cols:
+                    vault_conn.execute("ALTER TABLE documents ADD COLUMN is_demo INTEGER DEFAULT 0")
+                vault_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS company_profile (
+                        id TEXT PRIMARY KEY,
+                        company_name TEXT NOT NULL,
+                        website TEXT,
+                        industry TEXT NOT NULL,
+                        stage TEXT NOT NULL,
+                        team_size TEXT NOT NULL,
+                        runway_months INTEGER,
+                        one_liner TEXT NOT NULL,
+                        core_thesis TEXT,
+                        icp TEXT,
+                        tech_stack TEXT,
+                        enterprise_policy TEXT DEFAULT 'REJECT_CUSTOM_FORKS',
+                        pricing_model TEXT DEFAULT 'USAGE_BASED',
+                        tars_tone TEXT DEFAULT 'CONCISE_EXECUTIVE',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
+                    vault_conn.execute('''
+                        INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts))
+                vault_conn.commit()
+                vault_conn.close()
+        except Exception as vault_err:
+            print(f"Notice: Non-fatal vault.db initialisation note: {vault_err}")
+
 db = LocalDB()
 db.initialize()
+

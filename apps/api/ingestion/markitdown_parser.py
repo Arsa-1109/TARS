@@ -51,9 +51,27 @@ class MarkitdownParser:
     Supports native fallback parsers for full air-gap zero-dependency execution.
     """
 
-    def __init__(self):
+    def __init__(self, preload: bool = False):
         self.ingested_hashes: Dict[str, Dict[str, Any]] = {}
         self._md_converter = MarkItDown() if _MARKITDOWN_AVAILABLE else None
+        if preload:
+            self._load_persisted_documents()
+
+    def _load_persisted_documents(self):
+        """Loads previously ingested document records from SQLite into memory on startup."""
+        try:
+            from apps.api.core.db import db
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM documents")
+            rows = cursor.fetchall()
+            for r in rows:
+                row_dict = dict(r)
+                fhash = row_dict.get("file_hash")
+                if fhash and fhash not in self.ingested_hashes:
+                    self.ingested_hashes[fhash] = row_dict
+        except Exception as e:
+            logger.warning(f"Could not preload documents from database: {e}")
 
     @staticmethod
     def compute_sha256(file_path: str) -> str:
@@ -64,7 +82,7 @@ class MarkitdownParser:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
-    def parse_file(self, file_path: str, department: str = "GENERAL", clearance: str = "ALL_TEAM") -> Dict[str, Any]:
+    def parse_file(self, file_path: str, department: str = "GENERAL", clearance: str = "ALL_TEAM", is_demo: bool = False) -> Dict[str, Any]:
         """
         Main entry point for parsing any supported document format into Markdown.
         Returns document metadata and markdown content.
@@ -75,7 +93,12 @@ class MarkitdownParser:
         file_hash = self.compute_sha256(file_path)
         if file_hash in self.ingested_hashes:
             logger.info(f"Document already ingested (SHA-256: {file_hash[:8]}): {file_path}")
-            return self.ingested_hashes[file_hash]
+            cached = dict(self.ingested_hashes[file_hash])
+            if department != "GENERAL":
+                cached["department"] = department
+            if clearance != "ALL_TEAM":
+                cached["clearance"] = clearance
+            return cached
 
         filename = os.path.basename(file_path)
         ext = os.path.splitext(filename)[1].lower()
@@ -118,6 +141,11 @@ class MarkitdownParser:
         doc_id = f"DOC-{file_hash[:8].upper()}"
         chunks = self.chunk_markdown(markdown_content.strip(), doc_id=doc_id, doc_title=filename)
         calculated_page_count = max(page_count, len({c["page_number"] for c in chunks}) if chunks else 1)
+        preview = markdown_content.strip()[:400] + ("..." if len(markdown_content.strip()) > 400 else "")
+
+        import time as _t
+        now_ts = int(_t.time())
+        demo_flag = 1 if is_demo else 0
 
         result = {
             "doc_id": doc_id,
@@ -130,13 +158,61 @@ class MarkitdownParser:
             "file_size_bytes": file_size,
             "page_count": calculated_page_count,
             "table_count": table_count,
-            "content": markdown_content.strip(),
             "character_count": len(markdown_content.strip()),
-            "chunks": chunks,
             "chunk_count": len(chunks),
+            "content": markdown_content.strip(),
+            "preview": preview,
+            "chunks": chunks,
+            "ingested_at": now_ts,
+            "is_demo": demo_flag,
         }
 
         self.ingested_hashes[file_hash] = result
+
+        # Persist document and chunks into SQLite databases (.tars local store and memories)
+        try:
+            from apps.api.core.db import db
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO documents (
+                    doc_id, filename, file_path, file_hash, department, clearance,
+                    format, file_size_bytes, page_count, table_count, character_count,
+                    chunk_count, content, preview, ingested_at, is_demo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                doc_id, filename, os.path.abspath(file_path), file_hash, department, clearance,
+                ext.lstrip("."), file_size, calculated_page_count, table_count,
+                len(markdown_content.strip()), len(chunks), markdown_content.strip(), preview, now_ts, demo_flag
+            ))
+
+            # Index document as primary memory
+            cursor.execute('''
+                INSERT OR REPLACE INTO memories (
+                    id, record_type, title, content, source, timestamp, tags, related_ids, is_demo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                doc_id, "doc", filename, preview or markdown_content.strip()[:1000],
+                filename, now_ts, department, doc_id, demo_flag
+            ))
+
+            # Index semantic chunks into memories table for search retrieval
+            for idx, ch in enumerate(chunks):
+                chunk_id = f"{doc_id}-chunk-{idx + 1}"
+                ch_title = f"{filename} (Page {ch.get('page_number', 1)})"
+                ch_snippet = ch.get("snippet", "")
+                cursor.execute('''
+                    INSERT OR REPLACE INTO memories (
+                        id, record_type, title, content, source, timestamp, tags, related_ids, is_demo
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    chunk_id, "doc", ch_title, ch_snippet, filename, now_ts, department, doc_id, demo_flag
+                ))
+
+            conn.commit()
+        except Exception as db_err:
+            logger.warning(f"Notice: Failed to persist document {doc_id} to SQLite memories/documents: {db_err}")
+
         return result
 
     def chunk_markdown(
@@ -364,4 +440,4 @@ class MarkitdownParser:
 
 
 # Global singleton instance
-markitdown_parser = MarkitdownParser()
+markitdown_parser = MarkitdownParser(preload=True)

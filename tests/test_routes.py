@@ -146,3 +146,39 @@ def test_watcher_control_and_events(client):
     res_events = client.get("/api/ingestion/events")
     assert res_events.status_code == 200
     assert "events" in res_events.json()
+
+
+def test_user_endpoints_and_listing(client):
+    """Test POST /api/core/users and GET /api/core/users."""
+    res_create = client.post("/api/core/users", json={
+        "name": "Prof. John Doe",
+        "email": "johndoe@tars.local",
+        "role": "ENGINEER",
+        "department": "Infrastructure"
+    })
+    assert res_create.status_code == 200
+    data = res_create.json()
+    assert data["name"] == "Prof. John Doe"
+    assert data["email"] == "johndoe@tars.local"
+
+    # Fetch users
+    res_list = client.get("/api/core/users")
+    assert res_list.status_code == 200
+    users = res_list.json()
+    assert any(u["email"] == "johndoe@tars.local" for u in users)
+
+
+def test_document_listing_persistence(client):
+    """Test that uploaded documents appear in GET /api/ingestion/documents."""
+    txt_content = b"Sovereign AI Architecture and Offline Vector Memory Blueprint."
+    res = client.post(
+        "/api/ingestion/upload",
+        files={"file": ("sovereign_blueprint.txt", io.BytesIO(txt_content), "text/plain")},
+        data={"department": "ENGINEERING", "clearance": "ALL_TEAM"}
+    )
+    assert res.status_code == 201
+
+    res_docs = client.get("/api/ingestion/documents")
+    assert res_docs.status_code == 200
+    docs = res_docs.json()["documents"]
+    assert any(d["filename"] == "sovereign_blueprint.txt" for d in docs)

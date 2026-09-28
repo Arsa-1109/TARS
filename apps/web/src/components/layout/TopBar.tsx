@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { WorkspaceId, UserRole, UserProfile } from '../../types/contracts';
+import { WorkspaceId, UserRole, UserProfile, UserDTO } from '../../types/contracts';
 import { WorkspaceDomain, WORKSPACE_DOMAINS, ROLE_WORKSPACES } from '../../state/useSessionStore';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import {
@@ -20,6 +20,7 @@ import {
   LogOut,
   ExternalLink,
   User,
+  Sparkles,
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -32,10 +33,14 @@ interface TopBarProps {
   onOpenVoiceMemo: () => void;
   onOpenOnboarding: () => void;
   onGoToLanding: () => void;
+  onOpenGenesis?: () => void;
+  companyName?: string;
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
   onSwitchRole?: (role: UserRole) => void;
+  onSelectRole?: (role: UserRole) => void;
+  onSelectUser?: (user: UserProfile) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -51,10 +56,14 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenVoiceMemo,
   onOpenOnboarding,
   onGoToLanding,
+  onOpenGenesis,
+  companyName,
   currentRole,
   profile,
   activeDomain,
   onSwitchRole,
+  onSelectRole,
+  onSelectUser,
   onLogout,
   theme,
   onToggleTheme,
@@ -108,7 +117,27 @@ export const TopBar: React.FC<TopBarProps> = ({
             TARS
           </span>
         </button>
+
+        {companyName && (
+          <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-black/[0.1] dark:border-white/[0.1]">
+            <span className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] max-w-[130px] truncate" title={companyName}>
+              {companyName}
+            </span>
+          </div>
+        )}
+
+        {onOpenGenesis && (
+          <button
+            onClick={onOpenGenesis}
+            className="hidden xl:inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-semibold text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/10 hover:bg-[#0071E3]/15 transition-colors border border-[#0071E3]/20"
+            title="Launch Genesis Onboarding Wizard"
+          >
+            <Sparkles className="w-2.5 h-2.5" />
+            <span>Genesis</span>
+          </button>
+        )}
       </div>
+
 
       {/* Center: Workspace nav */}
       <div className="hidden md:flex items-center justify-center flex-1 px-6">
@@ -215,6 +244,24 @@ export const TopBar: React.FC<TopBarProps> = ({
 
                 {/* Menu items */}
                 <div className="p-1.5 space-y-0.5">
+                  {onOpenGenesis && (
+                    <button
+                      onClick={() => { onOpenGenesis(); setProfileOpen(false); }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors group"
+                    >
+                      <div className="w-7 h-7 rounded-[8px] bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center shrink-0">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-[12px] font-medium text-black dark:text-white flex items-center gap-1.5">
+                          <span>Genesis Wizard</span>
+                          <span className="text-[9px] font-mono px-1 rounded bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF]">Setup</span>
+                        </div>
+                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">Company identity & seed</div>
+                      </div>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { onOpenOnboarding(); setProfileOpen(false); }}
                     className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors group"
@@ -222,6 +269,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <div className="w-7 h-7 rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center shrink-0 text-[#3C3C43] dark:text-[#EBEBF5]">
                       <Compass className="w-3.5 h-3.5" />
                     </div>
+
                     <div>
                       <div className="text-[12px] font-medium text-black dark:text-white">Onboarding Guide</div>
                       <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">14-day flight plan</div>

@@ -42,8 +42,10 @@ except ImportError as e:
 try:
     from apps.api.core.routes import router as core_router
     app.include_router(core_router, prefix="/api/core", tags=["Track 1: Core"])
+    app.include_router(core_router, prefix="/api", tags=["Genesis & Sovereign Core"])
 except ImportError as e:
     print(f"Warning: Core router not mounted: {e}")
+
 
 try:
     from apps.api.cortex.routes import router as cortex_router, mcp_router

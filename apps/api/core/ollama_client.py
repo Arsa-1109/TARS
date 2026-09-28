@@ -9,8 +9,8 @@ from apps.api.core.model_router import model_router
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 class OllamaClient:
-    def __init__(self, timeout: float = 60.0):
-        self.timeout = timeout
+    def __init__(self, timeout: float = 3.0):
+        self.timeout = httpx.Timeout(timeout, connect=0.5)
         self.router = model_router
         
     async def is_available(self) -> bool:

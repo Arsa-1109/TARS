@@ -87,6 +87,7 @@ def test_excel_multi_sheet_flattening(parser):
 
 def test_sha256_deduplication(parser):
     """Verify parsing the exact same file twice returns cached result."""
+    initial_count = len(parser.ingested_hashes)
     with tempfile.NamedTemporaryFile(suffix=".txt", mode="w", encoding="utf-8", delete=False) as f:
         f.write("Deduplication test payload content.")
         temp_path = f.name
@@ -96,7 +97,7 @@ def test_sha256_deduplication(parser):
         res2 = parser.parse_file(temp_path)
         assert res1["doc_id"] == res2["doc_id"]
         assert res1["file_hash"] == res2["file_hash"]
-        assert len(parser.ingested_hashes) == 1
+        assert len(parser.ingested_hashes) == initial_count + 1
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)

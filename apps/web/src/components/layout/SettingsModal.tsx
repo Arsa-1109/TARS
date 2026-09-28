@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
+import { api } from '../../services/client';
 import {
   Sliders,
   Shield,
@@ -16,17 +17,25 @@ import {
   X,
   Play,
   RotateCw,
+  Database,
+  Trash2,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenGenesis?: () => void;
 }
 
-type SettingsTab = 'genesis' | 'governor' | 'airgap' | 'acronyms' | 'taxonomy';
+type SettingsTab = 'genesis' | 'governor' | 'airgap' | 'acronyms' | 'taxonomy' | 'data';
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenGenesis }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('genesis');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+
 
   // Genesis Interview state
   const [genesisStep, setGenesisStep] = useState(1);
@@ -145,6 +154,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
     setNewDef('');
   };
 
+  const handleReset = async (type: 'DEMO_ONLY' | 'ALL') => {
+    setResetLoading(true);
+    setResetSuccess(null);
+    try {
+      const res = await api.resetWorkspace({
+        reset_type: type,
+        preserve_users: true,
+        preserve_company_profile: type === 'DEMO_ONLY',
+      });
+      setResetSuccess(
+        type === 'DEMO_ONLY'
+          ? `Sample demo data purged: ${res.cleared.documents} docs, ${res.cleared.action_items} tasks, ${res.cleared.memories} memories cleared. Sovereign custom workspace preserved.`
+          : `Pristine reset complete: ${res.cleared.documents} docs, ${res.cleared.action_items} tasks, ${res.cleared.decisions} decisions cleared. You can now add your own company data.`
+      );
+      setTimeout(() => {
+        window.location.reload();
+      }, 1400);
+    } catch (err: any) {
+      setResetSuccess(`Reset operation failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in select-none" onClick={onClose}>
       {/* Backdrop */}
@@ -181,11 +214,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           <SegmentedControl
             size="sm"
             options={[
-              { value: 'genesis', label: 'Setup Interview' },
-              { value: 'governor', label: 'Hardware Limits' },
-              { value: 'airgap', label: 'Security Verification' },
-              { value: 'acronyms', label: 'Company Dictionary' },
-              { value: 'taxonomy', label: 'Voice & Tone' },
+              { value: 'genesis', label: 'Setup' },
+              { value: 'governor', label: 'Limits' },
+              { value: 'airgap', label: 'Security' },
+              { value: 'acronyms', label: 'Dictionary' },
+              { value: 'taxonomy', label: 'Tone' },
+              { value: 'data', label: 'Workspace Data' },
             ]}
             value={activeTab}
             onChange={(v) => setActiveTab(v as SettingsTab)}
@@ -197,17 +231,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {/* TAB 1: GENESIS COLD-START INTERVIEW */}
           {activeTab === 'genesis' && (
             <div className="space-y-5">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-1">
-                <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
-                  PRD Section 5.2 • Day 1 Cold Start
+              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                    Genesis Onboarding · Publication-Grade Flow
+                  </div>
+                  {onOpenGenesis && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenGenesis();
+                      }}
+                      className="gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Launch Genesis Wizard</span>
+                    </Button>
+                  )}
                 </div>
                 <h4 className="text-sm font-bold text-black dark:text-white">
-                  15-Minute Socratic "Genesis Interview"
+                  5-Step Startup Identity, Invariants & Knowledge Seeding
                 </h4>
                 <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
-                  For brand-new startups with zero documents: TARS conducts a 15-minute voice or text interview probing your thesis, customer commitments, and technical constraints while your knowledge graph blooms in real time.
+                  Configure startup identity, problem space, enterprise customisation policies, and ingest initial seed documents in under 3 minutes with zero network egress.
                 </p>
               </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
                 {/* Left: Interview Dialog */}
@@ -560,6 +611,77 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                       <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">{t.desc}</div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: SOVEREIGN WORKSPACE DATA ISOLATION */}
+          {activeTab === 'data' && (
+            <div className="space-y-5 animate-fade-in">
+              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <span className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                    Sovereign Data Management & Mock Decoupling
+                  </span>
+                </div>
+                <h4 className="text-sm font-bold text-black dark:text-white">
+                  Separate Mock Fixtures & Manage Sovereign Company Data
+                </h4>
+                <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
+                  TARS operates strictly offline with zero egress ($E_{'{'}net{'}'} = 0.00\text{'{'} KB{'}'}$). If you previously loaded sample demo assets or wish to start fresh with your own authentic company documents, decisions, and tasks, use the controls below.
+                </p>
+              </div>
+
+              {resetSuccess && (
+                <div className="p-4 rounded-[14px] border border-[#34C759]/30 bg-[#34C759]/10 text-[#34C759] text-xs font-semibold flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{resetSuccess}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Trash2 className="w-4 h-4 text-[#FF9500]" />
+                      <h5 className="text-[13px] font-bold text-black dark:text-white">Purge Sample Demo Data</h5>
+                    </div>
+                    <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
+                      Removes all sample demo spreadsheets, audio transcripts, and simulated decisions. Preserves your custom registered users and any uploaded company documents.
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={resetLoading}
+                    onClick={() => handleReset('DEMO_ONLY')}
+                    className="w-full text-[#FF9500] hover:text-[#FF9500] border-[#FF9500]/30"
+                  >
+                    Clear Sample Data Only
+                  </Button>
+                </div>
+
+                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <RefreshCw className="w-4 h-4 text-[#FF3B30]" />
+                      <h5 className="text-[13px] font-bold text-black dark:text-white">Pristine Workspace Reset</h5>
+                    </div>
+                    <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
+                      Completely empties institutional documents, action items, and graph decisions back to a clean slate. Custom user profiles are preserved.
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    loading={resetLoading}
+                    onClick={() => handleReset('ALL')}
+                    className="w-full text-[#FF3B30] hover:text-[#FF3B30] border-[#FF3B30]/30"
+                  >
+                    Reset to Clean Slate
+                  </Button>
                 </div>
               </div>
             </div>

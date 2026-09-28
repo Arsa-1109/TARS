@@ -83,6 +83,68 @@ Chosen option: **Enforce {rule_id} via TARS Invariant Rulepack**.
 
         return str(target_path)
 
+    def get_or_create_madr(
+        self,
+        rule_id: str,
+        rule_name: str,
+        violating_file: str,
+        rationale: str,
+        suggested_refactor: str,
+        adr_ref: str = "",
+        author: str = "Arya <salimattarya@gmail.com>",
+    ) -> Dict[str, Any]:
+        """Returns structured MADR data and markdown content for a given invariant rule."""
+        clean_name = re.sub(r'[^a-zA-Z0-9]+', '-', rule_name.lower()).strip('-')
+        file_name = f"{rule_id.lower()}-{clean_name}.md"
+        target_path = self.adr_dir / file_name
+
+        if adr_ref:
+            custom_name = Path(adr_ref).name
+            custom_path = self.adr_dir / custom_name
+            if custom_path.exists():
+                try:
+                    with open(custom_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                    return {
+                        "rule_id": rule_id,
+                        "rule_name": rule_name,
+                        "file_name": custom_name,
+                        "path": str(custom_path),
+                        "content": content,
+                        "problem_statement": rationale,
+                        "decision_outcome": suggested_refactor,
+                    }
+                except Exception:
+                    pass
+
+        if not target_path.exists():
+            try:
+                self.generate_madr(rule_id, rule_name, violating_file, rationale, suggested_refactor, author)
+            except Exception:
+                pass
+
+        content = ""
+        if target_path.exists():
+            try:
+                with open(target_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception:
+                pass
+
+        if not content:
+            content = f"# {rule_id}: {rule_name}\n\n* **Status:** Accepted\n* **Scope:** `{violating_file}`\n\n## Context & Problem Statement\n{rationale}\n\n## Decision Outcome\n{suggested_refactor}\n"
+
+        return {
+            "rule_id": rule_id,
+            "rule_name": rule_name,
+            "file_name": file_name,
+            "path": str(target_path),
+            "content": content,
+            "problem_statement": rationale,
+            "decision_outcome": suggested_refactor,
+        }
+
+
     def _query_local_ollama(self, rule_id: str, rule_name: str, file_path: str, rationale: str) -> Optional[str]:
         """Queries local Ollama (Qwen 8B) for high-speed rationale expansion with a 1.8s timeout."""
         prompt = f"""You are TARS, a local sovereign codebase sentinel.

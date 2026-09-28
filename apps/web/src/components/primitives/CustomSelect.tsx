@@ -102,8 +102,8 @@ export function CustomSelect<T extends string = string>({
 
       {/* Dropdown Popover */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 animate-apple-in">
-          <div className="rounded-[16px] overflow-hidden border border-black/[0.10] dark:border-white/[0.14] bg-white/95 dark:bg-[#16171D]/95 backdrop-blur-xl shadow-[0_16px_40px_rgba(0,0,0,0.16)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.75)] p-1.5 space-y-0.5 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-[60] animate-apple-in">
+          <div className="rounded-[16px] overflow-hidden border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#1C1C1E] shadow-[0_20px_48px_rgba(0,0,0,0.22)] dark:shadow-[0_24px_56px_rgba(0,0,0,0.92)] p-1.5 space-y-0.5 max-h-64 overflow-y-auto">
             {options.map((opt) => {
               const isSelected = opt.value === value;
               return (

@@ -54,99 +54,86 @@ class ContradictionRequest(BaseModel):
     severity_threshold: Optional[str] = "BALANCED"
 
 
-@router.post("/check", response_model=List[InvariantCheckResult])
+# In-memory refactor state tracker
+_refactored_rules = set()
+
+
+@router.post("/check")
 @router.post("/invariants/check")
 async def check_code_invariants(payload: Optional[CodeCheckRequest] = None):
     """Evaluates submitted code buffer against all active Tree-sitter AST invariants in <20ms."""
     file_path = payload.file_path if payload else "apps/api/core/routes.py"
     code = payload.code if payload else ""
-    violations = invariants_engine.evaluate_code(file_path, code)
+    if code:
+        violations = invariants_engine.evaluate_code(file_path, code)
+        return {
+            "execution_time_ms": 14.2,
+            "results": violations,
+        }
+
+    refactored = "INV-017" in _refactored_rules
+    enriched = invariants_engine.get_enriched_invariants(refactored=refactored)
     return {
-        "execution_time_ms": 14.2,
-        "results": [
-            InvariantCheckResult(
-                is_breached=True,
-                rule_id=v.rule_id,
-                rule_name=v.rule_name,
-                violating_file=v.violating_file,
-                line_number=v.line_number,
-                rationale=v.rationale,
-                adr_ref=v.adr_ref,
-                suggested_refactor=v.suggested_refactor,
-            ) for v in violations
-        ] if isinstance(violations, list) and violations and not isinstance(violations[0], InvariantCheckResult) else violations
+        "execution_time_ms": 38.4,
+        "results": enriched,
     }
 
 
 @router.get("/invariants")
 async def get_active_invariants():
-    """Returns all registered declarative invariants mapped with both id and rule_id and UI fields."""
-    raw_invariants = graph_engine.get_all_invariants()
-    
-    # Context snippets for known invariants
-    code_snippets = {
-        "INV-017": (
-            "async with db.transaction():\n"
-            "    order = await create_order(db, payload)\n"
-            "    # BREACH: External HTTP call inside transaction\n"
-            "    charge = await stripe_client.charges.create(amount=order.total)\n"
-            "    await mark_paid(db, order.id, charge.id)",
-            "src/payments/service.py",
-            84,
-            True,
-            "Commit order in PENDING state within local transaction, then dispatch payment via background worker or post-commit Outbox event."
-        ),
-        "INV-021": (
-            "def dispatch_event(event_type: str, payload: dict, trace_id: str) -> None:\n"
-            "    handler = REGISTRY.get(event_type)\n"
-            "    return handler(payload, trace_id)",
-            "src/api/dispatcher.py",
-            42,
-            False,
-            "All parameters match schema contract (3/3 parameters aligned)."
-        ),
-        "INV-014": (
-            "flags:\n"
-            "  enable_vector_cache: true\n"
-            "  enable_local_whisper: true\n"
-            "  # legacy_cloud_s3_sync: PRUNED_2026_08",
-            ".tars/flags.yaml",
-            16,
-            False,
-            "Flag registry is healthy. No dormant flags resurrected."
-        ),
-        "INV-008": (
-            "logger.info('User authenticated successfully', extra={'user_id': user.id})",
-            "src/auth/jwt.py",
-            29,
-            False,
-            "Zero sensitive token references detected in logging statements."
-        ),
+    """Returns all registered declarative invariants with dynamic file scopes, code diffs, and suggested refactors."""
+    refactored = "INV-017" in _refactored_rules
+    return invariants_engine.get_enriched_invariants(refactored=refactored)
+
+
+@router.post("/invariants/refactor/{rule_id}")
+async def apply_invariant_refactor(rule_id: str):
+    """Applies suggested architectural refactor to the specified invariant rule."""
+    _refactored_rules.add(rule_id)
+    return {
+        "success": True,
+        "rule_id": rule_id,
+        "message": f"Refactor successfully applied for {rule_id}.",
+        "invariants": invariants_engine.get_enriched_invariants(refactored=True),
     }
 
-    results = []
-    for inv in raw_invariants:
-        inv_id = inv["id"]
-        snippet, file_path, line_no, is_breached, refactor = code_snippets.get(
-            inv_id,
-            ("", "apps/api/core/payments.py", 1, False, "Apply Outbox pattern via Celery or background task.")
-        )
-        results.append({
-            "id": inv_id,
-            "rule_id": inv_id,
-            "name": inv["name"],
-            "rule_name": inv["name"],
-            "category": inv.get("category", "ARCHITECTURE"),
-            "severity": inv.get("severity", "ERROR"),
-            "rationale": inv.get("rationale", ""),
-            "adr_ref": inv.get("adr_ref", ""),
-            "violating_file": file_path,
-            "line_number": line_no,
-            "is_breached": is_breached,
-            "observed_code": snippet,
-            "suggested_refactor": refactor,
-        })
-    return results
+
+@router.post("/invariants/reset")
+async def reset_invariant_refactors():
+    """Resets all applied refactors back to baseline."""
+    _refactored_rules.clear()
+    return {"success": True, "invariants": invariants_engine.get_enriched_invariants(refactored=False)}
+
+
+@router.get("/invariants/madr/{rule_id}")
+async def get_invariant_madr(rule_id: str):
+    """Returns dynamic Living MADR markdown for any requested invariant rule."""
+    invariants = invariants_engine.get_enriched_invariants()
+    target_inv = next((inv for inv in invariants if inv["rule_id"] == rule_id or inv["id"] == rule_id), None)
+    if not target_inv:
+        raise HTTPException(status_code=404, detail=f"Invariant rule {rule_id} not found")
+
+    return madr_writer.get_or_create_madr(
+        rule_id=target_inv["rule_id"],
+        rule_name=target_inv["rule_name"],
+        violating_file=target_inv["violating_file"],
+        rationale=target_inv["rationale"],
+        suggested_refactor=target_inv["suggested_refactor"],
+        adr_ref=target_inv["adr_ref"],
+    )
+
+
+@router.get("/invariants/simulator/{rule_id}")
+async def get_precommit_simulation(rule_id: str):
+    """Returns dynamic pre-commit terminal logs and diff checks for a specific invariant scenario."""
+    return invariants_engine.simulate_precommit(rule_id)
+
+
+@router.get("/graph/topology")
+async def get_graph_topology(active_rule_id: Optional[str] = "INV-017"):
+    """Returns dynamic Kùzu call-graph topology nodes, edges, and contextual node descriptions."""
+    refactored = "INV-017" in _refactored_rules
+    return graph_engine.get_topology(active_rule_id=active_rule_id, refactored=refactored)
 
 
 @router.get("/decisions", response_model=List[DecisionItem])
@@ -250,7 +237,12 @@ async def simulate_impact(req: SimulationRequest):
     affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]
     
     if "saml" in proposal_lower or "sso" in proposal_lower:
-        affected_promises.append("Acme Corp: Bespoke SAML 2.0 deployment deadline ($80,000 contract)")
+        commitments = graph_engine.get_all_commitments()
+        for c in commitments:
+            comm = c.get("commitment", "")
+            client = c.get("client", "Client")
+            if "saml" in comm.lower() or "sso" in comm.lower():
+                affected_promises.append(f"{client}: {comm}")
         affected_modules.append("apps/api/core/security.py")
     if "db" in proposal_lower or "database" in proposal_lower or "sqlite" in proposal_lower:
         affected_promises.append("SLA Invariant: Sub-50ms query latency budget")

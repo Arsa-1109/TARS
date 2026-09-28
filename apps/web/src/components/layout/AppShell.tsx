@@ -23,10 +23,14 @@ interface AppShellProps {
   onOpenVoiceMemo: () => void;
   onOpenOnboarding: () => void;
   onGoToLanding: () => void;
+  onOpenGenesis?: () => void;
+  companyName?: string;
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
-  onSwitchRole: (role: UserRole) => void;
+  onSwitchRole?: (role: UserRole) => void;
+  onSelectRole?: (role: UserRole) => void;
+  onSelectUser?: (user: UserProfile) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -43,10 +47,14 @@ export const AppShell: React.FC<AppShellProps> = ({
   onOpenVoiceMemo,
   onOpenOnboarding,
   onGoToLanding,
+  onOpenGenesis,
+  companyName,
   currentRole,
   profile,
   activeDomain,
   onSwitchRole,
+  onSelectRole,
+  onSelectUser,
   onLogout,
   theme,
   onToggleTheme,
@@ -67,14 +75,19 @@ export const AppShell: React.FC<AppShellProps> = ({
         onOpenVoiceMemo={onOpenVoiceMemo}
         onOpenOnboarding={onOpenOnboarding}
         onGoToLanding={onGoToLanding}
+        onOpenGenesis={onOpenGenesis}
+        companyName={companyName}
         currentRole={currentRole}
         profile={profile}
         activeDomain={activeDomain}
         onSwitchRole={onSwitchRole}
+        onSelectRole={onSelectRole}
+        onSelectUser={onSelectUser}
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}
       />
+
 
       {/* Main Viewport */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-10">

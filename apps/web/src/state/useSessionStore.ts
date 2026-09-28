@@ -91,6 +91,7 @@ export const ROLES: Record<UserRole, UserProfile> = {
 const STORAGE_ROLE_KEY = 'tars_current_role';
 const STORAGE_DOMAIN_KEY = 'tars_current_domain';
 const STORAGE_AUTH_KEY = 'tars_is_authenticated';
+const STORAGE_USER_KEY = 'tars_current_user_profile';
 
 export function useSessionStore() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -103,6 +104,15 @@ export function useSessionStore() {
     return saved && ROLES[saved] ? saved : 'FOUNDER';
   });
 
+  const [customProfile, setCustomProfile] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_USER_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [activeDomain, setActiveDomain] = useState<WorkspaceDomain>(() => {
     const saved = localStorage.getItem(STORAGE_DOMAIN_KEY) as WorkspaceDomain;
     return saved && WORKSPACE_DOMAINS[saved] ? saved : 'executive';
@@ -111,6 +121,18 @@ export function useSessionStore() {
   const setRole = (role: UserRole) => {
     localStorage.setItem(STORAGE_ROLE_KEY, role);
     setCurrentRole(role);
+    // If user has a custom profile, update its role rather than discarding company details
+    if (customProfile) {
+      const updatedProfile = { ...customProfile, role };
+      setCustomProfile(updatedProfile);
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedProfile));
+    } else {
+      const defaultProfile = ROLES[role];
+      if (defaultProfile) {
+        setCustomProfile(defaultProfile);
+        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(defaultProfile));
+      }
+    }
 
     // Auto-adjust default domain if role doesn't belong to current domain
     if (role === 'FOUNDER') {
@@ -128,23 +150,52 @@ export function useSessionStore() {
     }
   };
 
+  const setUserProfile = (user: UserProfile) => {
+    setCustomProfile(user);
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+    localStorage.setItem(STORAGE_ROLE_KEY, user.role);
+    setCurrentRole(user.role);
+
+    // Auto-adjust default domain if role doesn't belong to current domain
+    if (user.role === 'FOUNDER') {
+      setActiveDomain('executive');
+      localStorage.setItem(STORAGE_DOMAIN_KEY, 'executive');
+    } else if (user.role === 'ENGINEER') {
+      setActiveDomain('engineering');
+      localStorage.setItem(STORAGE_DOMAIN_KEY, 'engineering');
+    } else if (user.role === 'PRODUCT' || user.role === 'SALES') {
+      setActiveDomain('product');
+      localStorage.setItem(STORAGE_DOMAIN_KEY, 'product');
+    } else if (user.role === 'NEW_HIRE') {
+      setActiveDomain('talent');
+      localStorage.setItem(STORAGE_DOMAIN_KEY, 'talent');
+    }
+  };
+
   const switchDomain = (domain: WorkspaceDomain) => {
     localStorage.setItem(STORAGE_DOMAIN_KEY, domain);
     setActiveDomain(domain);
   };
 
-  const login = (role: UserRole = 'FOUNDER') => {
+  const login = (roleOrProfile: UserRole | UserProfile = 'FOUNDER') => {
     localStorage.setItem(STORAGE_AUTH_KEY, 'true');
     setIsAuthenticated(true);
-    setRole(role);
+    if (typeof roleOrProfile === 'string') {
+      setRole(roleOrProfile);
+    } else {
+      setUserProfile(roleOrProfile);
+    }
   };
 
   const logout = () => {
     localStorage.setItem(STORAGE_AUTH_KEY, 'false');
+    localStorage.removeItem(STORAGE_USER_KEY);
+    setCustomProfile(null);
     setIsAuthenticated(false);
   };
 
-  const profile = ROLES[currentRole];
+  const profile: UserProfile = customProfile || (ROLES[currentRole] || ROLES.FOUNDER);
+
   const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain];
 
   // Check if current user role has clearance for a given workspace
@@ -190,6 +241,7 @@ export function useSessionStore() {
     profile,
     currentRole,
     setRole,
+    setUserProfile,
     activeDomain,
     switchDomain,
     currentDomainConfig,
@@ -200,3 +252,4 @@ export function useSessionStore() {
     canAccessWorkspace,
   };
 }
+

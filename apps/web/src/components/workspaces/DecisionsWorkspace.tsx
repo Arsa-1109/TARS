@@ -62,6 +62,8 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
       if (data.length > 0) {
         const found = data.find((d) => d.id === activeDecisionId) || data[0];
         setSelectedDecision(found);
+      } else {
+        setSelectedDecision(null);
       }
     });
   }, [activeDecisionId]);

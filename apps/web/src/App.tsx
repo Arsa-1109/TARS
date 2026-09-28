@@ -15,11 +15,14 @@ import { CitationDrawer } from './components/provenance/CitationDrawer';
 import { CommandPalette } from './components/layout/CommandPalette';
 import { SettingsModal } from './components/layout/SettingsModal';
 import { VoiceMemoModal } from './components/layout/VoiceMemoModal';
+import { GenesisOnboardingWizard } from './components/onboarding/GenesisOnboardingWizard';
+import { CursorConfigModal } from './components/layout/CursorConfigModal';
 import { useSessionStore, WORKSPACE_DOMAINS } from './state/useSessionStore';
 import { useThemeStore } from './state/useThemeStore';
 import { useNavigationStore } from './state/useNavigationStore';
-import { ActionItemDTO, WorkspaceId } from './types/contracts';
+import { ActionItemDTO, WorkspaceId, CompanyProfile } from './types/contracts';
 import { api } from './services/client';
+
 
 export function App() {
   const {
@@ -91,10 +94,51 @@ export function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [voiceMemoOpen, setVoiceMemoOpen] = useState(false);
+  const [genesisWizardOpen, setGenesisWizardOpen] = useState(false);
+  const [cursorModalOpen, setCursorModalOpen] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    const targetComp = profile?.company_name || profile?.company_id || undefined;
     api.getActionItems().then((items) => setActionItems(items));
-  }, []);
+    api.getCompanyProfile(targetComp).then((prof) => {
+      if (prof && prof.company_name) {
+        setCompanyProfile(prof);
+      } else {
+        // If company_profile is unbloomed or empty for this company, check genesis completion
+        const companyKey = profile?.company_name
+          ? `tars_genesis_completed_${profile.company_name.toLowerCase().trim().replace(/\s+/g, '_')}`
+          : 'tars_genesis_completed';
+        const completed = localStorage.getItem(companyKey);
+        if (!completed) {
+          setGenesisWizardOpen(true);
+        }
+      }
+    });
+  }, [isAuthenticated, profile?.company_name, profile?.company_id]);
+
+  // Synchronise company identity with logged-in user profile
+  useEffect(() => {
+    if (profile?.company_name) {
+      setCompanyProfile((prev) => {
+        if (prev?.company_name === profile.company_name) return prev;
+        return {
+          id: profile.company_id || prev?.id || `CMP-${Date.now()}`,
+          company_name: profile.company_name!,
+          industry: prev?.industry || 'B2B SaaS',
+          stage: prev?.stage || 'Seed',
+          team_size: prev?.team_size || '1–5',
+          one_liner: prev?.one_liner || `${profile.company_name} sovereign intelligence workspace.`,
+          enterprise_policy: prev?.enterprise_policy || 'REJECT_CUSTOM_FORKS',
+          pricing_model: prev?.pricing_model || 'USAGE_BASED',
+          tars_tone: prev?.tars_tone || 'CONCISE_EXECUTIVE',
+        };
+      });
+    }
+  }, [profile?.company_name, profile?.company_id]);
+
+
 
   // Update landing view state if authentication status changes
   useEffect(() => {
@@ -220,11 +264,38 @@ export function App() {
         <AuthModal
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
-          onLogin={(role) => {
-            login(role);
-            // Default to knowledge workspace which is accessible to all clearance levels
+          onLogin={(roleOrProfile, isNewUser) => {
+            login(roleOrProfile);
             setWorkspace('knowledge');
             transitionToApp();
+            if (isNewUser) {
+              const compName = typeof roleOrProfile === 'object' && roleOrProfile.company_name
+                ? roleOrProfile.company_name
+                : null;
+              const companyKey = compName
+                ? `tars_genesis_completed_${compName.toLowerCase().trim().replace(/\s+/g, '_')}`
+                : null;
+              if (companyKey) {
+                localStorage.removeItem(companyKey);
+              }
+              localStorage.removeItem('tars_genesis_completed');
+              if (compName) {
+                setCompanyProfile({
+                  id: (typeof roleOrProfile === 'object' && roleOrProfile.company_id) || `CMP-${Date.now()}`,
+                  company_name: compName,
+                  industry: 'B2B SaaS',
+                  stage: 'Seed',
+                  team_size: '1–5',
+                  runway_months: 18,
+                  one_liner: `${compName} sovereign intelligence workspace.`,
+                  enterprise_policy: 'REJECT_CUSTOM_FORKS',
+                  pricing_model: 'USAGE_BASED',
+                  tars_tone: 'CONCISE_EXECUTIVE',
+                });
+              }
+              setActionItems([]);
+              setGenesisWizardOpen(true);
+            }
           }}
           initialMode={authModalMode}
         />
@@ -247,16 +318,23 @@ export function App() {
       onOpenVoiceMemo={() => setVoiceMemoOpen(true)}
       onOpenOnboarding={() => setRoleOnboardingOpen(true)}
       onGoToLanding={() => transitionToLanding()}
+      onOpenGenesis={() => setGenesisWizardOpen(true)}
+      companyName={profile.company_name || companyProfile?.company_name}
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}
       onSwitchRole={setRole}
+      onSelectRole={setRole}
+      onSelectUser={(u) => {
+        login(u);
+      }}
       onLogout={() => {
         logout();
         transitionToLanding();
       }}
       theme={theme}
       onToggleTheme={toggleTheme}
+
     >
       {/* Workspace Routing with Apple subtle fade transition */}
       <div key={workspace} className="animate-fade-in">
@@ -279,6 +357,8 @@ export function App() {
         {workspace === 'onboarding' && (
           <OnboardingWorkspace
             userRole={currentRole}
+            companyProfile={companyProfile}
+            onOpenGenesis={() => setGenesisWizardOpen(true)}
             onOpenCitation={(title, snippet) =>
               openCitation({
                 doc_id: 'DOC-FOUNDING',
@@ -310,6 +390,7 @@ export function App() {
           <ArchitectureWorkspace
             activeFindingId={activeFindingId}
             onSelectFinding={setActiveFindingId}
+            onOpenCursorConfig={() => setCursorModalOpen(true)}
           />
         )}
       </div>
@@ -339,12 +420,20 @@ export function App() {
         onOpenActionHub={() => setActionHubOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMemo={() => setVoiceMemoOpen(true)}
+        onOpenGenesis={() => setGenesisWizardOpen(true)}
       />
 
       {/* Host Settings & Genesis Cold Start Modal */}
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onOpenGenesis={() => setGenesisWizardOpen(true)}
+      />
+
+      {/* 1-Click Cursor MCP Configuration Exporter Modal */}
+      <CursorConfigModal
+        isOpen={cursorModalOpen}
+        onClose={() => setCursorModalOpen(false)}
       />
 
       {/* Mobile Voice Memo (/memo) Modal */}
@@ -381,9 +470,23 @@ export function App() {
           setWorkspace('decisions');
         }}
       />
+
+      {/* TARS Genesis Onboarding Wizard (5-Step Sovereign Setup) */}
+      <GenesisOnboardingWizard
+        isOpen={genesisWizardOpen}
+        onClose={() => setGenesisWizardOpen(false)}
+        initialProfile={companyProfile}
+        onComplete={(newProfile) => {
+          setCompanyProfile(newProfile);
+          setGenesisWizardOpen(false);
+          // Refresh tasks with freshly configured role-based flight-plans
+          api.getActionItems().then((items) => setActionItems(items));
+        }}
+      />
     </AppShell>
     </div>
   );
 }
+
 
 export default App;

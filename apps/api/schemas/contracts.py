@@ -156,3 +156,114 @@ class SystemStatus(BaseModel):
 class MCPToolInvocation(BaseModel):
     tool: str
     args: Dict[str, Any] = Field(default_factory=dict)
+
+# ==========================================
+# GENESIS ONBOARDING & INSTITUTIONAL IDENTITY
+# ==========================================
+class CompanyProfileDTO(BaseModel):
+    """Sovereign Startup Institutional Identity contract."""
+    id: str
+    company_name: str
+    website: Optional[str] = None
+    industry: str
+    stage: str
+    team_size: str
+    runway_months: Optional[int] = 18
+    one_liner: str
+    core_thesis: Optional[str] = None
+    icp: Optional[str] = None
+    tech_stack: Optional[str] = None
+    enterprise_policy: str = "REJECT_CUSTOM_FORKS"
+    pricing_model: str = "USAGE_BASED"
+    tars_tone: str = "CONCISE_EXECUTIVE"
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+class CompanyProfileCreate(BaseModel):
+    """Payload for creating or updating startup identity."""
+    company_name: str
+    website: Optional[str] = None
+    industry: str
+    stage: str
+    team_size: str
+    runway_months: Optional[int] = 18
+    one_liner: str
+    core_thesis: Optional[str] = None
+    icp: Optional[str] = None
+    tech_stack: Optional[str] = None
+    enterprise_policy: str = "REJECT_CUSTOM_FORKS"
+    pricing_model: str = "USAGE_BASED"
+    tars_tone: str = "CONCISE_EXECUTIVE"
+
+class GenesisBloomRequest(BaseModel):
+    """Multi-step Genesis activation payload for seeding institutional memory."""
+    company_name: str
+    website: Optional[str] = None
+    industry: str
+    stage: str
+    team_size: str
+    runway_months: Optional[int] = 18
+    one_liner: str
+    core_thesis: Optional[str] = None
+    icp: Optional[str] = None
+    tech_stack: Optional[str] = None
+    enterprise_policy: str = "REJECT_CUSTOM_FORKS"
+    pricing_model: str = "USAGE_BASED"
+    tars_tone: str = "CONCISE_EXECUTIVE"
+    internal_acronyms: Optional[List[Dict[str, str]]] = None
+    load_sample_assets: bool = False
+
+class GenesisBloomResponse(BaseModel):
+    """Celebration and activation synthesis response."""
+    status: str
+    company_profile: CompanyProfileDTO
+    seeded_decisions: List[str]
+    flight_plans_count: int
+    loaded_assets: List[str]
+    nodes_bloomed: int
+    timestamp: int
+
+
+# ==========================================
+# USER & ACCESS REGISTRY
+# ==========================================
+class UserCreateDTO(BaseModel):
+    """Payload for registering a custom user."""
+    name: str
+    email: str
+    role: str = "ENGINEER"
+    department: Optional[str] = None
+    clearance: Optional[str] = None
+    company_name: Optional[str] = None
+    company_id: Optional[str] = None
+
+class UserDTO(BaseModel):
+    """Persisted user representation."""
+    id: str
+    name: str
+    email: str
+    role: str
+    department: str
+    clearance: str
+    created_at: int
+    company_id: Optional[str] = None
+    company_name: Optional[str] = None
+
+
+# ==========================================
+# WORKSPACE MANAGEMENT & DATA ISOLATION
+# ==========================================
+class WorkspaceResetRequest(BaseModel):
+    """Configuration for resetting sovereign workspace state."""
+    reset_type: str = "ALL"  # "ALL", "DEMO_ONLY", "DOCUMENTS", "ACTIONS", "DECISIONS"
+    preserve_users: bool = True
+    preserve_company_profile: bool = False
+
+class WorkspaceResetResponse(BaseModel):
+    """Result of workspace reset and data decoupling operation."""
+    status: str
+    message: str
+    cleared: Dict[str, int]
+    timestamp: int
+
+

@@ -259,19 +259,9 @@ class TarsGraph:
                     "value": row[3],
                     "status": row[4],
                 })
-            if commitments:
-                return commitments
+            return commitments
         except Exception:
-            pass
-        return [
-            {
-                "id": "COM-ACME-001",
-                "client": "Acme Corp",
-                "commitment": "$80,000 ARR contingent on May 1st SAML SSO",
-                "value": "$80,000",
-                "status": "ACTIVE",
-            }
-        ]
+            return []
 
     def check_contradiction(self, proposal: str, category: str = "ALL", severity_threshold: str = "STRICT") -> Dict[str, Any]:
         """Performs graph-based semantic conflict search against existing architectural decisions."""
@@ -315,3 +305,111 @@ class TarsGraph:
             "conflicting_decision_id": None,
             "explanation": "No architectural contradictions found in Kùzu graph."
         }
+
+    def get_topology(self, active_rule_id: Optional[str] = "INV-017", refactored: bool = False) -> Dict[str, Any]:
+        """Returns dynamic call topology nodes and edges with breach markers tied to invariants."""
+        nodes = [
+            {
+                "id": "gateway",
+                "name": "FastAPI Gateway",
+                "layer": "Entry",
+                "x": 40,
+                "y": 70,
+                "file_path": "apps/api/core/gateway.py",
+                "isBreached": False if refactored else (active_rule_id in ["INV-API01", "INV-001"]),
+                "enforced_by": ["INV-API01", "INV-001"],
+            },
+            {
+                "id": "auth",
+                "name": "Auth Session",
+                "layer": "Core",
+                "x": 200,
+                "y": 30,
+                "file_path": "apps/api/core/session.py",
+                "isBreached": False if refactored else (active_rule_id in ["INV-008", "INV-004"]),
+                "enforced_by": ["INV-008", "INV-004"],
+            },
+            {
+                "id": "payments",
+                "name": "Payments Service",
+                "layer": "Core",
+                "x": 200,
+                "y": 130,
+                "file_path": "src/payments/service.py",
+                "isBreached": False if refactored else (active_rule_id == "INV-017"),
+                "enforced_by": ["INV-017"],
+            },
+            {
+                "id": "db",
+                "name": "SQLite Connection Pool",
+                "layer": "Data",
+                "x": 380,
+                "y": 70,
+                "file_path": "apps/api/core/db.py",
+                "isBreached": False,
+                "enforced_by": ["INV-017", "INV-001"],
+            },
+            {
+                "id": "webhook",
+                "name": "Outbox Dispatcher",
+                "layer": "Event",
+                "x": 380,
+                "y": 150,
+                "file_path": "apps/api/core/events/outbox.py",
+                "isBreached": False,
+                "enforced_by": ["INV-017", "INV-021"],
+            },
+        ]
+
+        edges = [
+            {"source": "gateway", "target": "auth", "x1": 140, "y1": 100, "x2": 200, "y2": 60, "isBreached": False},
+            {
+                "source": "gateway",
+                "target": "payments",
+                "x1": 140,
+                "y1": 100,
+                "x2": 200,
+                "y2": 160,
+                "isBreached": False if refactored else (active_rule_id == "INV-017"),
+            },
+            {"source": "auth", "target": "db", "x1": 300, "y1": 60, "x2": 380, "y2": 100, "isBreached": False},
+            {
+                "source": "payments",
+                "target": "db",
+                "x1": 300,
+                "y1": 160,
+                "x2": 380,
+                "y2": 100,
+                "isBreached": False if refactored else (active_rule_id == "INV-017"),
+            },
+            {"source": "payments", "target": "webhook", "x1": 300, "y1": 160, "x2": 380, "y2": 180, "isBreached": False},
+        ]
+
+        node_descriptions = {
+            "gateway": (
+                "Gateway ingress boundary. Strict zero egress filter ensures local air-gap."
+                if active_rule_id == "INV-API01" and not refactored
+                else "Entrypoint routing all incoming client requests through middleware ports."
+            ),
+            "auth": (
+                "JWT authentication session. Monitored for plaintext logging (INV-008) and cookie storage (INV-004)."
+                if (active_rule_id in ["INV-008", "INV-004"]) and not refactored
+                else "Centralized session and clearance verification provider."
+            ),
+            "payments": (
+                "Direct call to external Stripe API inside transaction boundary violates INV-017."
+                if active_rule_id == "INV-017" and not refactored
+                else "All ingress and egress edges adhere to Hexagonal layer isolation invariants."
+            ),
+            "db": "SQLite connection pool locks guarded by Tree-sitter transaction AST parser.",
+            "webhook": "Transactional Outbox dispatcher processes outbound events asynchronously post-commit.",
+        }
+
+        return {
+            "active_rule_id": active_rule_id,
+            "refactored": refactored,
+            "nodes": nodes,
+            "edges": edges,
+            "descriptions": node_descriptions,
+        }
+
