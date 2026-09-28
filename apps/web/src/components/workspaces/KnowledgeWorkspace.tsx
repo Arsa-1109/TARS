@@ -141,7 +141,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const sampleQueries = [
     "What is our policy on enterprise customisations?",
     "SAML SSO requirements and client commitments",
-    "Runway survival model with 4 developers",
+    "Runway survival model with 12 team members",
   ];
 
   return (

@@ -125,6 +125,7 @@ export class MockTarsApi implements TarsApi {
 
     // Pass through to local backend SLM (Qwen) if available
     try {
+      console.log('[TARS SLM] Sending query to local model (/api/core/search):', req.query);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000);
       const res = await fetch('/api/core/search', {
@@ -136,6 +137,7 @@ export class MockTarsApi implements TarsApi {
       clearTimeout(timeoutId);
       if (res.ok) {
         const liveRes = await res.json();
+        console.log('[TARS SLM] Received live response from local model:', liveRes);
         if (liveRes && liveRes.answer && !liveRes.answer.startsWith('Found 0 relevant')) {
           const q = req.query.toLowerCase();
           const fallbackCits = (q.includes('saml') || q.includes('sso') || q.includes('acme'))
@@ -151,8 +153,8 @@ export class MockTarsApi implements TarsApi {
           };
         }
       }
-    } catch {
-      // Local backend offline or timed out; fall back to canonical fixtures
+    } catch (err) {
+      console.warn('[TARS SLM] Local backend query failed or timed out; falling back to fixtures:', err);
     }
 
     const q = req.query.toLowerCase();
