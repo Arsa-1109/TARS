@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Shield,
   Layers,
@@ -39,6 +39,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [activeTab, setActiveTab] = useState<'knowledge' | 'calls' | 'decisions' | 'architecture' | 'actions'>(
     'knowledge'
   );
+
+  const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -64;
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+  };
 
   const capabilities = [
     {
@@ -189,31 +199,44 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-black text-[#1D1D1F] dark:text-white font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
       {/* Apple-grade Sticky Header */}
-      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none">
-        <div className="flex items-center gap-2.5">
+      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none relative">
+        <div className="flex items-center gap-2.5 z-10">
           <div className="w-7 h-7 rounded-[8px] bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs shadow-sm">
             T
           </div>
           <span className="font-semibold text-[15px] tracking-tight text-black dark:text-white">TARS</span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-8 text-[13px] font-normal text-[#86868B] dark:text-[#8E8E93]">
-          <a href="#capabilities" className="hover:text-black dark:hover:text-white transition-colors">
+        {/* Center Navigation: Mathematically centered in viewport */}
+        <nav className="hidden md:flex items-center gap-8 text-[13px] font-medium text-[#86868B] dark:text-[#8E8E98] absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2">
+          <a
+            href="#capabilities"
+            onClick={(e) => handleScrollTo(e, 'capabilities')}
+            className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          >
             Workspaces
           </a>
-          <a href="#hardware" className="hover:text-black dark:hover:text-white transition-colors">
+          <a
+            href="#hardware"
+            onClick={(e) => handleScrollTo(e, 'hardware')}
+            className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          >
             Air-Gap Architecture
           </a>
-          <a href="#specifications" className="hover:text-black dark:hover:text-white transition-colors">
+          <a
+            href="#specifications"
+            onClick={(e) => handleScrollTo(e, 'specifications')}
+            className="hover:text-black dark:hover:text-white transition-colors cursor-pointer"
+          >
             Specifications
           </a>
         </nav>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 z-10">
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              className="p-1.5 h-8 w-8 rounded-[8px] text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center justify-center"
+              className="p-1.5 h-8 w-8 rounded-[8px] text-[#86868B] dark:text-[#8E8E98] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.08] transition-colors flex items-center justify-center"
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
               aria-label="Toggle theme"
             >
@@ -237,23 +260,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-28 pb-20 px-6 lg:px-12 max-w-5xl mx-auto text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] text-[12px] font-medium text-[#6E6E73] dark:text-[#8E8E93] mb-6 shadow-xs">
+      <section className="relative pt-24 pb-20 px-6 lg:px-12 max-w-5xl mx-auto flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#121317] text-[12px] font-medium text-[#6E6E73] dark:text-[#8E8E98] mb-6 shadow-xs">
           <span>TARS 2.0</span>
           <span className="text-black/[0.2] dark:text-white/[0.2]">|</span>
           <span className="text-black dark:text-white">Institutional Memory for High-Growth Startups</span>
         </div>
 
-        <h1 className="text-5xl sm:text-7xl lg:text-[80px] font-bold tracking-tight text-black dark:text-white max-w-4xl mx-auto leading-[1.04] mb-6">
+        <h1 className="text-5xl sm:text-7xl lg:text-[76px] font-bold tracking-tight text-black dark:text-white max-w-4xl mx-auto leading-[1.05] mb-6 text-center">
           The sovereign brain for high-growth startups.
         </h1>
 
-        <p className="text-lg sm:text-xl text-[#86868B] dark:text-[#8E8E93] max-w-2xl mx-auto font-normal leading-relaxed mb-10">
+        <p className="text-lg sm:text-xl text-[#86868B] dark:text-[#8E8E98] max-w-2xl mx-auto font-normal leading-relaxed mb-10 text-center">
           Zero cloud telemetry. Every customer conversation, code invariant, and founder decision compiled into your company's permanent, private institutional memory.
         </p>
 
         {/* Hero CTAs */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-14">
           <button
             onClick={() => onOpenAuth('signup')}
             className="w-full sm:w-auto h-11 px-7 rounded-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-medium active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
@@ -263,35 +286,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </button>
           <button
             onClick={onLaunchDemo}
-            className="w-full sm:w-auto h-11 px-7 rounded-full border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#1C1C1E] text-black dark:text-white text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.06] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xs"
+            className="w-full sm:w-auto h-11 px-7 rounded-full border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#121317] text-black dark:text-white text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.06] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xs"
           >
             <span>Launch Live Workspace</span>
             <ChevronRight className="w-3.5 h-3.5 text-[#86868B]" />
           </button>
         </div>
-        <div className="p-4 sm:p-5 rounded-[22px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] max-w-3xl mx-auto shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.60)] relative overflow-hidden text-left">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+
+        {/* Local Sovereign Node Summary Card */}
+        <div className="w-full max-w-3xl mx-auto rounded-[22px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#121317] p-4 sm:p-5 shadow-[0_12px_40px_rgba(0,0,0,0.06)] dark:shadow-[0_16px_48px_rgba(0,0,0,0.70)] relative overflow-hidden text-left">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#0071E3] dark:text-[#0A84FF]">
+              <div className="w-9 h-9 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#0071E3] dark:text-[#2997FF] shrink-0">
                 <Server className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-[13px] font-semibold text-black dark:text-white">Local Sovereign Node</div>
-                <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] font-mono">Apple Silicon & Linux (48GB Unified RAM)</div>
+                <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E98] font-mono">Apple Silicon & Linux (48GB Unified RAM)</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-6 font-mono text-xs">
+            <div className="flex items-center gap-6 font-mono text-xs pt-2 sm:pt-0 border-t sm:border-t-0 border-black/[0.06] dark:border-white/[0.06]">
               <div>
-                <div className="text-[10px] text-[#8E8E93] uppercase font-bold">Network</div>
-                <div className="text-[#0071E3] dark:text-[#0A84FF] font-bold">0.00 KB Egress</div>
+                <div className="text-[10px] text-[#8E8E98] uppercase font-bold">Network</div>
+                <div className="text-[#0071E3] dark:text-[#2997FF] font-bold">0.00 KB Egress</div>
               </div>
               <div>
-                <div className="text-[10px] text-[#8E8E93] uppercase font-bold">AST Check</div>
+                <div className="text-[10px] text-[#8E8E98] uppercase font-bold">AST Check</div>
                 <div className="text-black dark:text-white font-bold">&lt;38ms</div>
               </div>
               <div>
-                <div className="text-[10px] text-[#8E8E93] uppercase font-bold">Vector Graph</div>
+                <div className="text-[10px] text-[#8E8E98] uppercase font-bold">Vector Graph</div>
                 <div className="text-black dark:text-white font-bold">Local Tantivy</div>
               </div>
             </div>
@@ -428,17 +453,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Founder Quote */}
-      <section className="py-20 px-6 lg:px-12 max-w-3xl mx-auto text-center border-t border-black/[0.08] dark:border-white/[0.08]">
-        <blockquote className="text-xl sm:text-2xl font-medium text-black dark:text-white tracking-tight leading-relaxed mb-4">
-          "Startups die when context leaks or disperses. TARS ensures our company remembers everything and betrays nothing."
-        </blockquote>
-        <div className="space-y-0.5">
-          <div className="text-sm font-semibold text-black dark:text-white">Aryan</div>
-          <div className="text-xs text-[#8E8E93] font-mono">Founder & Chief Architect, TARS</div>
         </div>
       </section>
 

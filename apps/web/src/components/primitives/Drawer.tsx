@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface DrawerProps {
@@ -36,11 +37,11 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-hidden select-none">
-      {/* Scrim */}
+      {/* Full screen scrim */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in"
+        className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-[16px] animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -93,6 +94,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

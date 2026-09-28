@@ -28,16 +28,8 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   onOpenCitation,
 }) => {
   const [data] = useState(MOCK_ONBOARDING_DATA);
-  const [activeDay, setActiveDay] = useState(3);
-  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({
-    '1-0': true,
-    '1-1': true,
-    '1-2': true,
-    '2-0': true,
-    '2-1': true,
-    '2-2': true,
-    '3-0': true,
-  });
+  const [activeDay, setActiveDay] = useState(1);
+  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
 
   const [mentorDrawerOpen, setMentorDrawerOpen] = useState(false);
   const [mentorQuery, setMentorQuery] = useState('');

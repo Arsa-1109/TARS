@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { UserRole } from '../../types/contracts';
 import { ROLES } from '../../state/useSessionStore';
-import { X, Lock, ArrowRight, User, Mail, ChevronRight } from 'lucide-react';
+import { X, Lock, ArrowRight, User, Mail, ChevronRight, Shield } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
+import { CustomSelect, SelectOption } from '../primitives/CustomSelect';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -73,13 +75,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     { role: 'NEW_HIRE', title: 'Software Engineer',     initial: 'M' },
   ];
 
-  return (
+  const roleOptions: SelectOption<UserRole>[] = [
+    {
+      value: 'FOUNDER',
+      label: 'Aryan — Founder & CEO',
+      description: 'Executive Strategy & Decision Registry',
+      badge: 'Level 3',
+    },
+    {
+      value: 'ENGINEER',
+      label: 'Engineering & Architecture Lead',
+      description: 'Code Invariants & Topology Guardrails',
+      badge: 'Level 2',
+    },
+    {
+      value: 'PRODUCT',
+      label: 'Product & Intelligence Lead',
+      description: 'Customer Call Studio & Synthesis',
+      badge: 'Level 2',
+    },
+    {
+      value: 'NEW_HIRE',
+      label: 'Software Engineer',
+      description: 'Onboarding & Company Knowledge Lake',
+      badge: 'Level 1',
+    },
+  ];
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 select-none animate-fade-in"
       onClick={onClose}
     >
-      {/* Scrim — subtle high-contrast blur */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[16px] transition-opacity duration-300" aria-hidden="true" />
+      {/* Scrim — full screen high-contrast blur */}
+      <div className="fixed inset-0 bg-black/65 backdrop-blur-[20px] transition-opacity duration-300" aria-hidden="true" />
 
       {/* Modal card */}
       <div
@@ -250,21 +279,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-medium text-[#86868B] dark:text-[#8E8E93] mb-1 px-1 uppercase tracking-wider">
-                    Role & Clearance Level
-                  </label>
-                  <select
-                    value={newRole}
-                    onChange={(e) => setNewRole(e.target.value as UserRole)}
-                    className="w-full px-3 py-2.5 text-[13px] rounded-[12px] border border-black/[0.09] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all appearance-none"
-                  >
-                    <option value="FOUNDER">Aryan — Founder & CEO (Executive)</option>
-                    <option value="ENGINEER">Engineering & Architecture Lead</option>
-                    <option value="PRODUCT">Product & Intelligence Lead</option>
-                    <option value="NEW_HIRE">Software Engineer (Team)</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  value={newRole}
+                  onChange={(val) => setNewRole(val as UserRole)}
+                  options={roleOptions}
+                  label="Role & Clearance Level"
+                />
 
                 {/* Create account CTA */}
                 <button
@@ -292,6 +312,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

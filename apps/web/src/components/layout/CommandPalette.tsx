@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search,
   Layers,
@@ -87,11 +88,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 p-4 animate-fade-in">
-      {/* Scrim */}
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 p-4 animate-fade-in select-none">
+      {/* Full screen scrim */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[4px]"
+        className="fixed inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-[20px]"
         onClick={onClose}
       />
 
@@ -186,6 +187,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -15,10 +15,11 @@ export interface TarsApi {
   search(req: SearchRequest): Promise<SearchResponse>;
   uploadDocument(file: File): Promise<{ doc_id: string; title: string; pages: number }>;
 
-  // Workspace 2: Client Calls
+  // Workspace 2: Client Calls & Voice Memo
   getCalls(): Promise<VoiceToSpecResponse[]>;
   getCall(id: string): Promise<VoiceToSpecResponse | null>;
   uploadCallAudio(file: File): Promise<VoiceToSpecResponse>;
+  uploadVoiceMemo(audioBlob: Blob, filename?: string): Promise<{ task_id: string; transcript: string; duration_seconds: number }>;
 
   // Workspace 4 & 5: Decisions & Contradictions & Simulation
   getDecisions(): Promise<DecisionItem[]>;

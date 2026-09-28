@@ -93,6 +93,18 @@ export class MockTarsApi implements TarsApi {
     return newCall;
   }
 
+  async uploadVoiceMemo(
+    audioBlob: Blob,
+    filename = "voice_memo.webm"
+  ): Promise<{ task_id: string; transcript: string; duration_seconds: number }> {
+    await sleep(800);
+    return {
+      task_id: `MEMO-${Date.now().toString().slice(-4)}`,
+      transcript: "Voice memo captured locally. Evaluated against institutional memory with zero egress.",
+      duration_seconds: 12.0,
+    };
+  }
+
   async getDecisions(): Promise<DecisionItem[]> {
     await sleep(45);
     return [...this.decisions];

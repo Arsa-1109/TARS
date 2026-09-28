@@ -1,9 +1,10 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { StatusLabel } from '../primitives/StatusLabel';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { InvariantCheckResult } from '../../types/contracts';
+import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
 import {
   Cpu,
@@ -117,7 +118,35 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
     { id: 'webhook', name: 'Outbox Dispatcher', layer: 'Event', x: 380, y: 150 },
   ];
 
-  if (!selectedRule) return null;
+  if (!selectedRule) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Workspace 6"
+          title="Tech & Architecture Workspace"
+          description="Deterministic architectural enforcement powered by Tree-sitter AST queries (<50ms) and embedded Kùzu call-graph analysis."
+          actions={
+            <Button
+              variant="primary"
+              size="sm"
+              loading={runningCheck}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+              onClick={handleRunASTCheck}
+            >
+              Run AST Scan
+            </Button>
+          }
+        />
+        <EmptyState
+          icon={<Cpu className="w-5 h-5 text-[#8E8E93]" />}
+          title="No AST invariants loaded yet"
+          description="Invariants enforce architectural rules at git pre-commit time. Run an AST check or verify .tars/invariants.yaml."
+          actionLabel="Run AST Scan"
+          onAction={handleRunASTCheck}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

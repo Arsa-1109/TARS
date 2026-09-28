@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { UserRole, UserProfile } from '../../types/contracts';
 import { ShieldAlert, Lock, ArrowRight, X, Key, Check } from 'lucide-react';
 import { Button } from '../primitives/Button';
@@ -22,8 +23,8 @@ export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in select-none">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 dark:bg-black/85 backdrop-blur-[24px] animate-fade-in select-none">
       <div
         className="w-full max-w-md rounded-3xl border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 text-zinc-900 dark:text-zinc-100 shadow-2xl p-6 sm:p-8 apple-glass relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -99,6 +100,7 @@ export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
           <span>Role Guard INV-004</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

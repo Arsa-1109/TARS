@@ -36,7 +36,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   clearance,
 }) => {
   const [activeView, setActiveView] = useState<'search' | 'lake'>('search');
-  const [query, setQuery] = useState('What is our policy on enterprise customisations?');
+  const [query, setQuery] = useState('');
   const [department, setDepartment] = useState('ALL');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SearchResponse | null>(null);
@@ -44,6 +44,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedBundle, setCopiedBundle] = useState(false);
+  const [lakeDocuments, setLakeDocuments] = useState<any[]>([]);
 
   // Document Reader modal state
   const [readerModal, setReaderModal] = useState<{
@@ -62,51 +63,29 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
   const departments = ['ALL', 'Executive', 'Product', 'Engineering', 'Sales'];
 
-  const indexedLakeDocuments = [
-    {
-      id: 'DOC-DEC-14',
-      title: 'Decision #14: Enterprise Customisations Policy.md',
-      department: 'Executive',
-      clearance: 'ALL_TEAM',
-      type: 'Markdown',
-      size: '14.2 KB',
-      date: '2026-09-14',
-      content: `## Context & Core Trade-Offs\nWith only 4 developers and 11.4 months of runway, allocating capacity to bespoke enterprise branches creates massive Bus Factor = 1 divergence.\n\n## Ratified Policy\nZero enterprise customisations before Q4 2026. All clients must consume public multi-tenant APIs. Any exception requires explicit signed waiver by CEO and Lead Architect.`
-    },
-    {
-      id: 'DOC-FIN-2026',
-      title: 'Q3 Runway & Cash Burn Financial Model.xlsx',
-      department: 'Executive',
-      clearance: 'EXECUTIVE_ONLY',
-      type: 'Spreadsheet',
-      size: '84.6 KB',
-      date: '2026-09-20',
-      content: `## Runway Analysis\nBase Monthly Burn: $24,500\nTotal Cash in Bank: $280,000\nRunway: 11.4 months.\n\nIf 2 developers are reallocated to Acme Corp bespoke SAML SSO, launch delay shifts revenue recognition 60 days back, dropping cash survival runway to 9.6 months.`
-    },
-    {
-      id: 'CALL-ACME-01',
-      title: 'Acme Corp Enterprise Call Recording.m4a',
-      department: 'Sales',
-      clearance: 'ALL_TEAM',
-      type: 'Audio Transcript',
-      size: '18.4 MB',
-      date: '2026-09-24',
-      content: `## Transcript Excerpt\nJohnathan Vance (VP Eng, Acme): 'We cannot clear Infosec without custom SAML 2.0 and Okta integration deployed on our private VPC by May 1st. It is a hard requirement for the $80k contract.'`
-    },
-    {
-      id: 'DOC-SEC-04',
-      title: 'Enterprise Identity & Auth Architecture ADR-009.md',
-      department: 'Engineering',
-      clearance: 'ALL_TEAM',
-      type: 'Markdown',
-      size: '22.1 KB',
-      date: '2026-09-22',
-      content: `## Identity Federation Architecture\nCurrent auth pipeline relies on local Argon2id sessions with lightweight API key exchange. Full SAML 2.0 SP metadata parser is scheduled for v2.2 once multi-tenant core matures.`
+  const fetchLakeDocuments = async () => {
+    try {
+      const res = await fetch('/api/ingestion/documents');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.documents)) {
+          setLakeDocuments(data.documents);
+        }
+      }
+    } catch {
+      setLakeDocuments([]);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchLakeDocuments();
+  }, [uploadSuccess]);
 
   const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) {
+      setResult(null);
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.search({
@@ -123,7 +102,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    handleSearch(query);
+    if (query.trim()) {
+      handleSearch(query);
+    }
   }, [department]);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -175,7 +156,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               size="sm"
               options={[
                 { value: 'search', label: 'Search' },
-                { value: 'lake', label: 'All Documents', badge: indexedLakeDocuments.length },
+                { value: 'lake', label: 'All Documents', badge: lakeDocuments.length },
               ]}
               value={activeView}
               onChange={(v) => setActiveView(v as any)}
@@ -437,32 +418,45 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                 </div>
 
                 <div className="space-y-2 text-xs">
-                  {indexedLakeDocuments.slice(0, 3).map((doc) => (
-                    <div
-                      key={doc.id}
-                      onClick={() =>
-                        setReaderModal({
-                          open: true,
-                          title: doc.title,
-                          department: doc.department,
-                          clearance: doc.clearance,
-                          content: doc.content,
-                        })
-                      }
-                      className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] hover:bg-black/[0.02] dark:hover:bg-white/[0.04] cursor-pointer transition-colors flex items-start gap-2.5 group"
-                    >
-                      <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-black dark:text-white truncate group-hover:text-[#0071E3] dark:group-hover:text-[#0A84FF] transition-colors">
-                          {doc.title}
-                        </div>
-                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
-                          {doc.department} • {doc.type} • {doc.clearance}
-                        </div>
-                      </div>
-                      <Eye className="w-3.5 h-3.5 text-[#8E8E93] group-hover:text-black dark:group-hover:text-white shrink-0 mt-1" />
+                  {lakeDocuments.length === 0 ? (
+                    <div className="text-center py-4 text-[12px] text-[#8E8E93]">
+                      No documents indexed yet. Upload a file above.
                     </div>
-                  ))}
+                  ) : (
+                    lakeDocuments.slice(0, 3).map((doc, idx) => {
+                      const title = doc.filename || doc.title || `Document #${idx + 1}`;
+                      const dept = doc.department || 'GENERAL';
+                      const docType = doc.format || 'Document';
+                      const clr = doc.clearance || 'ALL_TEAM';
+                      const content = doc.preview || doc.content || 'Indexed in local sovereign memory.';
+                      return (
+                        <div
+                          key={doc.doc_id || doc.id || idx}
+                          onClick={() =>
+                            setReaderModal({
+                              open: true,
+                              title,
+                              department: dept,
+                              clearance: clr,
+                              content,
+                            })
+                          }
+                          className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] hover:bg-black/[0.02] dark:hover:bg-white/[0.04] cursor-pointer transition-colors flex items-start gap-2.5 group"
+                        >
+                          <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-black dark:text-white truncate group-hover:text-[#0071E3] dark:group-hover:text-[#0A84FF] transition-colors">
+                              {title}
+                            </div>
+                            <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
+                              {dept} • {docType} • {clr}
+                            </div>
+                          </div>
+                          <Eye className="w-3.5 h-3.5 text-[#8E8E93] group-hover:text-black dark:group-hover:text-white shrink-0 mt-1" />
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -484,61 +478,79 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-[#8E8E93]">
-                Total Files: {indexedLakeDocuments.length}
+                Total Files: {lakeDocuments.length}
               </span>
             </div>
           </div>
 
-          {/* Document Lake Table */}
-          <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10]">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F5F5F7] dark:bg-[#2C2C2E] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px] border-b border-black/[0.08] dark:border-white/[0.08]">
-                <tr>
-                  <th className="py-3 px-4">Document Title</th>
-                  <th className="py-3 px-4">Department</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Clearance</th>
-                  <th className="py-3 px-4">Indexed Date</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
-                {indexedLakeDocuments.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                    onClick={() =>
-                      setReaderModal({
-                        open: true,
-                        title: doc.title,
-                        department: doc.department,
-                        clearance: doc.clearance,
-                        content: doc.content,
-                      })
-                    }
-                  >
-                    <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
-                      <span className="truncate max-w-xs">{doc.title}</span>
-                    </td>
-                    <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{doc.department}</td>
-                    <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{doc.type}</td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
-                        {doc.clearance}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-[#8E8E93] font-mono">{doc.date}</td>
-                    <td className="py-3 px-4 text-right">
-                      <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
-                        Read
-                      </Button>
-                    </td>
+          {lakeDocuments.length === 0 ? (
+            <EmptyState
+              icon={<FileText className="w-5 h-5 text-[#8E8E93]" />}
+              title="No documents ingested yet"
+              description="Drop or upload PDFs, Word documents, spreadsheets, or markdown files to populate institutional memory."
+              actionLabel="Upload First Document"
+              onAction={() => fileInputRef.current?.click()}
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10]">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F5F5F7] dark:bg-[#2C2C2E] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px] border-b border-black/[0.08] dark:border-white/[0.08]">
+                  <tr>
+                    <th className="py-3 px-4">Document Title</th>
+                    <th className="py-3 px-4">Department</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Clearance</th>
+                    <th className="py-3 px-4">Tables / Chunks</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
+                  {lakeDocuments.map((doc, idx) => {
+                    const title = doc.filename || doc.title || `Document #${idx + 1}`;
+                    const dept = doc.department || 'GENERAL';
+                    const docType = doc.format || 'Document';
+                    const clr = doc.clearance || 'ALL_TEAM';
+                    const content = doc.preview || doc.content || 'Indexed in local sovereign memory.';
+                    return (
+                      <tr
+                        key={doc.doc_id || doc.id || idx}
+                        className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                        onClick={() =>
+                          setReaderModal({
+                            open: true,
+                            title,
+                            department: dept,
+                            clearance: clr,
+                            content,
+                          })
+                        }
+                      >
+                        <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                          <span className="truncate max-w-xs">{title}</span>
+                        </td>
+                        <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
+                        <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{docType}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
+                            {clr}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-[#8E8E93] font-mono">
+                          {doc.table_count || 0} tables • {doc.chunk_count || 1} chunks
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
+                            Read
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

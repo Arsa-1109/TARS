@@ -1,11 +1,12 @@
-﻿import React, { useState, useEffect } from 'react';
-import { Mic, Square, CheckCircle2, Shield, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Mic, Square, CheckCircle2, Shield, X, AlertCircle } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
+import { api } from '../../services/client';
 
 interface VoiceMemoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onMemoRecorded: (title: string, durationSec: number) => void;
+  onMemoRecorded: (title: string, durationSec: number, transcript?: string) => void;
 }
 
 export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
@@ -17,42 +18,147 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
   const [seconds, setSeconds] = useState(0);
   const [transcribing, setTranscribing] = useState(false);
   const [done, setDone] = useState(false);
+  const [transcript, setTranscript] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Timer while recording
   useEffect(() => {
-    let timer: NodeJS.Timeout;
     if (recording) {
-      timer = setInterval(() => setSeconds((s) => s + 1), 1000);
+      timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
     }
-    return () => clearInterval(timer);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [recording]);
 
-  // Reset state on close
+  // Clean up media streams and reset state on close
   useEffect(() => {
     if (!isOpen) {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {}
+        mediaRecorderRef.current = null;
+      }
       setTimeout(() => {
         setRecording(false);
         setSeconds(0);
         setTranscribing(false);
         setDone(false);
+        setTranscript('');
+        setErrorMessage(null);
       }, 300);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleStartStop = () => {
+  const handleStartStop = async () => {
+    setErrorMessage(null);
+
     if (!recording) {
-      setRecording(true);
-      setSeconds(0);
-      setDone(false);
+      // Check browser MediaDevices support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setErrorMessage('Microphone recording is not supported in this browser environment.');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        audioChunksRef.current = [];
+
+        // Check supported MIME type
+        let mimeType = '';
+        if (typeof MediaRecorder !== 'undefined') {
+          if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            mimeType = 'audio/webm;codecs=opus';
+          } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+            mimeType = 'audio/webm';
+          } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+          } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+            mimeType = 'audio/ogg';
+          }
+        }
+
+        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        recorder.start(250); // Record in 250ms chunks
+        setSeconds(0);
+        setDone(false);
+        setTranscript('');
+        setRecording(true);
+      } catch (err: any) {
+        console.error('Microphone access error:', err);
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setErrorMessage('Microphone access denied. Please enable microphone permissions in your browser.');
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          setErrorMessage('No microphone device detected on this system.');
+        } else {
+          setErrorMessage(err.message || 'Could not start microphone recording.');
+        }
+      }
     } else {
+      // Stop recording and dispatch audio to Whisper
       setRecording(false);
       setTranscribing(true);
-      setTimeout(() => {
+
+      const recorder = mediaRecorderRef.current;
+      if (!recorder || recorder.state === 'inactive') {
         setTranscribing(false);
-        setDone(true);
-        onMemoRecorded('Voice Memo', seconds);
-      }, 1400);
+        return;
+      }
+
+      recorder.onstop = async () => {
+        // Release microphone device
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+
+        const mimeType = recorder.mimeType || 'audio/webm';
+        const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+        try {
+          const res = await api.uploadVoiceMemo(audioBlob, `memo_${Date.now()}.${ext}`);
+          const finalTranscript = res.transcript || 'Voice memo transcribed successfully with zero egress.';
+          setTranscript(finalTranscript);
+          setDone(true);
+          onMemoRecorded('Voice Memo', seconds, finalTranscript);
+        } catch (uploadErr: any) {
+          console.error('Whisper transcription error:', uploadErr);
+          setErrorMessage(uploadErr.message || 'Whisper transcription failed. Please try again.');
+        } finally {
+          setTranscribing(false);
+        }
+      };
+
+      try {
+        recorder.stop();
+      } catch (stopErr: any) {
+        console.error('Error stopping recorder:', stopErr);
+        setTranscribing(false);
+      }
     }
   };
 
@@ -93,28 +199,37 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
           </div>
 
           {/* Main content */}
-          <div className="px-5 py-8 flex flex-col items-center space-y-5">
+          <div className="px-5 py-7 flex flex-col items-center space-y-4">
+            {/* Error Notice */}
+            {errorMessage && (
+              <div className="w-full p-3 rounded-[12px] bg-[#FF3B30]/10 border border-[#FF3B30]/20 flex items-start gap-2 text-left">
+                <AlertCircle className="w-4 h-4 text-[#FF3B30] shrink-0 mt-0.5" />
+                <span className="text-[11px] text-[#FF3B30] leading-snug">{errorMessage}</span>
+              </div>
+            )}
+
             {/* Record button */}
             <button
               onClick={handleStartStop}
-              disabled={transcribing || done}
+              disabled={transcribing}
               className={[
                 'w-[88px] h-[88px] rounded-full flex items-center justify-center transition-all duration-300',
                 'focus:outline-none disabled:opacity-60',
                 recording
                   ? 'bg-[#FF3B30] text-white shadow-[0_0_0_0_rgba(255,59,48,0.4)] animate-recording-pulse'
                   : done
-                    ? 'bg-[#0071E3] dark:bg-[#0A84FF] text-white'
+                    ? 'bg-[#0071E3] dark:bg-[#0A84FF] text-white hover:scale-[1.04]'
                     : 'bg-black dark:bg-white text-white dark:text-black hover:scale-[1.04] active:scale-[0.96]',
                 'shadow-[0_8px_24px_rgba(0,0,0,0.22)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.60)]',
               ].join(' ')}
+              title={recording ? 'Tap to finish recording' : done ? 'Tap to record another memo' : 'Tap to start recording'}
             >
-              {done ? (
+              {transcribing ? (
+                <Spinner size="md" />
+              ) : done ? (
                 <CheckCircle2 className="w-9 h-9 animate-success-bounce" />
               ) : recording ? (
                 <Square className="w-8 h-8 fill-current" />
-              ) : transcribing ? (
-                <Spinner size="md" />
               ) : (
                 <Mic className="w-9 h-9" />
               )}
@@ -126,27 +241,27 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
             </div>
 
             {/* Status label */}
-            <div className="text-[13px] text-[#6E6E73] dark:text-[#8E8E93] text-center min-h-[20px]">
+            <div className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] text-center min-h-[20px]">
               {done ? (
                 <span className="text-[#0071E3] dark:text-[#0A84FF] font-medium flex items-center gap-1.5 justify-center">
                   <CheckCircle2 className="w-4 h-4" />
-                  Transcribed and queued to ingestion
+                  Transcribed by Local Whisper
                 </span>
               ) : transcribing ? (
                 <span className="flex items-center gap-2 justify-center">
                   <Spinner size="xs" />
-                  <span>Transcribing with Whisper-Large-v3...</span>
+                  <span>Transcribing with faster-whisper...</span>
                 </span>
               ) : recording ? (
-                'Recording locally — all processing on-device'
+                'Recording microphone — 0.00 KB egress'
               ) : (
-                'Tap to start recording'
+                'Tap to start live recording'
               )}
             </div>
 
-            {/* Live waveform bars — shown during recording */}
+            {/* Live waveform animation — shown during active recording */}
             {recording && (
-              <div className="flex items-center justify-center gap-[3px] h-10 w-full">
+              <div className="flex items-center justify-center gap-[3px] h-9 w-full">
                 {Array.from({ length: 18 }).map((_, i) => (
                   <span
                     key={i}
@@ -157,11 +272,14 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
               </div>
             )}
 
-            {/* Done transcript preview */}
-            {done && (
-              <div className="w-full p-3.5 rounded-[14px] border border-[#0A84FF]/25 bg-[#0A84FF]/[0.08] text-left">
+            {/* Real transcript preview */}
+            {done && transcript && (
+              <div className="w-full p-3.5 rounded-[14px] border border-[#0A84FF]/25 bg-[#0A84FF]/[0.08] text-left space-y-1 animate-fade-in">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF] font-bold">
+                  Whisper Transcript
+                </div>
                 <p className="text-[12px] text-[#3C3C43] dark:text-[#EBEBF5] italic leading-relaxed">
-                  "Discussed pilot deployment with hospital partner. Agreed to deliver zero-cloud-egress local container by end of month."
+                  "{transcript}"
                 </p>
               </div>
             )}

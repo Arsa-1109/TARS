@@ -19,7 +19,7 @@ import uuid
 from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 
 from apps.api.schemas.contracts import VoiceToSpecResponse, ActionItemDTO
@@ -342,6 +342,52 @@ def list_ingested_documents():
     }
 
 
+@router.get("/documents/{filename}/file")
+def get_document_file(filename: str):
+    """Serves raw document files for the inbuilt PDF/doc viewer."""
+    import urllib.parse
+    decoded_name = urllib.parse.unquote(filename)
+    safe_filename = os.path.basename(decoded_name)
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+
+    # Fuzzy match if exact file doesn't exist
+    if not os.path.exists(file_path):
+        candidates = [
+            safe_filename,
+            safe_filename.replace(" ", "_"),
+            safe_filename.replace("_", " "),
+        ]
+        found = False
+        for cand in candidates:
+            cand_path = os.path.join(UPLOAD_DIR, cand)
+            if os.path.exists(cand_path):
+                file_path = cand_path
+                safe_filename = cand
+                found = True
+                break
+
+        if not found and os.path.exists(UPLOAD_DIR):
+            # Case insensitive check
+            lower_name = safe_filename.lower()
+            for existing in os.listdir(UPLOAD_DIR):
+                if existing.lower() == lower_name:
+                    file_path = os.path.join(UPLOAD_DIR, existing)
+                    safe_filename = existing
+                    found = True
+                    break
+
+        if not found:
+            raise HTTPException(status_code=404, detail="Document file not found")
+
+    media_type = "application/pdf" if safe_filename.lower().endswith(".pdf") else "text/plain"
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        content_disposition_type="inline",
+        filename=safe_filename,
+    )
+
+
 # ============================================================
 # 3. AUDIO TRANSCRIPTION & CLIENT CALL STUDIO (SDD 7.1)
 # ============================================================
@@ -355,6 +401,7 @@ class AudioUploadResponse(BaseModel):
 
 @router.post("/memo", response_model=AudioUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 @router.post("/calls/transcribe", response_model=AudioUploadResponse, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/calls/upload", response_model=AudioUploadResponse, status_code=status.HTTP_202_ACCEPTED)
 async def upload_audio_memo(
     file: UploadFile = File(...),
     client_name: str = Form("Enterprise Client"),
@@ -601,6 +648,7 @@ def get_code_invariants_endpoint(code_entity_id: str):
 # ============================================================
 @router.get("/action-items", response_model=List[ActionItemDTO])
 @router.get("/actions/list", response_model=List[ActionItemDTO])
+@router.get("/actions", response_model=List[ActionItemDTO])
 def list_action_items(
     status: Optional[str] = Query(None, description="Filter by status: OPEN, IN_PROGRESS, DONE"),
     owner: Optional[str] = Query(None, description="Filter by owner"),
@@ -610,11 +658,13 @@ def list_action_items(
 
 
 @router.post("/action-items", response_model=ActionItemDTO, status_code=status.HTTP_201_CREATED)
+@router.post("/actions", response_model=ActionItemDTO, status_code=status.HTTP_201_CREATED)
 def create_action_item(item: ActionItemDTO):
     return action_hub_repo.create(item)
 
 
 @router.get("/action-items/{item_id}", response_model=ActionItemDTO)
+@router.get("/actions/{item_id}", response_model=ActionItemDTO)
 def get_action_item(item_id: str):
     item = action_hub_repo.get_by_id(item_id)
     if not item:
@@ -633,6 +683,7 @@ class UpdateActionItemRequest(BaseModel):
 
 
 @router.patch("/action-items/{item_id}", response_model=ActionItemDTO)
+@router.patch("/actions/{item_id}", response_model=ActionItemDTO)
 def update_action_item(item_id: str, updates: UpdateActionItemRequest):
     updated = action_hub_repo.update(item_id, updates.model_dump(exclude_unset=True))
     if not updated:
@@ -641,6 +692,7 @@ def update_action_item(item_id: str, updates: UpdateActionItemRequest):
 
 
 @router.delete("/action-items/{item_id}")
+@router.delete("/actions/{item_id}")
 def delete_action_item(item_id: str):
     deleted = action_hub_repo.delete(item_id)
     if not deleted:

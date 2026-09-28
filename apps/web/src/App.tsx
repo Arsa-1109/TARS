@@ -56,6 +56,7 @@ export function App() {
 
   const [showLanding, setShowLanding] = useState(!isAuthenticated);
   const [appVisible, setAppVisible] = useState(isAuthenticated);
+  const [landingVisible, setLandingVisible] = useState(!isAuthenticated);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [roleOnboardingOpen, setRoleOnboardingOpen] = useState(false);
@@ -71,17 +72,19 @@ export function App() {
 
   const transitionToApp = () => {
     // Apple-style: brief dissolve before revealing the workspace shell
+    setLandingVisible(false);
     setTimeout(() => {
       setShowLanding(false);
       setAppVisible(true);
-    }, 220);
+    }, 240);
   };
 
   const transitionToLanding = () => {
     setAppVisible(false);
     setTimeout(() => {
       setShowLanding(true);
-    }, 220);
+      setLandingVisible(true);
+    }, 240);
   };
 
   const [actionItems, setActionItems] = useState<ActionItemDTO[]>([]);
@@ -166,10 +169,14 @@ export function App() {
     }
   };
 
-  const handleMemoRecorded = async (title: string, durationSec: number) => {
+  const handleMemoRecorded = async (title: string, durationSec: number, transcript?: string) => {
     try {
+      const desc = transcript && transcript.trim().length > 0
+        ? `Voice Memo (${durationSec}s): "${transcript.slice(0, 120)}${transcript.length > 120 ? '...' : ''}"`
+        : `Review recorded founder voice debrief (${durationSec}s)`;
+
       const newAction = await api.createActionItem({
-        description: `Review recorded founder voice debrief (${durationSec}s)`,
+        description: desc,
         owner: profile.name,
         deadline: Date.now() + 1 * 86400000,
         status: 'OPEN',
@@ -188,7 +195,10 @@ export function App() {
   // Render Landing Page if requested or unauthenticated
   if (showLanding) {
     return (
-      <>
+      <div
+        className={`transition-opacity duration-240 ease-in-out ${landingVisible ? 'opacity-100' : 'opacity-0'}`}
+        style={{ willChange: 'opacity' }}
+      >
         <LandingPage
           onOpenAuth={(mode = 'signin') => {
             setAuthModalMode(mode);
@@ -211,7 +221,7 @@ export function App() {
           }}
           initialMode={authModalMode}
         />
-      </>
+      </div>
     );
   }
 

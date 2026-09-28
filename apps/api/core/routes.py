@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
-from apps.api.schemas.contracts import ActionItemDTO, SystemStatus
+import time
+from apps.api.schemas.contracts import ActionItemDTO, SystemStatus, SearchRequest, SearchResponse
 from apps.api.core.action_hub import action_hub_repo
 from apps.api.core.session import session_manager, SessionData
 from apps.api.core.ollama_client import ollama_client
+from apps.api.core.search import search_service
 
 router = APIRouter()
 
@@ -60,3 +62,23 @@ async def system_status():
         mcp_tools=3, # Hardcoded for now based on mcp/builtin
         airplane_mode=True
     )
+
+# --- Search Routes ---
+@router.post("/search", response_model=SearchResponse)
+async def search_knowledge(req: SearchRequest):
+    start_time = time.time()
+    citations = await search_service.search(query=req.query, limit=5)
+    latency_ms = round((time.time() - start_time) * 1000.0, 1)
+
+    if citations:
+        answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+    else:
+        answer = f"No documents found matching '{req.query}'. Upload documents to build company memory."
+
+    return SearchResponse(
+        query=req.query,
+        answer=answer,
+        citations=citations,
+        latency_ms=latency_ms,
+    )
+

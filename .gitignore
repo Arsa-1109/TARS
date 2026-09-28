@@ -60,6 +60,5 @@ coverage/
 test-results/
 playwright-report/
 
-# Ignore markdown files
-*.md
+# Ignore PDF and binary document files
 *.pdf

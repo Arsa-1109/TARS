@@ -36,7 +36,11 @@ class TarsGraph:
                 pass
 
         if self.db_path not in self._db_cache:
-            self._db_cache[self.db_path] = kuzu.Database(self.db_path)
+            try:
+                self._db_cache[self.db_path] = kuzu.Database(self.db_path)
+            except Exception as e:
+                # Fallback to in-memory graph if file lock cannot be acquired (e.g., Uvicorn server holds exclusive lock)
+                self._db_cache[self.db_path] = kuzu.Database(":memory:")
             
         self.db = self._db_cache[self.db_path]
         if self.db_path not in self._conn_cache:

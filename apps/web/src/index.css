@@ -46,43 +46,43 @@
 }
 
 .dark {
-  /* Apple Dark Mode — pure OLED black, obsidian surfaces */
-  --canvas: #000000;
-  --surface: #1C1C1E;
-  --surface-secondary: #2C2C2E;
-  --surface-tertiary: #3A3A3C;
-  --surface-elevated: #242424;
-  --surface-glass: rgba(28, 28, 30, 0.92);
+  /* Apple Pro Obsidian Mode — rich deep tones, layered depth */
+  --canvas: #090A0D;
+  --surface: #121317;
+  --surface-secondary: #1A1B22;
+  --surface-tertiary: #252631;
+  --surface-elevated: #1E2028;
+  --surface-glass: rgba(18, 19, 23, 0.88);
 
-  /* Separators & Borders — white at low opacity */
-  --separator: rgba(255, 255, 255, 0.11);
-  --separator-opaque: #38383A;
-  --border-strong: rgba(255, 255, 255, 0.26);
+  /* Separators & Borders — refined luminous edges */
+  --separator: rgba(255, 255, 255, 0.08);
+  --separator-opaque: #282933;
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* Typography — white hierarchy */
+  /* Typography — crisp white hierarchy */
   --text-primary: #FFFFFF;
-  --text-secondary: #EBEBF5;
-  --text-tertiary: #8E8E93;
-  --text-quaternary: #48484A;
+  --text-secondary: #D1D1D8;
+  --text-tertiary: #8E8E98;
+  --text-quaternary: #4D4E56;
 
   /* Accent — Apple Pro Monochromatic Crisp Light */
   --accent: #FFFFFF;
   --accent-dark: #EBEBF5;
-  --accent-soft: rgba(255, 255, 255, 0.10);
-  --accent-soft-border: rgba(255, 255, 255, 0.20);
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --accent-soft-border: rgba(255, 255, 255, 0.18);
 
   /* Semantic — dark variants */
-  --success-text: #0A84FF;
-  --success-bg: rgba(10, 132, 255, 0.14);
-  --success-border: rgba(10, 132, 255, 0.26);
+  --success-text: #2997FF;
+  --success-bg: rgba(41, 151, 255, 0.12);
+  --success-border: rgba(41, 151, 255, 0.24);
   --warning-text: #FF9F0A;
-  --warning-bg: rgba(255, 159, 10, 0.14);
-  --warning-border: rgba(255, 159, 10, 0.26);
+  --warning-bg: rgba(255, 159, 10, 0.12);
+  --warning-border: rgba(255, 159, 10, 0.24);
   --critical-text: #FF453A;
-  --critical-bg: rgba(255, 69, 58, 0.14);
-  --critical-border: rgba(255, 69, 58, 0.26);
+  --critical-bg: rgba(255, 69, 58, 0.12);
+  --critical-border: rgba(255, 69, 58, 0.24);
   --info-text: #FFFFFF;
-  --info-bg: rgba(255, 255, 255, 0.08);
+  --info-bg: rgba(255, 255, 255, 0.06);
 }
 
 /* ============================================================
@@ -192,8 +192,8 @@ html, body {
   100% { opacity: 1; transform: translateY(0); }
 }
 @keyframes appleFadeIn {
-  0%   { opacity: 0; transform: scale(0.995); }
-  100% { opacity: 1; transform: scale(1); }
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
 }
 @keyframes appleSlideInRight {
   0%   { opacity: 0; transform: translateX(20px); }
@@ -251,9 +251,28 @@ html, body {
   box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent);
 }
 
-/* Smooth transitions for theme switching */
+/* Smooth transitions for theme switching across elements */
 html {
-  transition: background-color 0.25s ease, color 0.25s ease;
+  scroll-behavior: smooth;
+  scroll-padding-top: 64px;
+}
+
+html,
+body,
+header,
+nav,
+footer,
+aside,
+main,
+button,
+input,
+select,
+textarea,
+.apple-card,
+.apple-glass {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Status badge styling */

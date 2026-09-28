@@ -4,6 +4,7 @@ import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { VoiceToSpecResponse } from '../../types/contracts';
 import { api } from '../../services/client';
+import { EmptyState } from '../primitives/EmptyState';
 import {
   Phone,
   Play,
@@ -12,6 +13,7 @@ import {
   FileCheck,
   Search,
   Plus,
+  UploadCloud,
 } from 'lucide-react';
 
 interface CallStudioWorkspaceProps {
@@ -34,6 +36,8 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   const [selectedSpeaker, setSelectedSpeaker] = useState<string>('ALL');
   const [mobileTab, setMobileTab] = useState<'transcript' | 'summary' | 'commitments'>('transcript');
   const [promotedSet, setPromotedSet] = useState<Set<string>>(new Set());
+  const [uploadingAudio, setUploadingAudio] = useState(false);
+  const audioInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.getCalls().then((data) => {
@@ -44,6 +48,21 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
       }
     });
   }, [activeCallId]);
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploadingAudio(true);
+    try {
+      const res = await api.uploadCallAudio(e.target.files[0]);
+      setCalls((prev) => [res, ...prev]);
+      setSelectedCall(res);
+    } catch (err) {
+      console.error('Audio upload error:', err);
+    } finally {
+      setUploadingAudio(false);
+      if (audioInputRef.current) audioInputRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -73,7 +92,44 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
     setPromotedSet((prev) => new Set(prev).add(`${selectedCall.call_id}-${index}`));
   };
 
-  if (!selectedCall) return null;
+  if (!selectedCall) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Workspace 2"
+          title="Client Call Studio"
+          description="Air-gapped on-device Whisper transcription extracting customer pain points, feature requests, and verbal commitments."
+          actions={
+            <div className="flex items-center gap-2">
+              <input
+                ref={audioInputRef}
+                type="file"
+                className="hidden"
+                accept=".wav,.mp3,.m4a,.ogg,.flac"
+                onChange={handleAudioUpload}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<UploadCloud className="w-4 h-4" />}
+                loading={uploadingAudio}
+                onClick={() => audioInputRef.current?.click()}
+              >
+                Upload Call Audio
+              </Button>
+            </div>
+          }
+        />
+        <EmptyState
+          icon={<Phone className="w-5 h-5 text-[#8E8E93]" />}
+          title="No client calls recorded yet"
+          description="Upload an audio recording (.mp3, .wav, .m4a) to generate voice-to-spec intelligence and commitments with faster-whisper."
+          actionLabel="Upload Audio Recording"
+          onAction={() => audioInputRef.current?.click()}
+        />
+      </div>
+    );
+  }
 
   const speakers = Array.from(
     new Set(selectedCall.transcript?.map((t) => t.speaker.split(' ')[0]) || [])
@@ -95,6 +151,13 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
   return (
     <div className="space-y-6">
+      <input
+        ref={audioInputRef}
+        type="file"
+        className="hidden"
+        accept=".wav,.mp3,.m4a,.ogg,.flac"
+        onChange={handleAudioUpload}
+      />
       <PageHeader
         eyebrow="Workspace 2"
         title="Client Call Studio"
@@ -104,6 +167,15 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             <span className="text-xs font-mono text-[#6E6E73] dark:text-[#8E8E93] bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-[10px] border border-black/[0.08] dark:border-white/[0.12] shadow-xs">
               faster-whisper on-prem
             </span>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<UploadCloud className="w-4 h-4" />}
+              loading={uploadingAudio}
+              onClick={() => audioInputRef.current?.click()}
+            >
+              Upload Call
+            </Button>
           </div>
         }
       />

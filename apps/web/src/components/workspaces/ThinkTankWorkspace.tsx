@@ -4,7 +4,7 @@ import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
 import { Dialog } from '../primitives/Dialog';
 import { SegmentedControl } from '../primitives/SegmentedControl';
-import { MOCK_THINKTANK_CHANNELS, MOCK_THINKTANK_MESSAGES } from '../../mocks/fixtures';
+import { EmptyState } from '../primitives/EmptyState';
 import {
   MessageSquare,
   Send,
@@ -28,19 +28,35 @@ type ViewMode = 'document' | 'split' | 'canvas';
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
 }) => {
-  const [channels, setChannels] = useState(MOCK_THINKTANK_CHANNELS);
-  const [activeChannelId, setActiveChannelId] = useState('pricing-strategy');
-  const [messages, setMessages] = useState(MOCK_THINKTANK_MESSAGES);
+  const [channels, setChannels] = useState<{ id: string; name: string; topic: string }[]>([
+    { id: 'general', name: '#general', topic: 'Company strategic alignment & cross-functional topics' }
+  ]);
+  const [activeChannelId, setActiveChannelId] = useState('general');
+  const [messages, setMessages] = useState<Record<string, Array<{ id: string; sender: string; time: string; text: string; isAi?: boolean; provenance?: string }>>>({
+    general: [
+      {
+        id: 'msg-welcome',
+        sender: 'TARS (@TARS)',
+        time: 'Just now',
+        isAi: true,
+        text: 'Welcome to Think Tank. Use this workspace to debate strategic changes, roadmap adjustments, and architectural shifts. TARS monitors threads in real-time to alert on policy contradictions and client commitments.',
+      }
+    ]
+  });
   const [inputMessage, setInputMessage] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('document');
-  const [selectedNode, setSelectedNode] = useState<string | null>('node-2');
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   // Create Channel Modal state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelTopic, setNewChannelTopic] = useState('');
 
-  const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
+  const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0] || {
+    id: 'general',
+    name: '#general',
+    topic: 'Company strategic alignment & cross-functional topics'
+  };
   const channelMessages = messages[activeChannelId] || [];
 
   const handleCreateChannel = (e: React.FormEvent) => {

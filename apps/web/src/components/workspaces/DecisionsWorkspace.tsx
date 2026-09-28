@@ -6,6 +6,7 @@ import { Drawer } from '../primitives/Drawer';
 import { Dialog } from '../primitives/Dialog';
 import { InlineNotice } from '../primitives/InlineNotice';
 import { StatusLabel } from '../primitives/StatusLabel';
+import { EmptyState } from '../primitives/EmptyState';
 import { DecisionItem, ContradictionCheckResponse, SimulationResponse } from '../../types/contracts';
 import { api } from '../../services/client';
 import {
@@ -36,15 +37,15 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [sensitivity, setSensitivity] = useState<'STRICT' | 'BALANCED' | 'RELAXED'>('BALANCED');
 
   // Contradiction Check State
-  const [testProposal, setTestProposal] = useState('Add custom on-premise SAML SSO for Acme Corp');
+  const [testProposal, setTestProposal] = useState('');
   const [contradictionResult, setContradictionResult] = useState<ContradictionCheckResponse | null>(null);
   const [checkingContradiction, setCheckingContradiction] = useState(false);
 
   // Simulation Drawer State
   const [simulationOpen, setSimulationOpen] = useState(false);
-  const [simProposal, setSimProposal] = useState('Reallocate 2 engineers to custom SAML SSO for Acme Corp');
-  const [delayDays, setDelayDays] = useState(24);
-  const [reallocatedDevs, setReallocatedDevs] = useState(2);
+  const [simProposal, setSimProposal] = useState('');
+  const [delayDays, setDelayDays] = useState(14);
+  const [reallocatedDevs, setReallocatedDevs] = useState(1);
   const [simResult, setSimResult] = useState<SimulationResponse | null>(null);
   const [simulating, setSimulating] = useState(false);
 
@@ -109,8 +110,6 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     setNewContext('');
     setNewChoice('');
   };
-
-  if (!selectedDecision) return null;
 
   const categoryColors: Record<string, string> = {
     STRATEGY: 'bg-[#0071E3]/[0.10] text-[#0071E3] dark:bg-[#0A84FF]/[0.12] dark:text-[#0A84FF]',
@@ -211,8 +210,17 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
         )}
       </div>
 
-      {/* Main Ledger Split */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      {/* Main Ledger Split or Empty State */}
+      {decisions.length === 0 || !selectedDecision ? (
+        <EmptyState
+          icon={<Scale className="w-5 h-5 text-[#8E8E93]" />}
+          title="No strategic decisions recorded yet"
+          description="Record architectural, product, or strategy decisions to establish immutable institutional memory and trigger automatic conflict detection."
+          actionLabel="Record First Decision"
+          onAction={() => setRecordDialogOpen(true)}
+        />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left: Decision Ledger List */}
         <div className="lg:col-span-5 space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider px-1">
@@ -283,7 +291,11 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                     )}
                   </div>
                   <span className="text-[11px] text-[#8E8E93] font-mono">
-                    {new Date(selectedDecision.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {(() => {
+                      const t = Number(selectedDecision.timestamp);
+                      const ms = isNaN(t) ? Date.now() : t < 10000000000 ? t * 1000 : t;
+                      return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    })()}
                   </span>
                 </div>
                 <h3 className="text-lg sm:text-xl font-bold tracking-tight text-black dark:text-white leading-snug">
@@ -334,6 +346,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* What-If Simulation Drawer */}
       <Drawer
@@ -352,7 +365,8 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 type="text"
                 value={simProposal}
                 onChange={(e) => setSimProposal(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
+                placeholder="e.g. Reallocate 2 engineers to custom SAML SSO for client..."
+                className="w-full px-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
               />
             </div>
 

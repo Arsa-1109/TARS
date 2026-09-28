@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { UserRole } from '../../types/contracts';
 import {
   Compass,
@@ -393,8 +394,8 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
     }, 600);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in select-none">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 dark:bg-black/85 backdrop-blur-[24px] animate-fade-in select-none">
       <div
         className="w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl border border-black/[0.08] dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/95 text-zinc-900 dark:text-zinc-100 shadow-2xl apple-glass relative overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -683,6 +684,7 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

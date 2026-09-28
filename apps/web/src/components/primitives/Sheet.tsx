@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface SheetProps {
@@ -34,11 +35,11 @@ export const Sheet: React.FC<SheetProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-hidden select-none sm:hidden">
-      {/* Scrim */}
+      {/* Full screen scrim */}
       <div
-        className="absolute inset-0 bg-black/50 animate-fade-in"
+        className="fixed inset-0 bg-black/60 dark:bg-black/75 backdrop-blur-[16px] animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -89,6 +90,7 @@ export const Sheet: React.FC<SheetProps> = ({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

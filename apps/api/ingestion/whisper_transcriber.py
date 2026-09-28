@@ -53,6 +53,7 @@ class WhisperTask:
             "completed_at": self.completed_at,
             "duration_seconds": self.duration_seconds,
             "transcript_snippet": self.transcript[:200] if self.transcript else "",
+            "transcript": self.transcript,
             "has_spec": self.spec_result is not None,
             "error": self.error,
         }
