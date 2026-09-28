@@ -51,10 +51,10 @@ export const Drawer: React.FC<DrawerProps> = ({
           className={[
             'w-screen flex flex-col animate-slide-right select-text',
             width,
-            // Solid Apple surface — no washed glass
-            'bg-white dark:bg-[#1C1C1E]',
-            'border-l border-black/[0.09] dark:border-white/[0.12]',
-            'shadow-[-20px_0_60px_rgba(0,0,0,0.14)] dark:shadow-[-20px_0_60px_rgba(0,0,0,0.60)]',
+            // Solid Apple surface — rich dark graphite
+            'bg-white dark:bg-[#141416]',
+            'border-l border-black/[0.09] dark:border-white/[0.14]',
+            'shadow-[-20px_0_60px_rgba(0,0,0,0.14)] dark:shadow-[-24px_0_80px_rgba(0,0,0,0.85)]',
           ].join(' ')}
           role="dialog"
           aria-modal="true"

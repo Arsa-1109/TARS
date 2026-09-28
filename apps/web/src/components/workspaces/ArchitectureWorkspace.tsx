@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { StatusLabel } from '../primitives/StatusLabel';
@@ -145,7 +145,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
         }
       />
 
-      {/* Top Banner: 4 Killer Invariants Quick Status */}
+      {/* Invariant Rules Ribbon */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {invariants.map((inv) => {
           const isSelected = selectedRule.rule_id === inv.rule_id;
@@ -156,26 +156,30 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 setSelectedRule(inv);
                 onSelectFinding(inv.rule_id);
               }}
-              className={`p-4 rounded-[16px] border cursor-pointer transition-all ${
+              className={`p-4 rounded-[18px] border transition-all cursor-pointer ${
                 isSelected
                   ? 'border-black/[0.25] dark:border-white/[0.30] bg-white dark:bg-[#1C1C1E] shadow-sm ring-1 ring-black/[0.08] dark:ring-white/[0.12]'
-                  : 'border-black/[0.08] dark:border-white/[0.08] bg-white/70 dark:bg-[#1C1C1E]/60 hover:bg-white dark:hover:bg-[#1C1C1E]'
+                  : 'border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] hover:border-black/20 dark:hover:border-white/20'
               }`}
             >
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-mono font-bold text-black dark:text-white">
+                <span className="font-semibold text-black dark:text-white">
                   {inv.rule_id}
                 </span>
-                <StatusLabel
-                  size="sm"
-                  status={inv.is_breached ? 'critical' : 'success'}
-                  label={inv.is_breached ? 'BREACHED' : 'PASSING'}
-                />
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                    inv.is_breached
+                      ? 'bg-[#FF3B30]/10 text-[#FF3B30] dark:text-[#FF453A]'
+                      : 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]'
+                  }`}
+                >
+                  {inv.is_breached ? 'Violation' : 'Passing'}
+                </span>
               </div>
-              <p className="text-xs font-semibold text-black dark:text-white line-clamp-2 leading-snug">
+              <p className="text-xs font-medium text-black dark:text-white line-clamp-2 leading-snug">
                 {inv.rule_name}
               </p>
-              <div className="mt-2.5 text-[11px] font-mono text-[#8E8E93] truncate">
+              <div className="mt-2.5 text-[11px] text-[#86868B] dark:text-[#8E8E93] truncate font-mono">
                 {inv.violating_file}:{inv.line_number}
               </div>
             </div>
@@ -219,7 +223,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-[#0071E3] dark:text-[#0A84FF]">
+                      <span className="font-mono text-xs font-bold text-black dark:text-white">
                         {selectedRule.rule_id}
                       </span>
                       <StatusLabel
@@ -258,7 +262,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                                 isViolatingLine
                                   ? 'bg-[#FF3B30]/[0.15] text-[#FF453A] border-l-2 border-[#FF3B30] font-semibold'
                                   : line.includes('REFACTORED')
-                                  ? 'bg-[#34C759]/[0.15] text-[#30D158] border-l-2 border-[#34C759]'
+                                  ? 'bg-[#0071E3]/[0.15] text-[#0A84FF] border-l-2 border-[#0071E3]'
                                   : 'text-neutral-400'
                               }`}
                             >
@@ -354,7 +358,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                   </div>
                 </div>
 
-                <div className="rounded-[14px] bg-black text-[#30D158] font-mono text-xs p-4 space-y-1.5 select-text overflow-x-auto border border-black/[0.12] dark:border-white/[0.12]">
+                <div className="rounded-[14px] bg-black text-[#0A84FF] font-mono text-xs p-4 space-y-1.5 select-text overflow-x-auto border border-black/[0.12] dark:border-white/[0.12]">
                   <div className="text-neutral-500 font-bold">$ git commit -m "feat(payments): execute stripe charge"</div>
                   {terminalLog.map((log, i) => (
                     <div
@@ -364,7 +368,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                           ? 'text-[#FF453A] font-bold'
                           : log.includes('Violating')
                           ? 'text-[#FF9F0A]'
-                          : 'text-[#30D158]'
+                          : 'text-[#0A84FF]'
                       }
                     >
                       {log}
@@ -385,7 +389,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
             <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
               <div>
                 <h4 className="text-xs font-bold text-black dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <Cpu className="w-4 h-4 text-black dark:text-white" />
                   <span>Kùzu System Call Topology</span>
                 </h4>
                 <p className="text-[11px] text-[#8E8E93]">

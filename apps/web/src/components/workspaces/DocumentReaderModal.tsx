@@ -92,7 +92,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                   {clearance}
                 </span>
                 <span>•</span>
-                <span className="text-[#34C759] dark:text-[#30D158] flex items-center gap-1">
+                <span className="text-[#0071E3] dark:text-[#0A84FF] flex items-center gap-1">
                   <Shield className="w-3 h-3" />
                   Local Vault
                 </span>
@@ -128,7 +128,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
               onClick={handleCopyText}
               className="h-7 px-2.5 rounded-[8px] text-[11px] font-medium border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#3A3A3C] text-[#3C3C43] dark:text-[#EBEBF5] hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.06] transition-all flex items-center gap-1.5 shadow-2xs"
             >
-              {copied ? <Check className="w-3 h-3 text-[#34C759] dark:text-[#30D158]" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3 h-3" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
 

@@ -240,13 +240,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                   key={msg.id}
                   className={`p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 ${
                     msg.isAi
-                      ? 'bg-[#0071E3]/[0.06] dark:bg-[#0A84FF]/[0.08] border border-[#0071E3]/25 dark:border-[#0A84FF]/30 text-black dark:text-white'
+                      ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
                       : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
                   }`}
                 >
                   <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
                     <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                      {msg.isAi && <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />}
+                      {msg.isAi && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
                       {msg.sender}
                     </span>
                     <span className="font-mono text-[#8E8E93]">{msg.time}</span>
@@ -255,9 +255,9 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                     {msg.text}
                   </p>
                   {msg.provenance && (
-                    <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-[#0071E3] dark:text-[#0A84FF] font-medium flex items-center gap-1.5">
+                    <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
                       <span>Evidence Grounding:</span>
-                      <span className="underline decoration-[#0071E3]/40 underline-offset-2">{msg.provenance}</span>
+                      <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">{msg.provenance}</span>
                     </div>
                   )}
                 </div>
@@ -277,7 +277,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Discuss topic or type @TARS to cite past decisions..."
-                className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 dark:focus:ring-[#0A84FF]/20 focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
+                className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all"
               />
               <Button type="submit" variant="primary" size="sm" icon={<Send className="w-3.5 h-3.5" />}>
                 Send
@@ -315,11 +315,11 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                     y1="110"
                     x2="280"
                     y2="110"
-                    stroke="#FF9500"
-                    strokeWidth="2"
+                    stroke="#E5A000"
+                    strokeWidth="1.5"
                     strokeDasharray="4 4"
                   />
-                  <text x="205" y="100" fill="#FF9500" fontSize="10" fontWeight="bold">
+                  <text x="205" y="100" fill="#E5A000" fontSize="9" fontWeight="bold">
                     CONTRADICTS
                   </text>
 
@@ -331,7 +331,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                     stroke="rgba(128,128,128,0.3)"
                     strokeWidth="1.5"
                   />
-                  <text x="450" y="100" fill="#8E8E93" fontSize="10">
+                  <text x="450" y="100" fill="#8E8E93" fontSize="9">
                     DELAYS
                   </text>
 
@@ -343,7 +343,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                     stroke="rgba(128,128,128,0.3)"
                     strokeWidth="1.5"
                   />
-                  <text x="355" y="185" fill="#8E8E93" fontSize="10">
+                  <text x="355" y="185" fill="#8E8E93" fontSize="9">
                     IMPACTS
                   </text>
 
@@ -361,12 +361,12 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                           width="140"
                           height="70"
                           rx="12"
-                          className={isSelected ? 'fill-white dark:fill-[#2C2C2E]' : 'fill-white dark:fill-[#1C1C1E]'}
+                          className={isSelected ? 'fill-white dark:fill-[#242428]' : 'fill-white dark:fill-[#141416]'}
                           stroke={
                             isSelected
                               ? '#0071E3'
                               : n.isConflict
-                              ? '#FF9500'
+                              ? '#E5A000'
                               : 'rgba(128,128,128,0.25)'
                           }
                           strokeWidth={isSelected ? '2' : '1'}

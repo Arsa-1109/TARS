@@ -32,12 +32,12 @@ export const ProvenanceLink: React.FC<ProvenanceLinkProps> = ({
       onClick={onClick}
       className={[
         'inline-flex items-center gap-1 text-[11px] font-medium transition-colors text-left',
-        'text-[#0071E3] dark:text-[#0A84FF]',
-        'hover:text-[#0058B4] dark:hover:text-[#4CA9FF]',
-        'bg-[#0071E3]/[0.06] dark:bg-[#0A84FF]/[0.08]',
-        'hover:bg-[#0071E3]/[0.10] dark:hover:bg-[#0A84FF]/[0.12]',
+        'text-black dark:text-white',
+        'hover:text-black dark:hover:text-white',
+        'bg-black/[0.04] dark:bg-white/[0.06]',
+        'hover:bg-black/[0.08] dark:hover:bg-white/[0.12]',
         'px-2 py-0.5 rounded-[6px]',
-        'border border-[#0071E3]/[0.14] dark:border-[#0A84FF]/[0.18]',
+        'border border-black/[0.08] dark:border-white/[0.12]',
         'focus-visible:outline-none',
         className,
       ].join(' ')}

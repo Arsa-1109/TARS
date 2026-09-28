@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Drawer } from '../primitives/Drawer';
 import { ActionItemDTO } from '../../types/contracts';
 import { ActionItemRow } from './ActionItemRow';
@@ -24,6 +24,7 @@ interface ActionHubDrawerProps {
   onStatusChange: (id: string, newStatus: ActionItemDTO['status']) => void;
   onNavigateSource: (sourceType: string, sourceId: string) => void;
   onAddItem: (item: Omit<ActionItemDTO, 'id'>) => void;
+  onDeleteItem?: (id: string) => void;
 }
 
 type FilterStatus = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'DONE';
@@ -36,6 +37,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   onStatusChange,
   onNavigateSource,
   onAddItem,
+  onDeleteItem,
 }) => {
   const [filter, setFilter] = useState<FilterStatus>('ALL');
   const [layout, setLayout] = useState<LayoutView>('list');
@@ -43,8 +45,11 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   const [addModalOpen, setAddModalOpen] = useState(false);
 
   // New task form state
+  const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
   const [owner, setOwner] = useState('Founder');
+  const [department, setDepartment] = useState('General');
+  const [priority, setPriority] = useState<ActionItemDTO['priority']>('MEDIUM');
 
   const filteredItems = actionItems.filter((item) => {
     if (filter === 'ALL') return true;
@@ -60,17 +65,17 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
       `📌 IN PROGRESS (${inProgressCount}):\n` +
       actionItems
         .filter((i) => i.status === 'IN_PROGRESS')
-        .map((i) => `• [${i.owner}] ${i.description} (Source: ${i.source_id})`)
+        .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description} (Source: ${i.source_id})`)
         .join('\n') +
       `\n\n📋 OPEN BACKLOG (${openCount}):\n` +
       actionItems
         .filter((i) => i.status === 'OPEN')
-        .map((i) => `• [${i.owner}] ${i.description} (Source: ${i.source_id})`)
+        .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description} (Source: ${i.source_id})`)
         .join('\n') +
       `\n\n✅ COMPLETED (${doneCount}):\n` +
       actionItems
         .filter((i) => i.status === 'DONE')
-        .map((i) => `• [${i.owner}] ${i.description}`)
+        .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description}`)
         .join('\n');
 
     navigator.clipboard.writeText(standupText);
@@ -81,14 +86,18 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   const handleCreateTask = () => {
     if (!desc.trim()) return;
     onAddItem({
+      title: title.trim() || undefined,
       description: desc.trim(),
       owner,
+      department,
+      priority,
       status: 'OPEN',
       source_type: 'CHAT',
       source_id: 'Manual Standup Task',
       source_offset: 'Today',
       deadline: Date.now() + 3 * 86400000,
     });
+    setTitle('');
     setDesc('');
     setAddModalOpen(false);
   };
@@ -108,7 +117,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           <Button
             variant="secondary"
             size="sm"
-            icon={copiedStandup ? <Check className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" /> : <Copy className="w-3.5 h-3.5" />}
+            icon={copiedStandup ? <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3.5 h-3.5" />}
             onClick={handleCopyStandup}
           >
             {copiedStandup ? 'Copied!' : 'Copy Standup'}
@@ -159,28 +168,61 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           </div>
           <input
             type="text"
+            placeholder="Short Title (optional)..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3.5 py-2 text-[13px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
+          />
+          <textarea
+            rows={2}
             placeholder="Describe the action..."
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            className="w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:ring-2 focus:ring-[#0071E3]/15 dark:focus:ring-[#0A84FF]/15 transition-all"
+            className="w-full px-3.5 py-2 text-[13px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
           />
-          <div className="flex items-center justify-between gap-2">
-            <select
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              className="px-3 py-2 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
-            >
-              <option value="Aryan (Founder)">Aryan (Founder)</option>
-              <option value="Mir Farzin (Lead)">Mir Farzin (Lead)</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Product">Product</option>
-            </select>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <select
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                className="px-2.5 py-1.5 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
+              >
+                <option value="Aryan (Founder)">Aryan (Founder)</option>
+                <option value="Mir Farzin (Lead)">Mir Farzin (Lead)</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Product">Product</option>
+              </select>
+
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="px-2.5 py-1.5 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
+              >
+                <option value="General">General</option>
+                <option value="Executive">Executive</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Product">Product</option>
+                <option value="Sales">Sales</option>
+              </select>
+
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+                className="px-2.5 py-1.5 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
+              >
+                <option value="URGENT">Urgent</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => setAddModalOpen(false)}>
                 Cancel
               </Button>
               <Button variant="primary" size="sm" onClick={handleCreateTask}>
-                Save
+                Save Task
               </Button>
             </div>
           </div>
@@ -192,7 +234,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
         <div className="space-y-2">
           {filteredItems.length === 0 ? (
             <EmptyState
-              icon={<CheckCircle2 className="w-5 h-5 text-[#1D8348] dark:text-[#30D158]" />}
+              icon={<CheckCircle2 className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />}
               title="No tasks in this view"
               description="All commitments and action items in this category are up to date."
             />
@@ -203,6 +245,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                 item={item}
                 onStatusChange={onStatusChange}
                 onNavigateSource={onNavigateSource}
+                onDelete={onDeleteItem}
               />
             ))
           )}
@@ -242,8 +285,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           </div>
 
           {/* Column: IN PROGRESS */}
-          <div className="p-3 rounded-[14px] border border-[#FF9500]/[0.20] dark:border-[#FF9F0A]/[0.20] bg-[#FF9500]/[0.04] dark:bg-[#FF9F0A]/[0.04] space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[#B25000] dark:text-[#FF9F0A] uppercase tracking-wider pb-1.5 border-b border-[#FF9500]/[0.15] dark:border-[#FF9F0A]/[0.15]">
+          <div className="p-3 rounded-[14px] border border-[#0071E3]/[0.20] dark:border-[#0A84FF]/[0.24] bg-[#0071E3]/[0.03] dark:bg-[#0A84FF]/[0.05] space-y-2.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider pb-1.5 border-b border-[#0071E3]/[0.15] dark:border-[#0A84FF]/[0.20]">
               <span>In Progress</span>
               <span className="font-mono">{inProgressCount}</span>
             </div>
@@ -252,7 +295,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-[12px] border border-[#FF9500]/[0.18] dark:border-[#FF9F0A]/[0.18] bg-white dark:bg-[#1C1C1E] space-y-2"
+                  className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#141416] space-y-2 shadow-xs"
                 >
                   <p className="text-[12px] font-medium text-black dark:text-white leading-snug">
                     {item.description}
@@ -261,7 +304,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                     <span className="text-[#6E6E73] dark:text-[#8E8E93]">{item.owner}</span>
                     <button
                       onClick={() => onStatusChange(item.id, 'DONE')}
-                      className="text-[#1D8348] dark:text-[#30D158] text-[10px] font-bold uppercase hover:opacity-70"
+                      className="text-[#0071E3] dark:text-[#0A84FF] text-[10px] font-bold uppercase hover:opacity-70"
                     >
                       Complete →
                     </button>
@@ -271,8 +314,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           </div>
 
           {/* Column: DONE */}
-          <div className="p-3 rounded-[14px] border border-[#34C759]/[0.18] dark:border-[#30D158]/[0.18] bg-[#34C759]/[0.03] dark:bg-[#30D158]/[0.04] space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[#1D8348] dark:text-[#30D158] uppercase tracking-wider pb-1.5 border-b border-[#34C759]/[0.15] dark:border-[#30D158]/[0.15]">
+          <div className="p-3 rounded-[14px] border border-[#0A84FF]/[0.18] dark:border-[#0A84FF]/[0.18] bg-[#0A84FF]/[0.03] dark:bg-[#0A84FF]/[0.04] space-y-2.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider pb-1.5 border-b border-[#0A84FF]/[0.15] dark:border-[#0A84FF]/[0.15]">
               <span>Done</span>
               <span className="font-mono">{doneCount}</span>
             </div>
@@ -288,7 +331,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                   </p>
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06]">
                     <span className="text-[#8E8E93]">{item.owner}</span>
-                    <span className="text-[#1D8348] dark:text-[#30D158] text-[11px] font-bold">✓</span>
+                    <span className="text-[#0071E3] dark:text-[#0A84FF] text-[11px] font-bold">✓</span>
                   </div>
                 </div>
               ))}

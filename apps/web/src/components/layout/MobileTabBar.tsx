@@ -35,20 +35,20 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
             <button
               key={tab.id}
               onClick={() => onSelectWorkspace(tab.id)}
-              className="flex flex-col items-center justify-center h-full min-h-[44px] transition-all focus-visible:outline-none gap-0.5"
+              className="flex flex-col items-center justify-center h-full min-h-[44px] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.92] focus-visible:outline-none gap-0.5"
             >
               <div className={[
-                'w-8 h-8 rounded-[10px] flex items-center justify-center transition-all',
+                'w-8 h-8 rounded-[10px] flex items-center justify-center transition-all duration-200',
                 isActive
-                  ? 'bg-black/[0.07] dark:bg-white/[0.10]'
-                  : '',
+                  ? 'bg-black/[0.07] dark:bg-white/[0.10] scale-105'
+                  : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]',
               ].join(' ')}>
                 <span className={isActive ? 'text-black dark:text-white' : 'text-[#8E8E93]'}>
                   {tab.icon}
                 </span>
               </div>
               <span className={[
-                'text-[10px] tracking-tight leading-none',
+                'text-[10px] tracking-tight leading-none transition-colors',
                 isActive ? 'text-black dark:text-white font-semibold' : 'text-[#8E8E93]',
               ].join(' ')}>
                 {tab.label}
@@ -60,7 +60,7 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
         {/* More Tab */}
         <button
           onClick={onOpenMore}
-          className="flex flex-col items-center justify-center h-full min-h-[44px] transition-all focus-visible:outline-none gap-0.5"
+          className="flex flex-col items-center justify-center h-full min-h-[44px] transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.92] focus-visible:outline-none gap-0.5"
         >
           <div className={[
             'w-8 h-8 rounded-[10px] flex items-center justify-center transition-all',

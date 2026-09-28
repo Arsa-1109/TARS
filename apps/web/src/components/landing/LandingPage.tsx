@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Shield,
   Layers,
@@ -60,10 +60,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
           <div className="p-4 rounded-[14px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] shadow-sm space-y-2">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-[#0071E3] dark:text-[#0A84FF]">
+              <span className="font-semibold text-black dark:text-white">
                 [1] ADR-014-no-custom-branches.md · Page 2
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#34C759]/[0.12] dark:bg-[#30D158]/[0.15] text-[#1D8348] dark:text-[#30D158] font-bold text-[10px]">
+              <span className="px-2 py-0.5 rounded-full bg-[#0A84FF]/[0.12] dark:bg-[#0A84FF]/[0.15] text-[#0071E3] dark:text-[#0A84FF] font-bold text-[10px]">
                 98.4% GROUNDED
               </span>
             </div>
@@ -99,8 +99,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="font-semibold text-black dark:text-white mb-1">Customer Constraint</div>
               <p className="text-[#6E6E73] dark:text-[#8E8E93]">Requires on-premise execution with zero cloud telemetry.</p>
             </div>
-            <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-[#34C759]/[0.25] shadow-sm">
-              <div className="font-semibold text-[#1D8348] dark:text-[#30D158] mb-1">Extracted Commitment</div>
+            <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-[#0A84FF]/[0.25] shadow-sm">
+              <div className="font-semibold text-[#0071E3] dark:text-[#0A84FF] mb-1">Extracted Commitment</div>
               <p className="text-[#3C3C43] dark:text-[#EBEBF5]">Deliver AST diff benchmark by Friday.</p>
             </div>
           </div>
@@ -149,7 +149,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <span>line 84</span>
           </div>
           <div className="text-[#6E6E73] dark:text-[#8E8E93] pl-2">File: src/payments/service.py</div>
-          <div className="text-[#1D8348] dark:text-[#30D158] pl-2">Recommendation: Apply Transactional Outbox pattern</div>
+          <div className="text-[#0071E3] dark:text-[#0A84FF] pl-2">Recommendation: Apply Transactional Outbox pattern</div>
         </div>
       ),
     },
@@ -172,12 +172,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="text-[#8E8E93] mt-1">Elena • Due 2d</div>
           </div>
           <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] shadow-sm">
-            <div className="text-[#0071E3] dark:text-[#0A84FF] font-bold mb-1">IN PROGRESS</div>
+            <div className="text-black dark:text-white font-bold mb-1">IN PROGRESS</div>
             <div className="text-black dark:text-white font-medium">Acme SSO Assessment</div>
             <div className="text-[#8E8E93] mt-1">Aryan • Due 3d</div>
           </div>
           <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] shadow-sm">
-            <div className="text-[#1D8348] dark:text-[#30D158] font-bold mb-1">DONE</div>
+            <div className="text-[#0071E3] dark:text-[#0A84FF] font-bold mb-1">DONE</div>
             <div className="text-black dark:text-white font-medium">AST Parser Benchmark</div>
             <div className="text-[#8E8E93] mt-1">Passed (38ms)</div>
           </div>
@@ -187,33 +187,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-black text-[#1D1D1F] dark:text-white font-sans selection:bg-[#0071E3] selection:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-[#F5F5F7] dark:bg-black text-[#1D1D1F] dark:text-white font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
       {/* Apple-grade Sticky Header */}
-      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/85 dark:bg-black/85 transition-colors select-none">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none">
+        <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-[8px] bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs shadow-sm">
             T
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-[14px] tracking-tight text-black dark:text-white">TARS</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-[#3C3C43] dark:text-[#EBEBF5]">
-              Sovereign Node v1.0
-            </span>
-          </div>
+          <span className="font-semibold text-[15px] tracking-tight text-black dark:text-white">TARS</span>
         </div>
 
-        <nav className="hidden md:flex items-center gap-7 text-[12px] font-medium text-[#6E6E73] dark:text-[#8E8E93]">
+        <nav className="hidden md:flex items-center gap-8 text-[13px] font-normal text-[#86868B] dark:text-[#8E8E93]">
           <a href="#capabilities" className="hover:text-black dark:hover:text-white transition-colors">
-            Capabilities
-          </a>
-          <a href="#sovereignty" className="hover:text-black dark:hover:text-white transition-colors">
-            Zero Egress
+            Workspaces
           </a>
           <a href="#hardware" className="hover:text-black dark:hover:text-white transition-colors">
-            Appliance
+            Air-Gap Architecture
           </a>
-          <a href="#pricing" className="hover:text-black dark:hover:text-white transition-colors">
-            Deploy
+          <a href="#specifications" className="hover:text-black dark:hover:text-white transition-colors">
+            Specifications
           </a>
         </nav>
 
@@ -221,23 +213,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              className="p-1.5 h-8 w-8 rounded-[10px] border border-black/[0.09] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center justify-center"
+              className="p-1.5 h-8 w-8 rounded-[8px] text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center justify-center"
               title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
               aria-label="Toggle theme"
             >
-              {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+              {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </button>
           )}
 
           <button
             onClick={() => onOpenAuth('signin')}
-            className="px-3 py-1.5 text-xs font-semibold text-[#3C3C43] dark:text-[#EBEBF5] hover:text-black dark:hover:text-white transition-colors"
+            className="px-3.5 py-1.5 text-[13px] font-medium text-[#1D1D1F] dark:text-[#F5F5F7] hover:opacity-70 transition-opacity"
           >
             Sign In
           </button>
           <button
             onClick={() => onOpenAuth('signup')}
-            className="h-8 px-3.5 rounded-[10px] bg-black dark:bg-white text-white dark:text-black text-xs font-semibold hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all shadow-sm"
+            className="h-8 px-4 rounded-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[12px] font-medium active:scale-[0.98] transition-all shadow-sm"
           >
             Get Started
           </button>
@@ -245,22 +237,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-20 px-6 lg:px-12 max-w-5xl mx-auto text-center">
-        {/* Subtle Ambient Radial Glow */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[320px] bg-[#0071E3]/[0.05] dark:bg-[#0A84FF]/[0.07] rounded-full blur-[100px] pointer-events-none" />
-
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white/90 dark:bg-[#1C1C1E]/90 text-[11px] text-[#3C3C43] dark:text-[#EBEBF5] font-mono mb-8 shadow-xs">
-          <Shield className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" />
-          <span>Sovereign Local Architecture</span>
-          <span className="text-[#AEAEB2] dark:text-[#48484A]">•</span>
-          <span className="font-semibold text-black dark:text-white">0.00 KB Egress</span>
+      <section className="relative pt-28 pb-20 px-6 lg:px-12 max-w-5xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] text-[12px] font-medium text-[#6E6E73] dark:text-[#8E8E93] mb-6 shadow-xs">
+          <span>TARS 2.0</span>
+          <span className="text-black/[0.2] dark:text-white/[0.2]">|</span>
+          <span className="text-black dark:text-white">Institutional Memory for High-Growth Startups</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-black dark:text-white max-w-4xl mx-auto leading-[1.06] mb-6">
-          The Sovereign Platform for High-Growth Startups.
+        <h1 className="text-5xl sm:text-7xl lg:text-[80px] font-bold tracking-tight text-black dark:text-white max-w-4xl mx-auto leading-[1.04] mb-6">
+          The sovereign brain for high-growth startups.
         </h1>
 
-        <p className="text-base sm:text-xl text-[#6E6E73] dark:text-[#8E8E93] max-w-2xl mx-auto font-normal leading-relaxed mb-10">
+        <p className="text-lg sm:text-xl text-[#86868B] dark:text-[#8E8E93] max-w-2xl mx-auto font-normal leading-relaxed mb-10">
           Zero cloud telemetry. Every customer conversation, code invariant, and founder decision compiled into your company's permanent, private institutional memory.
         </p>
 
@@ -268,25 +256,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16">
           <button
             onClick={() => onOpenAuth('signup')}
-            className="w-full sm:w-auto h-12 px-8 rounded-[14px] bg-black dark:bg-white text-white dark:text-black text-xs sm:text-[13px] font-bold tracking-tight hover:bg-zinc-800 dark:hover:bg-zinc-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(0,0,0,0.18)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.60)]"
+            className="w-full sm:w-auto h-11 px-7 rounded-full bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-medium active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
           >
             <span>Get Started</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onLaunchDemo}
-            className="w-full sm:w-auto h-12 px-7 rounded-[14px] border border-black/[0.10] dark:border-white/[0.14] bg-white dark:bg-[#1C1C1E] text-black dark:text-white text-xs sm:text-[13px] font-semibold hover:bg-black/[0.03] dark:hover:bg-white/[0.06] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
+            className="w-full sm:w-auto h-11 px-7 rounded-full border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#1C1C1E] text-black dark:text-white text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.06] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-xs"
           >
             <span>Launch Live Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-[#8E8E93]" />
+            <ChevronRight className="w-3.5 h-3.5 text-[#86868B]" />
           </button>
         </div>
-
-        {/* Live Silicon Node Telemetry Card */}
         <div className="p-4 sm:p-5 rounded-[22px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] max-w-3xl mx-auto shadow-[0_12px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.60)] relative overflow-hidden text-left">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#1D8348] dark:text-[#30D158]">
+              <div className="w-9 h-9 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#0071E3] dark:text-[#0A84FF]">
                 <Server className="w-4 h-4" />
               </div>
               <div>
@@ -298,7 +284,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <div className="flex items-center gap-6 font-mono text-xs">
               <div>
                 <div className="text-[10px] text-[#8E8E93] uppercase font-bold">Network</div>
-                <div className="text-[#1D8348] dark:text-[#30D158] font-bold">0.00 KB Egress</div>
+                <div className="text-[#0071E3] dark:text-[#0A84FF] font-bold">0.00 KB Egress</div>
               </div>
               <div>
                 <div className="text-[10px] text-[#8E8E93] uppercase font-bold">AST Check</div>
@@ -306,7 +292,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
               <div>
                 <div className="text-[10px] text-[#8E8E93] uppercase font-bold">Vector Graph</div>
-                <div className="text-[#0071E3] dark:text-[#0A84FF] font-bold">Local Tantivy</div>
+                <div className="text-black dark:text-white font-bold">Local Tantivy</div>
               </div>
             </div>
           </div>
@@ -350,7 +336,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           return (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center rounded-[24px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.50)]">
               <div className="lg:col-span-5 space-y-4">
-                <div className="inline-flex items-center gap-2 text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                <div className="inline-flex items-center gap-2 text-[11px] font-bold text-black dark:text-white uppercase tracking-wider">
                   {cap.icon}
                   <span>{cap.label}</span>
                 </div>
@@ -395,7 +381,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-6 space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] text-[11px] font-mono text-[#3C3C43] dark:text-[#EBEBF5]">
-              <Server className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+              <Server className="w-3.5 h-3.5 text-black dark:text-white" />
               <span>Turnkey Hardware Ownership</span>
             </div>
             <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-black dark:text-white leading-tight">
@@ -407,15 +393,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <div className="space-y-2 text-xs font-mono text-[#3C3C43] dark:text-[#EBEBF5]">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#1D8348] dark:text-[#30D158] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                 <span>Zero telemetry sockets (E_net = 0.00 KB) verified</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#1D8348] dark:text-[#30D158] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                 <span>Local Whisper-Large-v3 speech recognition</span>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-[#1D8348] dark:text-[#30D158] shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                 <span>Deterministic Tree-sitter AST queries in &lt;50ms</span>
               </div>
             </div>
@@ -424,10 +410,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="lg:col-span-6 rounded-[22px] border border-black/[0.12] dark:border-white/[0.14] bg-black text-white p-6 shadow-2xl font-mono text-xs space-y-3">
             <div className="flex items-center justify-between pb-3 border-b border-white/[0.10]">
               <div className="flex items-center gap-2 text-zinc-300">
-                <Terminal className="w-4 h-4 text-[#30D158]" />
+                <Terminal className="w-4 h-4 text-[#0A84FF]" />
                 <span className="font-semibold text-white">tars-host-doctor --verify-airgap</span>
               </div>
-              <span className="text-[10px] text-[#30D158] bg-[#30D158]/[0.15] px-2 py-0.5 rounded border border-[#30D158]/[0.30] font-bold">
+              <span className="text-[10px] text-[#0A84FF] bg-[#0A84FF]/[0.15] px-2 py-0.5 rounded border border-[#0A84FF]/[0.30] font-bold">
                 AIR-GAPPED
               </span>
             </div>
@@ -437,7 +423,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div>[SOCKET] Outbound sockets outside local subnet: 0 pkts</div>
               <div>[EGRESS] Verified invariant: E_net = 0.00 KB</div>
               <div>[GRAPH] Tantivy vector store: 4 active collections</div>
-              <div className="text-[#30D158] pt-1 font-semibold">
+              <div className="text-[#0A84FF] pt-1 font-semibold">
                 ✓ ALL SOVEREIGN INVARIANTS SATISFIED. ZERO WAN EXPOSURE.
               </div>
             </div>

@@ -88,30 +88,22 @@ export const TopBar: React.FC<TopBarProps> = ({
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
   return (
-    <header className="sticky top-0 z-30 h-[52px] flex items-center justify-between px-4 sm:px-5 shrink-0 select-none transition-colors bg-white/88 dark:bg-black/85 backdrop-saturate-180 backdrop-blur-[20px] border-b border-black/[0.08] dark:border-white/[0.10]">
+    <header className="sticky top-0 z-30 h-[52px] flex items-center justify-between px-5 shrink-0 select-none transition-colors bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.08]">
 
-      {/* Leading: Brand */}
+      {/* Leading: Clean Brand */}
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onGoToLanding}
-          className="flex items-center gap-2 group focus:outline-none"
+          className="flex items-center gap-2.5 group focus:outline-none"
           title="Return to Overview"
         >
-          <div className="w-7 h-7 rounded-[8px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-[13px] shadow-sm group-hover:scale-95 transition-transform">
+          <div className="w-7 h-7 rounded-[8px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-[13px] shadow-sm transition-transform active:scale-95">
             T
           </div>
-          <span className="font-semibold text-[13px] tracking-tight text-black dark:text-white hidden sm:inline">
+          <span className="font-semibold text-[14px] tracking-tight text-black dark:text-white">
             TARS
           </span>
         </button>
-
-        {/* Air-gap badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.07] border border-black/[0.07] dark:border-white/[0.10] text-[11px] text-[#3C3C43] dark:text-[#EBEBF5]">
-          <Shield className="w-3 h-3 text-[#1D8348] dark:text-[#30D158]" />
-          <span className="font-medium">Local</span>
-          <span className="text-[#AEAEB2] dark:text-[#48484A]">·</span>
-          <span className="text-[#6E6E73] dark:text-[#8E8E93] font-mono">0.00 KB</span>
-        </div>
       </div>
 
       {/* Center: Workspace nav */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   Layers,
@@ -75,7 +75,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'architecture', title: 'Architecture Cortex',      category: 'Workspace', icon: <Cpu className="w-4 h-4" />,          action: () => { onNavigateWorkspace('architecture'); onClose(); } },
     { id: 'thinktank',    title: 'Think Tank Discussions',   category: 'Workspace', icon: <MessageSquare className="w-4 h-4" />, action: () => { onNavigateWorkspace('thinktank');   onClose(); } },
     { id: 'onboarding',   title: 'Onboarding Flight Plan',   category: 'Workspace', icon: <Compass className="w-4 h-4" />,      action: () => { onNavigateWorkspace('onboarding');  onClose(); } },
-    { id: 'action-hub',  title: 'Open Action Hub',          category: 'Task',      icon: <CheckSquare className="w-4 h-4 text-[#1D8348] dark:text-[#30D158]" />, action: () => { onOpenActionHub(); onClose(); } },
+    { id: 'action-hub',  title: 'Open Action Hub',          category: 'Task',      icon: <CheckSquare className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />, action: () => { onOpenActionHub(); onClose(); } },
     { id: 'memo',         title: 'Record Voice Memo',        category: 'Capture',   icon: <Mic className="w-4 h-4 text-[#B25000] dark:text-[#FF9F0A]" />,         action: () => { onOpenMemo();       onClose(); } },
     { id: 'settings',     title: 'Company Setup',            category: 'System',    icon: <Sliders className="w-4 h-4 text-[#6E6E73] dark:text-[#8E8E93]" />,     action: () => { onOpenSettings();   onClose(); } },
   ];
@@ -96,31 +96,28 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       />
 
       {/* Spotlight card */}
-      <div className="relative w-full max-w-[540px] z-10 animate-apple-in overflow-hidden rounded-[22px] border border-black/[0.10] dark:border-white/[0.14] bg-white dark:bg-[#1C1C1E] shadow-[0_24px_60px_rgba(0,0,0,0.24),0_4px_12px_rgba(0,0,0,0.10)] dark:shadow-[0_32px_80px_rgba(0,0,0,0.80)]">
-
-        {/* Specular highlight */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 dark:via-white/20 to-transparent pointer-events-none" />
+      <div className="relative w-full max-w-[540px] z-10 animate-apple-in overflow-hidden rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] shadow-[0_24px_60px_rgba(0,0,0,0.22)]">
 
         {/* Search input */}
-        <div className="flex items-center px-4 py-3.5 border-b border-black/[0.08] dark:border-white/[0.09]">
-          <Search className="w-5 h-5 text-[#6E6E73] dark:text-[#8E8E93] shrink-0 mr-3" />
+        <div className="flex items-center px-4 py-3.5 border-b border-black/[0.06] dark:border-white/[0.08]">
+          <Search className="w-4 h-4 text-[#86868B] dark:text-[#8E8E93] shrink-0 mr-3" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setActiveIndex(0); }}
-            placeholder="Search workspaces, commands, or documents..."
-            className="flex-1 bg-transparent text-[15px] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
+            placeholder="Spotlight Search..."
+            className="flex-1 bg-transparent text-[15px] text-black dark:text-white placeholder:text-[#86868B] dark:placeholder:text-[#8E8E93] focus:outline-none font-normal"
           />
           {query ? (
             <button
               onClick={() => setQuery('')}
-              className="w-5 h-5 rounded-full bg-[#8E8E93]/30 flex items-center justify-center text-[#6E6E73] hover:bg-[#8E8E93]/50 transition-colors shrink-0 ml-2"
+              className="w-5 h-5 rounded-full bg-black/[0.06] dark:bg-white/[0.10] flex items-center justify-center text-[#86868B] hover:text-black dark:hover:text-white transition-colors shrink-0 ml-2"
             >
               <X className="w-3 h-3" />
             </button>
           ) : (
-            <kbd className="hidden sm:flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded-[5px] bg-black/[0.06] dark:bg-white/[0.08] border border-black/[0.08] dark:border-white/[0.10] text-[#8E8E93] shrink-0 ml-2">
+            <kbd className="hidden sm:flex items-center text-[10px] font-mono px-1.5 py-0.5 rounded-[5px] bg-black/[0.04] dark:bg-white/[0.08] text-[#86868B] dark:text-[#8E8E93] shrink-0 ml-2">
               ESC
             </kbd>
           )}
@@ -180,7 +177,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Footer */}
         <div className="px-4 py-2.5 border-t border-black/[0.07] dark:border-white/[0.07] bg-black/[0.015] dark:bg-white/[0.02] flex items-center justify-between text-[11px] text-[#8E8E93] font-mono">
           <div className="flex items-center gap-1.5">
-            <Shield className="w-3 h-3 text-[#1D8348] dark:text-[#30D158]" />
+            <Shield className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
             <span>0.00 KB Egress · Air-Gapped</span>
           </div>
           <div className="flex items-center gap-3">

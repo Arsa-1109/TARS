@@ -25,7 +25,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     >
       <div className="max-w-3xl">
         {eyebrow && (
-          <div className="text-[11px] font-semibold text-[#0071E3] dark:text-[#0A84FF] mb-1.5 tracking-wide uppercase font-mono">
+          <div className="text-[11px] font-semibold text-[#86868B] dark:text-[#8E8E93] mb-1 tracking-wider uppercase font-mono">
             {eyebrow}
           </div>
         )}

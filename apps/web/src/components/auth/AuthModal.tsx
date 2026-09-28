@@ -1,16 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole } from '../../types/contracts';
 import { ROLES } from '../../state/useSessionStore';
-import {
-  Shield,
-  CheckCircle2,
-  X,
-  Lock,
-  ArrowRight,
-  User,
-  Mail,
-  ChevronRight,
-} from 'lucide-react';
+import { X, Lock, ArrowRight, User, Mail, ChevronRight } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
 
 interface AuthModalProps {
@@ -37,11 +28,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Auth flow state
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authStep, setAuthStep] = useState<string>('');
-  const [authSuccess, setAuthSuccess] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  const progressRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (initialMode) setMode(initialMode);
@@ -52,11 +38,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!isOpen) {
       setTimeout(() => {
         setIsAuthenticating(false);
-        setAuthSuccess(false);
-        setAuthStep('');
-        setProgress(0);
         setPassword('');
-      }, 300);
+      }, 200);
     }
   }, [isOpen]);
 
@@ -64,34 +47,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const triggerAuthFlow = (role: UserRole) => {
     setIsAuthenticating(true);
-    setAuthSuccess(false);
-    setProgress(0);
 
-    // Animate progress bar
-    let p = 0;
-    progressRef.current = setInterval(() => {
-      p += 4;
-      setProgress(Math.min(p, 90));
-      if (p >= 90) clearInterval(progressRef.current!);
-    }, 20);
-
-    setAuthStep('Verifying credentials...');
+    // Native macOS/iOS instantaneous feedback — smooth 180ms sheet dissolve
     setTimeout(() => {
-      setAuthStep('Loading workspace...');
-      setProgress(95);
-      setTimeout(() => {
-        clearInterval(progressRef.current!);
-        setProgress(100);
-        setAuthStep('Welcome, ' + ROLES[role].name);
-        setAuthSuccess(true);
-        setIsAuthenticating(false);
-
-        setTimeout(() => {
-          onLogin(role);
-          onClose();
-        }, 600);
-      }, 350);
-    }, 500);
+      onLogin(role);
+      onClose();
+      setIsAuthenticating(false);
+    }, 180);
   };
 
   const handleSignIn = (e: React.FormEvent) => {
@@ -104,86 +66,70 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     triggerAuthFlow(newRole);
   };
 
-  const teamMembers: { role: UserRole; title: string; initial: string; bg: string }[] = [
-    { role: 'FOUNDER',  title: 'Founder & CEO',        initial: 'A', bg: 'bg-[#FF9500]' },
-    { role: 'ENGINEER', title: 'Lead Architect',        initial: 'E', bg: 'bg-[#0071E3]' },
-    { role: 'PRODUCT',  title: 'Head of Product',       initial: 'M', bg: 'bg-[#34C759]' },
-    { role: 'NEW_HIRE', title: 'Software Engineer',     initial: 'M', bg: 'bg-[#AF52DE]' },
+  const teamMembers: { role: UserRole; title: string; initial: string }[] = [
+    { role: 'FOUNDER',  title: 'Founder & CEO',        initial: 'A' },
+    { role: 'ENGINEER', title: 'Lead Architect',        initial: 'E' },
+    { role: 'PRODUCT',  title: 'Head of Product',       initial: 'M' },
+    { role: 'NEW_HIRE', title: 'Software Engineer',     initial: 'M' },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 select-none animate-fade-in"
       onClick={onClose}
     >
-      {/* Scrim — rich blur */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-[12px]" aria-hidden="true" />
+      {/* Scrim — subtle high-contrast blur */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[16px] transition-opacity duration-300" aria-hidden="true" />
 
       {/* Modal card */}
       <div
-        className="relative w-full max-w-[400px] z-10 animate-apple-in"
+        className="relative w-full max-w-[380px] z-10 animate-apple-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glass card with premium shadow */}
-        <div className="relative rounded-[28px] overflow-hidden bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.16] shadow-[0_32px_80px_rgba(0,0,0,0.26),0_8px_24px_rgba(0,0,0,0.14)] dark:shadow-[0_32px_80px_rgba(0,0,0,0.90)]">
-
-          {/* Animated progress bar — top edge */}
-          <div className="absolute inset-x-0 top-0 h-[2px] z-20">
-            {isAuthenticating || authSuccess ? (
-              <div
-                className="h-full bg-gradient-to-r from-[#0071E3] via-[#34C759] to-[#0071E3] transition-all duration-300 ease-out"
-                style={{ width: `${progress}%`, backgroundSize: '200%', animation: authSuccess ? 'none' : undefined }}
-              />
-            ) : (
-              <div className="h-full bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent" />
-            )}
-          </div>
-
-          {/* Specular top highlight */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 dark:via-white/25 to-transparent pointer-events-none z-10" />
+        <div className="relative rounded-[24px] overflow-hidden bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.85)] transition-all">
 
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 w-7 h-7 rounded-full bg-black/[0.06] dark:bg-white/[0.10] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-all flex items-center justify-center"
+            className="absolute top-4 right-4 z-10 w-7 h-7 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.10] dark:hover:bg-white/[0.15] text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-all flex items-center justify-center"
             aria-label="Close"
           >
             <X className="w-3.5 h-3.5" />
           </button>
 
           {/* Content */}
-          <div className="p-7 pt-8 space-y-6">
+          <div className="p-6 pt-7 space-y-5">
 
             {/* Brand header */}
             <div className="text-center">
-              <div className="w-[52px] h-[52px] rounded-[16px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center mx-auto mb-4 font-black text-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.20)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.60)]">
+              <div className="w-12 h-12 rounded-[14px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center mx-auto mb-3.5 font-bold text-[18px] shadow-sm tracking-tight">
                 T
               </div>
-              <h2 className="text-[22px] font-bold tracking-tight text-black dark:text-white leading-[1.1]">
-                {mode === 'signin' ? 'Sign in to TARS' : 'Create Account'}
+              <h2 className="text-[20px] font-bold tracking-tight text-black dark:text-white leading-tight">
+                {mode === 'signin' ? 'Sign in to TARS' : 'Create Workspace Account'}
               </h2>
-              <p className="text-[13px] text-[#6E6E73] dark:text-[#8E8E93] mt-1.5">
+              <p className="text-[13px] text-[#86868B] dark:text-[#8E8E93] mt-1 font-normal">
                 {mode === 'signin'
-                  ? 'Select your account to continue.'
-                  : 'Set up your local workspace profile.'}
+                  ? 'Select an account to access sovereign memory.'
+                  : 'Establish a new institutional identity profile.'}
               </p>
             </div>
 
-            {/* Mode toggle — pill capsule */}
-            <div className="flex p-1 rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+            {/* Mode toggle — native Apple segmented control */}
+            <div className="flex p-0.5 rounded-[12px] bg-black/[0.05] dark:bg-white/[0.08]">
               {(['signin', 'signup'] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setMode(m)}
                   className={[
-                    'flex-1 py-1.5 rounded-full text-[13px] font-semibold transition-all',
+                    'flex-1 py-1.5 rounded-[10px] text-[13px] font-medium transition-all duration-150',
                     mode === m
-                      ? 'bg-white dark:bg-[#3A3A3C] text-black dark:text-white shadow-[0_1px_4px_rgba(0,0,0,0.12)] dark:shadow-[0_1px_4px_rgba(0,0,0,0.40)]'
-                      : 'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white',
+                      ? 'bg-white dark:bg-[#323236] text-black dark:text-white shadow-xs font-semibold'
+                      : 'text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white',
                   ].join(' ')}
                 >
-                  {m === 'signin' ? 'Sign In' : 'Sign Up'}
+                  {m === 'signin' ? 'Sign In' : 'Create Account'}
                 </button>
               ))}
             </div>
@@ -191,12 +137,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* ─── SIGN IN FORM ─── */}
             {mode === 'signin' ? (
               <form onSubmit={handleSignIn} className="space-y-4">
-                {/* Account picker */}
-                <div>
-                  <div className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider mb-2">
+                {/* Account list */}
+                <div className="space-y-1">
+                  <div className="text-[11px] font-medium text-[#86868B] dark:text-[#8E8E93] uppercase tracking-wider px-1 mb-1">
                     Select Account
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     {teamMembers.map((m) => {
                       const p = ROLES[m.role];
                       const isSelected = selectedPersona === m.role;
@@ -206,77 +152,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                           type="button"
                           onClick={() => setSelectedPersona(m.role)}
                           className={[
-                            'w-full px-3 py-2.5 rounded-[14px] text-left transition-all flex items-center justify-between group',
+                            'w-full px-3 py-2 rounded-[12px] text-left transition-all duration-150 flex items-center justify-between group cursor-pointer',
                             isSelected
-                              ? 'bg-black/[0.05] dark:bg-white/[0.07] border border-black/[0.12] dark:border-white/[0.18]'
-                              : 'border border-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.04]',
+                              ? 'bg-black/[0.06] dark:bg-white/[0.09] border border-black/[0.10] dark:border-white/[0.14]'
+                              : 'border border-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.05]',
                           ].join(' ')}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full ${m.bg} text-white flex items-center justify-center text-[12px] font-bold shadow-sm`}>
+                            <div className="w-7 h-7 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center text-[11px] font-bold">
                               {m.initial}
                             </div>
                             <div>
                               <div className="text-[13px] font-semibold text-black dark:text-white leading-tight">
                                 {p.name}
                               </div>
-                              <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                              <div className="text-[11px] text-[#86868B] dark:text-[#8E8E93]">
                                 {m.title}
                               </div>
                             </div>
                           </div>
-                          <div className={`w-2 h-2 rounded-full transition-all ${isSelected ? 'bg-[#0071E3] dark:bg-[#0A84FF] scale-100' : 'bg-transparent scale-50'}`} />
+                          <div
+                            className={[
+                              'w-2 h-2 rounded-full transition-transform duration-150',
+                              isSelected ? 'bg-black dark:bg-white scale-100' : 'bg-transparent scale-0',
+                            ].join(' ')}
+                          />
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* Password field */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
-                    Password
-                  </label>
                   <div className="relative flex items-center">
                     <Lock className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3.5 pointer-events-none" />
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••"
-                      className="w-full pl-9 pr-3.5 py-3 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:ring-2 focus:ring-[#0071E3]/15 dark:focus:ring-[#0A84FF]/15 transition-all"
+                      placeholder="Passphrase"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.09] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-normal"
                     />
                   </div>
                 </div>
 
-                {/* Success state */}
-                {authSuccess && (
-                  <div className="p-3 rounded-[12px] bg-[#34C759]/[0.10] dark:bg-[#30D158]/[0.12] border border-[#34C759]/[0.20] dark:border-[#30D158]/[0.22] text-[#1D8348] dark:text-[#30D158] text-[13px] flex items-center justify-center gap-2 font-medium animate-slide-up">
-                    <CheckCircle2 className="w-4 h-4 animate-success-bounce" />
-                    <span>{authStep}</span>
-                  </div>
-                )}
-
                 {/* Sign in CTA */}
                 <button
                   type="submit"
-                  disabled={isAuthenticating || authSuccess}
-                  className="w-full h-12 rounded-[14px] bg-black dark:bg-white text-white dark:text-black text-[14px] font-bold tracking-tight hover:bg-zinc-800 dark:hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-70 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.24)] dark:shadow-[0_4px_14px_rgba(0,0,0,0.60)] flex items-center justify-center gap-2"
+                  disabled={isAuthenticating}
+                  className="w-full h-10 rounded-[12px] bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-medium active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                 >
                   {isAuthenticating ? (
-                    <>
-                      <Spinner size="sm" />
-                      <span className="text-[13px]">{authStep}</span>
-                    </>
-                  ) : authSuccess ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Opening Workspace...</span>
-                    </>
+                    <Spinner size="xs" />
                   ) : (
                     <>
-                      <span>Sign In</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>Continue</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>
@@ -284,9 +216,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             ) : (
               /* ─── SIGN UP FORM ─── */
               <form onSubmit={handleSignUpSubmit} className="space-y-3.5">
-                {/* Name */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
+                  <label className="block text-[11px] font-medium text-[#86868B] dark:text-[#8E8E93] mb-1 px-1 uppercase tracking-wider">
                     Full Name
                   </label>
                   <div className="relative">
@@ -295,16 +226,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      placeholder="e.g. Aryan"
+                      placeholder="Name"
                       required
-                      className="w-full pl-9 pr-3.5 py-3 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:ring-2 focus:ring-[#0071E3]/15 dark:focus:ring-[#0A84FF]/15 transition-all"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.09] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-normal"
                     />
                   </div>
                 </div>
 
-                {/* Email */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
+                  <label className="block text-[11px] font-medium text-[#86868B] dark:text-[#8E8E93] mb-1 px-1 uppercase tracking-wider">
                     Email
                   </label>
                   <div className="relative">
@@ -313,22 +243,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="email"
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
-                      placeholder="aryan@company.local"
+                      placeholder="name@company.internal"
                       required
-                      className="w-full pl-9 pr-3.5 py-3 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:ring-2 focus:ring-[#0071E3]/15 dark:focus:ring-[#0A84FF]/15 transition-all"
+                      className="w-full pl-9 pr-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.09] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all font-normal"
                     />
                   </div>
                 </div>
 
-                {/* Role */}
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
-                    Role & Clearance
+                  <label className="block text-[11px] font-medium text-[#86868B] dark:text-[#8E8E93] mb-1 px-1 uppercase tracking-wider">
+                    Role & Clearance Level
                   </label>
                   <select
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value as UserRole)}
-                    className="w-full px-3.5 py-3 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:ring-2 focus:ring-[#0071E3]/15 dark:focus:ring-[#0A84FF]/15 transition-all appearance-none"
+                    className="w-full px-3 py-2.5 text-[13px] rounded-[12px] border border-black/[0.09] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all appearance-none"
                   >
                     <option value="FOUNDER">Aryan — Founder & CEO (Executive)</option>
                     <option value="ENGINEER">Engineering & Architecture Lead</option>
@@ -337,47 +266,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </select>
                 </div>
 
-                {/* Success state */}
-                {authSuccess && (
-                  <div className="p-3 rounded-[12px] bg-[#34C759]/[0.10] dark:bg-[#30D158]/[0.12] border border-[#34C759]/[0.20] dark:border-[#30D158]/[0.22] text-[#1D8348] dark:text-[#30D158] text-[13px] flex items-center justify-center gap-2 font-medium animate-slide-up">
-                    <CheckCircle2 className="w-4 h-4 animate-success-bounce" />
-                    <span>{authStep}</span>
-                  </div>
-                )}
-
                 {/* Create account CTA */}
                 <button
                   type="submit"
-                  disabled={isAuthenticating || authSuccess}
-                  className="w-full h-12 rounded-[14px] bg-black dark:bg-white text-white dark:text-black text-[14px] font-bold tracking-tight hover:bg-zinc-800 dark:hover:bg-zinc-100 active:scale-[0.98] disabled:opacity-70 transition-all shadow-[0_4px_14px_rgba(0,0,0,0.24)] dark:shadow-[0_4px_14px_rgba(0,0,0,0.60)] flex items-center justify-center gap-2 mt-1"
+                  disabled={isAuthenticating}
+                  className="w-full h-10 rounded-[12px] bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 text-[13px] font-medium active:scale-[0.98] disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-1"
                 >
                   {isAuthenticating ? (
-                    <>
-                      <Spinner size="sm" />
-                      <span className="text-[13px]">{authStep}</span>
-                    </>
-                  ) : authSuccess ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Opening Workspace...</span>
-                    </>
+                    <Spinner size="xs" />
                   ) : (
                     <>
-                      <span>Create Account</span>
-                      <ChevronRight className="w-4 h-4" />
+                      <span>Establish Profile</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </>
                   )}
                 </button>
               </form>
             )}
 
-            {/* Footer */}
-            <div className="pt-4 border-t border-black/[0.08] dark:border-white/[0.08] flex items-center justify-between text-[11px] text-[#8E8E93] font-mono">
-              <div className="flex items-center gap-1.5">
-                <Shield className="w-3 h-3 text-[#1D8348] dark:text-[#30D158]" />
-                <span>Air-Gapped · 0.00 KB Egress</span>
-              </div>
-              <span className="text-[#AEAEB2] dark:text-[#48484A]">TARS 1.0</span>
+            {/* Footer notice */}
+            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.07] flex items-center justify-between text-[11px] text-[#86868B] dark:text-[#8E8E93] font-mono">
+              <span>On-Device Security Invariant</span>
+              <span>Zero WAN Egress</span>
             </div>
           </div>
         </div>

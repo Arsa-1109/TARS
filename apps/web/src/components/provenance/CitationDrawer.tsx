@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Drawer } from '../primitives/Drawer';
 import { SearchCitation } from '../../types/contracts';
 import { FileText, Shield, Copy, Check } from 'lucide-react';
@@ -34,14 +34,14 @@ export const CitationDrawer: React.FC<CitationDrawerProps> = ({
       footer={
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-[#8E8E93] font-mono">
-            <Shield className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" />
+            <Shield className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
             <span>Air-Gapped · Local Verified</span>
           </div>
           <button
             onClick={handleCopy}
             className="inline-flex items-center gap-1.5 text-[12px] font-medium text-black dark:text-white px-3 py-1.5 rounded-[8px] border border-black/[0.09] dark:border-white/[0.10] bg-white dark:bg-[#2C2C2E] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Copied' : 'Copy Citation'}</span>
           </button>
         </div>
