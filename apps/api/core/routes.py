@@ -33,7 +33,9 @@ router = APIRouter()
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge(req: SearchRequest):
     start_time = time.perf_counter()
+    print(f"[SEARCH DEBUG] Incoming search query: {req.query}", flush=True)
     citations = await search_service.search(req.query)
+    print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
     
     # Retrieve and format institutional company facts
     company = company_repo.get_profile() or {}
@@ -66,7 +68,9 @@ async def search_knowledge(req: SearchRequest):
         context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
         prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
     
+    print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
     llm_res = await ollama_client.generate(prompt, task_complexity="light")
+    print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
     if llm_res.get("success") and llm_res.get("response"):
         answer = str(llm_res.get("response")).strip()
     elif citations:

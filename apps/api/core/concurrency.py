@@ -20,18 +20,26 @@ class PriorityGovernor:
     async def acquire(self, priority: int = Priority.INTERACTIVE):
         event = asyncio.Event()
         # use timestamp to maintain FIFO within same priority
-        await self._queue.put((priority, time.monotonic(), event))
+        item = (priority, time.monotonic(), event)
+        await self._queue.put(item)
         await self._try_release()
-        await event.wait()
+        try:
+            await event.wait()
+        except asyncio.CancelledError:
+            async with self._lock:
+                if event.is_set():
+                    self._active = max(0, self._active - 1)
+            await self._try_release()
+            raise
 
     async def release(self):
         async with self._lock:
-            self._active -= 1
+            self._active = max(0, self._active - 1)
         await self._try_release()
 
     async def _try_release(self):
         async with self._lock:
-            if self._active < self.max_concurrent and not self._queue.empty():
+            while self._active < self.max_concurrent and not self._queue.empty():
                 self._active += 1
                 _, _, next_event = self._queue.get_nowait()
                 next_event.set()

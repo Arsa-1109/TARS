@@ -77,7 +77,7 @@ export class LiveTarsApi implements TarsApi {
   async search(req: SearchRequest): Promise<SearchResponse> {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       const res = await this.fetchJson<SearchResponse>('/core/search', {
         method: 'POST',
         body: JSON.stringify(req),

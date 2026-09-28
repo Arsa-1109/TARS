@@ -127,7 +127,7 @@ export class MockTarsApi implements TarsApi {
     try {
       console.log('[TARS SLM] Sending query to local model (/api/core/search):', req.query);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       const res = await fetch('/api/core/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +138,7 @@ export class MockTarsApi implements TarsApi {
       if (res.ok) {
         const liveRes = await res.json();
         console.log('[TARS SLM] Received live response from local model:', liveRes);
-        if (liveRes && liveRes.answer && !liveRes.answer.startsWith('Found 0 relevant')) {
+        if (liveRes && liveRes.answer && liveRes.answer.trim().length > 0) {
           const q = req.query.toLowerCase();
           const fallbackCits = (q.includes('saml') || q.includes('sso') || q.includes('acme'))
             ? MOCK_SEARCH_RESULTS.saml.citations

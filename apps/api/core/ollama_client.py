@@ -40,7 +40,7 @@ class OllamaClient:
                 "stream": False,
                 "keep_alive": -1,
                 "options": {
-                    "num_predict": 600,
+                    "num_predict": 280,
                     "temperature": 0.2,
                 }
             }
