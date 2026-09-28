@@ -62,3 +62,4 @@ playwright-report/
 
 # Ignore PDF and binary document files
 *.pdf
+*.md
