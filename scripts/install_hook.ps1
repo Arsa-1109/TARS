@@ -8,7 +8,7 @@ if (-not (Test-Path $hookDir)) {
     exit 1
 }
 
-$content = "#!/usr/bin/env bash`npython scripts/pre_commit.py"
+$content = "#!/usr/bin/env bash`nif [ -f .venv/Scripts/python.exe ]; then`n    .venv/Scripts/python.exe scripts/pre_commit.py`nelif [ -f .venv/bin/python ]; then`n    .venv/bin/python scripts/pre_commit.py`nelse`n    python scripts/pre_commit.py`nfi"
 
 Set-Content -Path $hookFile -Value $content -NoNewline
 Write-Host "[OK] TARS Pre-Commit Git Hook installed successfully to $hookFile" -ForegroundColor Green
