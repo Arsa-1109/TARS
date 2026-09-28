@@ -11,7 +11,13 @@ fi
 
 cat << 'EOF' > "$HOOK_FILE"
 #!/usr/bin/env bash
-python scripts/pre_commit.py
+if [ -f ".venv/Scripts/python.exe" ]; then
+  .venv/Scripts/python.exe scripts/pre_commit.py
+elif [ -f ".venv/bin/python" ]; then
+  .venv/bin/python scripts/pre_commit.py
+else
+  python scripts/pre_commit.py
+fi
 EOF
 
 chmod +x "$HOOK_FILE"

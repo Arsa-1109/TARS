@@ -66,13 +66,18 @@ class WhisperTranscriber:
 
     def __init__(
         self,
-        model_size: str = "base.en",
+        model_size: Optional[str] = None,
         device: str = "cpu",
         compute_type: str = "int8",
         cpu_threads: int = 2,
         on_complete_callback: Optional[Callable[[WhisperTask], None]] = None,
     ):
-        self.model_size = model_size
+        self.model_size = (
+            model_size
+            or os.getenv("WHISPER_MODEL_PATH")
+            or os.getenv("WHISPER_MODEL_SIZE")
+            or "base.en"
+        )
         self.device = device
         self.compute_type = compute_type
         self.cpu_threads = cpu_threads
