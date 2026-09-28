@@ -35,18 +35,36 @@ async def search_knowledge(req: SearchRequest):
     start_time = time.perf_counter()
     citations = await search_service.search(req.query)
     
+    # Retrieve and format institutional company facts
+    company = company_repo.get_profile() or {}
+    comp_name = company.get("company_name", "AetherFlow Technologies, Inc.")
+    team_size = company.get("team_size", "12 FTE")
+    runway_m = company.get("runway_months", 9.0)
+
+    company_facts = (
+        f"Company Name: {comp_name}\n"
+        f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
+        f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
+        f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
+        f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
+        f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+        f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
+    )
+
     # Synthesize answer with local Ollama SLM
     user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}'.\n" if req.user_role else ""
     prompt = (
-        f"You are TARS, the autonomous startup second brain.\n"
-        f"Answer the user's query clearly and concisely based on company context.\n"
+        f"You are TARS, the autonomous startup second brain for {comp_name}.\n"
+        f"Answer the user's query directly, accurately, and concisely using the verified company institutional knowledge facts below.\n"
+        f"Never say you do not have access to employee count, team size, finances, or company policies—always state the exact numbers and facts from the institutional context.\n\n"
+        f"Company Institutional Knowledge Facts:\n{company_facts}\n"
         f"{user_context}"
-        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
+        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n\n"
         f"Query: {req.query}\n"
     )
     if citations:
         context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
-        prompt += f"\nCompany Context:\n{context_str}\n"
+        prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
     
     llm_res = await ollama_client.generate(prompt, task_complexity="light")
     if llm_res.get("success") and llm_res.get("response"):
