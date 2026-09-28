@@ -1,13 +1,48 @@
+import time
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
-import time
-from apps.api.schemas.contracts import ActionItemDTO, SystemStatus, SearchRequest, SearchResponse
+from apps.api.schemas.contracts import ActionItemDTO, SystemStatus, SearchRequest, SearchResponse, SearchCitation
 from apps.api.core.action_hub import action_hub_repo
 from apps.api.core.session import session_manager, SessionData
 from apps.api.core.ollama_client import ollama_client
 from apps.api.core.search import search_service
 
 router = APIRouter()
+
+# --- Search Route with SLM Answering ---
+@router.post("/search", response_model=SearchResponse)
+async def search_knowledge(req: SearchRequest):
+    start_time = time.perf_counter()
+    citations = await search_service.search(req.query)
+    
+    # Synthesize answer with local Ollama SLM
+    user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}'.\n" if req.user_role else ""
+    prompt = (
+        f"You are TARS, the autonomous startup second brain.\n"
+        f"Answer the user's query clearly and concisely based on company context.\n"
+        f"{user_context}"
+        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
+        f"Query: {req.query}\n"
+    )
+    if citations:
+        context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
+        prompt += f"\nCompany Context:\n{context_str}\n"
+    
+    llm_res = await ollama_client.generate(prompt, task_complexity="light")
+    if llm_res.get("success") and llm_res.get("response"):
+        answer = str(llm_res.get("response")).strip()
+    elif citations:
+        answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+    else:
+        answer = f"Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+    
+    elapsed_ms = (time.perf_counter() - start_time) * 1000
+    return SearchResponse(
+        query=req.query,
+        answer=answer,
+        citations=citations,
+        latency_ms=round(elapsed_ms, 2)
+    )
 
 # --- Action Hub Routes ---
 @router.post("/action_hub", response_model=ActionItemDTO)
@@ -61,24 +96,5 @@ async def system_status():
         ollama="ONLINE" if ollama_ok else "OFFLINE",
         mcp_tools=3, # Hardcoded for now based on mcp/builtin
         airplane_mode=True
-    )
-
-# --- Search Routes ---
-@router.post("/search", response_model=SearchResponse)
-async def search_knowledge(req: SearchRequest):
-    start_time = time.time()
-    citations = await search_service.search(query=req.query, limit=5)
-    latency_ms = round((time.time() - start_time) * 1000.0, 1)
-
-    if citations:
-        answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
-    else:
-        answer = f"No documents found matching '{req.query}'. Upload documents to build company memory."
-
-    return SearchResponse(
-        query=req.query,
-        answer=answer,
-        citations=citations,
-        latency_ms=latency_ms,
     )
 

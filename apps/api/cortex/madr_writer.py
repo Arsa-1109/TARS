@@ -90,20 +90,23 @@ Explain why violating '{rule_name}' ({rule_id}) in file '{file_path}' causes pro
 Original rationale: {rationale}
 Provide a crisp, 2-paragraph technical explanation focusing on concurrency, connection pools, and modularity."""
 
-        try:
-            with httpx.Client(timeout=1.8) as client:
-                res = client.post(
-                    f"{self.ollama_url}/api/generate",
-                    json={
-                        "model": "qwen2.5:8b",
-                        "prompt": prompt,
-                        "stream": False,
-                    }
-                )
-                if res.status_code == 200:
-                    return res.json().get("response", "").strip()
-        except Exception:
-            # Offline fallback - Ollama is optional, determinism is guaranteed
-            pass
+        candidates = ["qwen3:8b", "qwen2.5-coder:7b", "qwen2.5:8b", "qwen2.5:7b", "qwen2.5:1.5b"]
+        for model_name in candidates:
+            try:
+                with httpx.Client(timeout=2.5) as client:
+                    res = client.post(
+                        f"{self.ollama_url}/api/generate",
+                        json={
+                            "model": model_name,
+                            "prompt": prompt,
+                            "stream": False,
+                        }
+                    )
+                    if res.status_code == 200:
+                        ans = res.json().get("response", "").strip()
+                        if ans:
+                            return ans
+            except Exception:
+                continue
 
         return None

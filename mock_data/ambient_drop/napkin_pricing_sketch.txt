@@ -1,0 +1,26 @@
+=======================================================
+COFFEE NAPKIN SKETCH — PHILZ COFFEE SOMA (2026-09-19)
+Author: Alex Vance & Marcus Chen
+=======================================================
+
+Problem:
+PayVanguard churned because 14 devs @ $1,499/mo is $107/seat.
+Too expensive for seed stage fintech.
+Starter @ $499 caps at 5 devs ($100/seat).
+
+THE NEW MATH:
+-------------------------------------------------------
+Base Starter: $499/mo (includes first 5 seats)
+Each additional seat (seats 6 to 20): +$65/seat/month
+
+For PayVanguard (14 seats):
+$499 + (9 x $65) = $499 + $585 = $1,084/month ($77.40/seat)
+Annual: $13,008 ARR!
+
+For 20 seats:
+$499 + (15 x $65) = $499 + $975 = $1,474/month -> Smooth transition to Pro!
+
+Key rule: ZERO cloud token tracking.
+Calculate seats locally via Git author count in repo!
+Keep it 100% sovereign.
+=======================================================

@@ -4,12 +4,14 @@ import json
 import asyncio
 from typing import Optional, Dict, Any
 from apps.api.core.concurrency import governor, Priority
+from apps.api.core.model_router import model_router
 
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 class OllamaClient:
     def __init__(self, timeout: float = 60.0):
         self.timeout = timeout
+        self.router = model_router
         
     async def is_available(self) -> bool:
         try:
@@ -23,20 +25,22 @@ class OllamaClient:
         # Acquire QoS lock based on priority
         await governor.acquire(priority)
         try:
-            # Local model routing abstraction
-            # qwen3:1.7b for lightweight extraction/ingestion tasks
-            # qwen3:8b for deeper reasoning
-            model = "qwen3:8b" if task_complexity == "deep" else "qwen3:1.7b"
-            
+            # Standalone Model Router with fallback cascade (Patch P-08)
+            chosen_model = self.router.resolve_model(task_complexity)
+
             # Local-only / zero-egress safety check
             if "localhost" not in OLLAMA_URL and "127.0.0.1" not in OLLAMA_URL:
-                 # Just in case environment variables try to hijack
                  return {"success": False, "error": "Zero-egress violation: OLLAMA_BASE_URL must be local."}
-                 
+
             payload = {
-                "model": model,
+                "model": chosen_model,
                 "prompt": prompt,
-                "stream": False
+                "stream": False,
+                "keep_alive": -1,
+                "options": {
+                    "num_predict": 300,
+                    "temperature": 0.2,
+                }
             }
             if structured_format:
                 payload["format"] = "json"
@@ -48,11 +52,11 @@ class OllamaClient:
                 
                 if structured_format == "json":
                     try:
-                        return {"success": True, "response": json.loads(result["response"])}
+                        return {"success": True, "response": json.loads(result["response"]), "model_used": chosen_model}
                     except json.JSONDecodeError:
-                        return {"success": False, "error": "Invalid JSON response", "raw": result["response"]}
+                        return {"success": False, "error": "Invalid JSON response", "raw": result["response"], "model_used": chosen_model}
                 
-                return {"success": True, "response": result["response"]}
+                return {"success": True, "response": result["response"], "model_used": chosen_model}
         except httpx.HTTPError as e:
             return {"success": False, "error": f"Local model unavailable: {str(e)}"}
         except Exception as e:

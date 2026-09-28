@@ -451,6 +451,38 @@ async def upload_audio_memo(
     )
 
 
+@router.post("/calls/upload", response_model=VoiceToSpecResponse)
+async def upload_call_audio_direct(
+    audio: Optional[UploadFile] = File(None),
+    file: Optional[UploadFile] = File(None),
+    client_name: str = Form("Enterprise Client"),
+):
+    """Uploads call audio/transcript and directly returns extracted 4-part Voice-to-Spec payload."""
+    upload = audio or file
+    if not upload:
+        raise HTTPException(status_code=400, detail="No audio file uploaded.")
+    
+    safe_filename = os.path.basename(upload.filename or f"call_{uuid.uuid4().hex[:6]}.wav")
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(upload.file, buffer)
+        
+    ext = os.path.splitext(safe_filename)[1].lower()
+    if ext in [".vtt", ".srt", ".txt"]:
+        transcript, duration = whisper_transcriber._parse_transcript_file(file_path)
+    else:
+        transcript, duration = whisper_transcriber._transcribe_audio(file_path)
+        
+    spec = spec_extractor.extract_spec(
+        transcript=transcript,
+        client_name=client_name,
+        audio_duration=duration,
+        audio_path=file_path,
+        sync_to_graph=True
+    )
+    return spec
+
+
 @router.get("/calls/{task_id}")
 def get_call_task_status(task_id: str):
     """Retrieves transcription progress and auto-extracted 4-part Voice-to-Spec payload."""
@@ -559,6 +591,59 @@ def list_call_tasks():
         "calls": task_calls,
         "total": len(task_calls),
     }
+
+
+@router.get("/calls/{task_id}/audio")
+def get_call_audio(task_id: str):
+    """Serves the raw audio file for in-browser playback."""
+    task = whisper_transcriber.get_task(task_id)
+    if not task and task_id.startswith("CALL-"):
+        wsp_id = task_id.replace("CALL-", "WSP-", 1)
+        task = whisper_transcriber.get_task(wsp_id)
+
+    if not task:
+        for t in whisper_transcriber.list_tasks():
+            if t.task_id == task_id or t.task_id.replace("WSP-", "CALL-") == task_id:
+                task = t
+                break
+
+    file_path = None
+    if task and task.file_path and os.path.exists(task.file_path):
+        file_path = task.file_path
+    else:
+        direct_cand = os.path.join(UPLOAD_DIR, os.path.basename(task_id))
+        if os.path.exists(direct_cand) and os.path.isfile(direct_cand):
+            file_path = direct_cand
+        else:
+            for fname in os.listdir(UPLOAD_DIR):
+                if task_id in fname and os.path.isfile(os.path.join(UPLOAD_DIR, fname)):
+                    file_path = os.path.join(UPLOAD_DIR, fname)
+                    break
+
+    if not file_path:
+        raise HTTPException(status_code=404, detail=f"Audio file for task '{task_id}' not found.")
+
+    filename = os.path.basename(file_path)
+    lower = filename.lower()
+    if lower.endswith(".webm"):
+        media_type = "audio/webm"
+    elif lower.endswith(".wav"):
+        media_type = "audio/wav"
+    elif lower.endswith(".mp3"):
+        media_type = "audio/mpeg"
+    elif lower.endswith(".m4a"):
+        media_type = "audio/mp4"
+    elif lower.endswith(".ogg"):
+        media_type = "audio/ogg"
+    else:
+        media_type = "application/octet-stream"
+
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        content_disposition_type="inline",
+        filename=filename,
+    )
 
 
 # ============================================================

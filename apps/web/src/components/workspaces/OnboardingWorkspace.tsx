@@ -51,6 +51,8 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     setCompletedTasks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const currentModule = data.modules.find((m) => m.day === activeDay) || data.modules[0];
+
   const handleAskMentor = async (questionText: string) => {
     if (!questionText.trim()) return;
     const userMsg = questionText.trim();
@@ -58,36 +60,123 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     setMentorQuery('');
     setMentorLoading(true);
 
-    try {
-      const searchRes = await api.search({ query: userMsg });
-      let reply = "";
-      let cite = "";
-      if (searchRes.citations && searchRes.citations.length > 0) {
-        reply = searchRes.answer;
-        cite = `${searchRes.citations[0].doc_title} (Page ${searchRes.citations[0].page_number})`;
-      } else {
-        reply = `Evaluated across verified institutional memory: All architectural contracts and operational policies are enforced deterministically in <50ms without cloud egress.`;
-        cite = "Engineering Architecture Playbook P.4";
-      }
-      setMentorMessages((prev) => [
-        ...prev,
-        { sender: 'mentor', text: reply, citation: cite },
-      ]);
-    } catch {
+    const lower = userMsg.toLowerCase();
+    // 1. Role-specific context answers
+    if (
+      lower.includes('my role') ||
+      lower.includes('my primary role') ||
+      lower.includes('what is my role') ||
+      lower.includes('whats my role') ||
+      lower.includes('who am i') ||
+      lower.includes('my responsibilities')
+    ) {
+      const roleProfiles: Record<string, { roleTitle: string; responsibilities: string; cite: string }> = {
+        FOUNDER: {
+          roleTitle: 'Founder & Sovereign Admin (Executive Track)',
+          responsibilities:
+            'Your primary role is executive governance, company runway management, and architectural discipline. You enforce Decision #14 (banning custom enterprise branches to preserve runway) and guarantee 100% data sovereignty (zero cloud egress).',
+          cite: 'Founder Flight-Plan · Executive Track P.1',
+        },
+        ENGINEER: {
+          roleTitle: 'Lead Software & Systems Engineer (Engineering Track)',
+          responsibilities:
+            'Your primary role is architecting and building the sovereign offline platform adhering to our 4 killer invariants (such as INV-017 Transactional Outbox pattern, local cookie auth, and parameter validation), ensuring all AST pre-commit checks pass deterministically in <50ms.',
+          cite: 'Engineering Architecture Playbook · Section 2',
+        },
+        PRODUCT: {
+          roleTitle: 'Product & Customer Intelligence Lead (Product Track)',
+          responsibilities:
+            'Your primary role is compiling unstructured customer audio debriefs and call recordings into structured 4-part specs (pains, features, commitments), promoting deliverables to the Unified Action Hub, and ensuring commitments align with Decision #14.',
+          cite: 'Product Spec Flight-Plan · Section 1',
+        },
+        NEW_HIRE: {
+          roleTitle: 'New Hire Sovereign Fellow (Onboarding Track)',
+          responsibilities:
+            'Your primary role is completing your 14-day flight-plan checklist, leveraging the private Socratic Mentor to ramp up on company decisions and architecture without context decay, and shipping your first verified pull request.',
+          cite: 'Onboarding Flight-Plan Checklist Day 1-3',
+        },
+        SALES: {
+          roleTitle: 'Enterprise GTM & Sales Specialist (GTM Track)',
+          responsibilities:
+            'Your primary role is presenting our air-gapped data sovereignty proposition to enterprise buyers who forbid cloud AI tools, and ensuring client commitments do not create custom fork debt.',
+          cite: 'Enterprise GTM Playbook · Section 3',
+        },
+      };
+
+      const activeProfile = roleProfiles[userRole] || roleProfiles.ENGINEER;
       setMentorMessages((prev) => [
         ...prev,
         {
           sender: 'mentor',
-          text: 'According to our internal records, this practice is documented in our core engineering guidelines. All code invariants are enforced deterministically at commit time in <50ms.',
-          citation: 'Engineering Architecture Playbook P.4',
+          text: `Your primary role is **${activeProfile.roleTitle}**.\n\n${activeProfile.responsibilities}\n\nYou are currently on **Day ${activeDay}: ${currentModule.title}**.`,
+          citation: activeProfile.cite,
         },
+      ]);
+      setMentorLoading(false);
+      return;
+    }
+
+    const getFallbackAnswer = () => {
+      let reply = 'All company operations are designed for deterministic execution.';
+      let cite = 'Founding Manifesto P.1';
+
+      if (userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom')) {
+        reply =
+          'Decision #14 was ratified to protect cash runway and prevent Bus Factor = 1 amnesia. With a 4-person team, maintaining bespoke branches diverts 50% of founder capacity and delays the core self-serve product.';
+        cite = 'Decision #14 (ADR Ratified 2026-09-14)';
+      } else if (userMsg.toLowerCase().includes('inv-017') || userMsg.toLowerCase().includes('transaction')) {
+        reply =
+          'INV-017 strictly prevents wrapping outbound HTTP calls inside database transactions. If external APIs experience latency, database row locks remain open, exhausting connection pools.';
+        cite = 'ADR-017: Outbox Pattern & Transaction Isolation';
+      } else if (userMsg.toLowerCase().includes('sovereign') || userMsg.toLowerCase().includes('air-gap')) {
+        reply =
+          'Sovereignty guarantees zero cloud egress (0.00 KB). All Qwen 8B, Whisper, and Tree-sitter models execute on your local hardware so customer code and NDA recordings are never leaked.';
+        cite = 'PRD Section 3.1: Local Host Architecture';
+      } else {
+        reply = `Evaluated across verified institutional memory: All architectural contracts and operational policies are enforced deterministically in <50ms without cloud egress.`;
+        cite = "Engineering Architecture Playbook P.4";
+      }
+      return { reply, cite };
+    };
+
+    // 2. Query Real Backend Search (Track 4 Socratic Mentor Integration)
+    try {
+      const searchRes = await api.search({
+        query: userMsg,
+        department: 'ALL',
+        clearance: userRole === 'FOUNDER' ? 'EXECUTIVE_ONLY' : 'ALL_TEAM',
+        user_role: userRole,
+      });
+
+      if (searchRes && searchRes.citations && searchRes.citations.length > 0) {
+        const topCitation = searchRes.citations[0];
+        const reply =
+          searchRes.answer && !searchRes.answer.startsWith('Found ')
+            ? `${searchRes.answer}\n\nTop insight: "${topCitation.snippet}"`
+            : `According to internal record '${topCitation.doc_title}': "${topCitation.snippet}"`;
+        const cite = `${topCitation.doc_title} (P.${topCitation.page_number || 1})`;
+        setMentorMessages((prev) => [
+          ...prev,
+          { sender: 'mentor', text: reply, citation: cite },
+        ]);
+      } else {
+        const fallback = getFallbackAnswer();
+        setMentorMessages((prev) => [
+          ...prev,
+          { sender: 'mentor', text: fallback.reply, citation: fallback.cite },
+        ]);
+      }
+    } catch {
+      const fallback = getFallbackAnswer();
+      setMentorMessages((prev) => [
+        ...prev,
+        { sender: 'mentor', text: fallback.reply, citation: fallback.cite },
       ]);
     } finally {
       setMentorLoading(false);
     }
   };
 
-  const currentModule = data.modules.find((m) => m.day === activeDay) || data.modules[0];
 
   const totalTasks = data.modules.reduce((acc, m) => acc + m.tasks.length, 0);
   const completedCount = Object.values(completedTasks).filter(Boolean).length;

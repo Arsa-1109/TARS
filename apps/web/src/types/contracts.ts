@@ -12,6 +12,8 @@ export interface SearchRequest {
   query: string;
   department?: string;
   clearance?: string;
+  user_role?: string;
+  user_name?: string;
 }
 
 export interface SearchResponse {

@@ -38,6 +38,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   const [promotedSet, setPromotedSet] = useState<Set<string>>(new Set());
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const audioInputRef = React.useRef<HTMLInputElement>(null);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     api.getCalls().then((data) => {
@@ -56,6 +57,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
       const res = await api.uploadCallAudio(e.target.files[0]);
       setCalls((prev) => [res, ...prev]);
       setSelectedCall(res);
+      onSelectCall(res.call_id);
     } catch (err) {
       console.error('Audio upload error:', err);
     } finally {
@@ -64,18 +66,78 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
     }
   };
 
+  const handleSelectCallItem = (call: VoiceToSpecResponse) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    setSelectedCall(call);
+    onSelectCall(call.call_id);
+    setIsPlaying(false);
+    setPlaybackSeconds(0);
+  };
+
+  const togglePlayback = () => {
+    if (!selectedCall) return;
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      setIsPlaying(false);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.playbackRate = playbackSpeed;
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => setIsPlaying(true))
+            .catch((err) => {
+              console.warn('Audio playback fallback (simulating playback):', err);
+              setIsPlaying(true);
+            });
+        } else {
+          setIsPlaying(true);
+        }
+      } else {
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const handleSpeedChange = (spd: number) => {
+    setPlaybackSpeed(spd);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = spd;
+    }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!selectedCall) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+    const targetSeconds = Math.floor(ratio * (selectedCall.audio_duration_seconds || 1));
+    setPlaybackSeconds(targetSeconds);
+    if (audioRef.current) {
+      audioRef.current.currentTime = targetSeconds;
+    }
+  };
+
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isPlaying && selectedCall) {
       interval = setInterval(() => {
         setPlaybackSeconds((prev) => {
+          if (audioRef.current && !audioRef.current.paused) {
+            return Math.floor(audioRef.current.currentTime);
+          }
           if (prev >= selectedCall.audio_duration_seconds) {
             setIsPlaying(false);
             return 0;
           }
           return Math.min(selectedCall.audio_duration_seconds, prev + playbackSpeed);
         });
-      }, 1000);
+      }, 500);
     }
     return () => clearInterval(interval);
   }, [isPlaying, selectedCall, playbackSpeed]);
@@ -185,12 +247,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         {calls.map((call) => (
           <button
             key={call.call_id}
-            onClick={() => {
-              setSelectedCall(call);
-              onSelectCall(call.call_id);
-              setIsPlaying(false);
-              setPlaybackSeconds(0);
-            }}
+            onClick={() => handleSelectCallItem(call)}
             className={`px-3.5 py-2 rounded-[14px] text-xs font-medium border shrink-0 transition-all ${
               selectedCall.call_id === call.call_id
                 ? 'border-black/[0.25] dark:border-white/[0.30] bg-white dark:bg-[#1C1C1E] font-semibold text-black dark:text-white shadow-sm ring-1 ring-black/[0.08] dark:ring-white/[0.12]'
@@ -214,6 +271,24 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         ))}
       </div>
 
+      {/* Hidden Audio Element for Real Playback */}
+      <audio
+        ref={audioRef}
+        key={selectedCall.call_id}
+        src={`/api/ingestion/calls/${selectedCall.call_id}/audio`}
+        preload="metadata"
+        onTimeUpdate={(e) => {
+          setPlaybackSeconds(Math.floor(e.currentTarget.currentTime));
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          setPlaybackSeconds(0);
+        }}
+        className="hidden"
+      />
+
       {/* Apple Podcasts/Voice Memos-Style Audio Player */}
       <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -232,7 +307,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
               {[1, 1.25, 1.5, 2].map((spd) => (
                 <button
                   key={spd}
-                  onClick={() => setPlaybackSpeed(spd)}
+                  onClick={() => handleSpeedChange(spd)}
                   className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
                     playbackSpeed === spd
                       ? 'bg-white dark:bg-[#323236] text-black dark:text-white shadow-xs font-semibold'
@@ -248,7 +323,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
               variant="primary"
               size="sm"
               icon={isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={togglePlayback}
             >
               {isPlaying ? 'Pause' : 'Play'}
             </Button>
@@ -262,12 +337,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         <div className="space-y-1.5">
           <div
             className="h-12 w-full flex items-end gap-[3px] py-1 px-3 rounded-[12px] bg-black/[0.03] dark:bg-white/[0.04] cursor-pointer overflow-hidden"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-              setPlaybackSeconds(Math.floor(ratio * selectedCall.audio_duration_seconds));
-            }}
+            onClick={handleSeek}
           >
             {waveformBars.map((barHeight, idx) => {
               const barProgress = idx / waveformBars.length;
@@ -416,14 +486,18 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                 <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                   Unfiltered Customer Pain Points
                 </div>
-                <ul className="space-y-2 text-xs text-black dark:text-white">
-                  {selectedCall.pain_points.map((pp, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-[#C0392B] dark:text-[#FF453A] font-bold text-sm leading-none">•</span>
-                      <span className="leading-snug">{pp}</span>
-                    </li>
-                  ))}
-                </ul>
+                {selectedCall.pain_points.length === 0 ? (
+                  <p className="text-xs text-[#8E8E93] italic">No customer pain points detected in this audio recording.</p>
+                ) : (
+                  <ul className="space-y-2 text-xs text-black dark:text-white">
+                    {selectedCall.pain_points.map((pp, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-[#C0392B] dark:text-[#FF453A] font-bold text-sm leading-none">•</span>
+                        <span className="leading-snug">{pp}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               {/* Feature Requests */}
@@ -431,14 +505,18 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                 <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
                   Requested Features & Constraints
                 </div>
-                <ul className="space-y-2 text-xs text-black dark:text-white">
-                  {selectedCall.feature_requests.map((fr, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-[#0071E3] dark:text-[#0A84FF] font-bold text-sm leading-none">•</span>
-                      <span className="leading-snug">{fr}</span>
-                    </li>
-                  ))}
-                </ul>
+                {selectedCall.feature_requests.length === 0 ? (
+                  <p className="text-xs text-[#8E8E93] italic">No specific feature requests identified.</p>
+                ) : (
+                  <ul className="space-y-2 text-xs text-black dark:text-white">
+                    {selectedCall.feature_requests.map((fr, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-[#0071E3] dark:text-[#0A84FF] font-bold text-sm leading-none">•</span>
+                        <span className="leading-snug">{fr}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}
@@ -454,31 +532,37 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                 <span className="text-[11px] text-[#8E8E93] font-mono">1-Click Push to Hub</span>
               </div>
 
-              <div className="space-y-2.5">
-                {selectedCall.commitments.map((comm, idx) => {
-                  const isPromoted = promotedSet.has(`${selectedCall.call_id}-${idx}`);
-                  return (
-                    <div
-                      key={idx}
-                      className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
-                    >
-                      <p className="text-xs text-black dark:text-white font-medium leading-snug">
-                        {comm}
-                      </p>
-                      <Button
-                        variant={isPromoted ? 'ghost' : 'secondary'}
-                        size="sm"
-                        disabled={isPromoted}
-                        icon={isPromoted ? <CheckCircle2 className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Plus className="w-3.5 h-3.5" />}
-                        onClick={() => handlePromote(comm, idx)}
-                        className="shrink-0 text-xs"
+              {selectedCall.commitments.length === 0 ? (
+                <p className="text-xs text-[#8E8E93] italic py-2">
+                  No verbal commitments flagged. Commitments made in calls are extracted here for 1-click promotion into the Action Hub.
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {selectedCall.commitments.map((comm, idx) => {
+                    const isPromoted = promotedSet.has(`${selectedCall.call_id}-${idx}`);
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                       >
-                        {isPromoted ? 'Promoted' : 'Promote to Action Hub'}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
+                        <p className="text-xs text-black dark:text-white font-medium leading-snug">
+                          {comm}
+                        </p>
+                        <Button
+                          variant={isPromoted ? 'ghost' : 'secondary'}
+                          size="sm"
+                          disabled={isPromoted}
+                          icon={isPromoted ? <CheckCircle2 className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Plus className="w-3.5 h-3.5" />}
+                          onClick={() => handlePromote(comm, idx)}
+                          className="shrink-0 text-xs"
+                        >
+                          {isPromoted ? 'Promoted' : 'Promote to Action Hub'}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

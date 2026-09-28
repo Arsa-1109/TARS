@@ -1,0 +1,128 @@
+{
+  "viewport": {
+    "x": 120,
+    "y": 80,
+    "zoom": 0.85
+  },
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "customHeader",
+      "position": { "x": 350, "y": 40 },
+      "data": {
+        "title": "AetherFlow Q3/Q4 Strategic Roadmap",
+        "description": "Executive Whiteboard Canvas: Product-Led Growth vs Enterprise Pilot Tension",
+        "status": "IN_PROGRESS",
+        "owner": "Marcus Chen & Dr. Elena Rostova"
+      }
+    },
+    {
+      "id": "node-2",
+      "type": "strategyNode",
+      "position": { "x": 80, "y": 180 },
+      "data": {
+        "title": "PLG Self-Serve Track (PRD-102)",
+        "subtitle": "Codebase Health Analytics Dashboard",
+        "targetAudience": "Starter ($499/mo) & Pro ($1,499/mo)",
+        "effortWeeks": 3,
+        "assignedTo": "Chloe Dubois & Marcus Chen",
+        "priority": "HIGH"
+      }
+    },
+    {
+      "id": "node-3",
+      "type": "enterpriseNode",
+      "position": { "x": 620, "y": 180 },
+      "data": {
+        "title": "Enterprise Pilot Track (Acme Corp)",
+        "subtitle": "$80,000 ARR Contract (250 Seats)",
+        "contingency": "Mandatory SAML 2.0/SCIM SSO by May 1st",
+        "effortWeeks": 7,
+        "assignedTo": "Sarah Jenkins & Liam Patel",
+        "priority": "CRITICAL"
+      }
+    },
+    {
+      "id": "node-4",
+      "type": "conflictAlertNode",
+      "position": { "x": 350, "y": 340 },
+      "data": {
+        "title": "CONTRADICTION DETECTED by TARS",
+        "ruleA": "BDR-014: Zero Custom Enterprise Forks",
+        "ruleB": "BDR-018: Build Acme Custom SAML SSO",
+        "severity": "CRITICAL",
+        "impact": "60-Day Delay to Self-Serve Analytics vs $80,000 Revenue Injection"
+      }
+    },
+    {
+      "id": "node-5",
+      "type": "financialGateNode",
+      "position": { "x": 620, "y": 480 },
+      "data": {
+        "title": "Treasury & Runway Impact",
+        "currentCash": "$666,000",
+        "netBurn": "-$74,000 / mo",
+        "runwayMonths": 9.0,
+        "withAcmeRevenue": "9.9 Months (+$6,667 MRR)",
+        "zeroCashDate": "May 28, 2027"
+      }
+    },
+    {
+      "id": "node-6",
+      "type": "hiringNode",
+      "position": { "x": 80, "y": 480 },
+      "data": {
+        "title": "Senior Infra Engineer Requisition",
+        "compensation": "$14,000 / mo ($168K Base)",
+        "condition": "Revenue-Gated on Acme Wire Confirmation",
+        "status": "PIPELINE_ACTIVE"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1-2",
+      "source": "node-1",
+      "target": "node-2",
+      "label": "Track A: PLG Core",
+      "animated": false,
+      "style": { "stroke": "#1F497D", "strokeWidth": 2 }
+    },
+    {
+      "id": "e1-3",
+      "source": "node-1",
+      "target": "node-3",
+      "label": "Track B: High ACV",
+      "animated": true,
+      "style": { "stroke": "#C00000", "strokeWidth": 2 }
+    },
+    {
+      "id": "e2-4",
+      "source": "node-2",
+      "target": "node-4",
+      "label": "Resource Contention",
+      "style": { "stroke": "#E67E22", "strokeDasharray": "5 5" }
+    },
+    {
+      "id": "e3-4",
+      "source": "node-3",
+      "target": "node-4",
+      "label": "Violates BDR-014",
+      "style": { "stroke": "#C00000", "strokeWidth": 2 }
+    },
+    {
+      "id": "e3-5",
+      "source": "node-3",
+      "target": "node-5",
+      "label": "+$80K Cash Inflow",
+      "style": { "stroke": "#27AE60", "strokeWidth": 2 }
+    },
+    {
+      "id": "e5-6",
+      "source": "node-5",
+      "target": "node-6",
+      "label": "Unlocks Hiring Budget",
+      "style": { "stroke": "#2980B9", "strokeWidth": 2 }
+    }
+  ]
+}

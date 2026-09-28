@@ -1,3 +1,11 @@
+import sys
+import os
+from pathlib import Path
+
+# Ensure project root is in sys.path
+root_dir = Path(__file__).resolve().parent
+sys.path.insert(0, str(root_dir))
+
 import uvicorn
 from apps.api.main import app
 

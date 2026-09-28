@@ -11,9 +11,15 @@ import uuid
 from typing import List, Optional, Dict, Any
 from apps.api.schemas.contracts import ActionItemDTO
 
-# Default local database file path
-DB_DIR = os.path.join(os.getcwd(), ".tars")
-DEFAULT_DB_PATH = os.path.join(DB_DIR, "action_hub.sqlite3")
+# Canonical local database file path
+DB_DIR = os.getenv(
+    "TARS_DATA_DIR",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".tars")),
+)
+DEFAULT_DB_PATH = os.getenv(
+    "TARS_ACTION_HUB_DB",
+    os.path.join(DB_DIR, "action_hub.sqlite3"),
+)
 
 
 class ActionHubRepository:
@@ -22,9 +28,11 @@ class ActionHubRepository:
         self._ensure_tables()
 
     def _get_connection(self) -> sqlite3.Connection:
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
-        conn = sqlite3.connect(self.db_path, timeout=10.0)
+        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        conn = sqlite3.connect(self.db_path, timeout=15.0)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout = 5000;")
         return conn
 
     def _ensure_tables(self) -> None:
@@ -54,6 +62,7 @@ class ActionHubRepository:
 
     def create(self, item: ActionItemDTO) -> ActionItemDTO:
         item_id = item.id if item.id else f"ACT-{uuid.uuid4().hex[:8].upper()}"
+        item.id = item_id
         now = int(time.time())
         with self._get_connection() as conn:
             conn.execute(
@@ -71,7 +80,7 @@ class ActionHubRepository:
                     item.status or "OPEN",
                     item.source_type,
                     item.source_id,
-                    item.source_offset,
+                    item.source_offset or "",
                     now,
                 ),
             )
@@ -84,7 +93,7 @@ class ActionHubRepository:
             status=item.status or "OPEN",
             source_type=item.source_type,
             source_id=item.source_id,
-            source_offset=item.source_offset,
+            source_offset=item.source_offset or "",
         )
 
     def get_by_id(self, item_id: str) -> Optional[ActionItemDTO]:
@@ -105,6 +114,14 @@ class ActionHubRepository:
                 source_id=row["source_id"],
                 source_offset=row["source_offset"],
             )
+
+    def get(self, item_id: str) -> Optional[ActionItemDTO]:
+        """Alias for get_by_id to maintain interface compatibility with core repository."""
+        return self.get_by_id(item_id)
+
+    def list_all(self) -> List[ActionItemDTO]:
+        """Alias for list_items to maintain interface compatibility with core repository."""
+        return self.list_items()
 
     def list_items(
         self,

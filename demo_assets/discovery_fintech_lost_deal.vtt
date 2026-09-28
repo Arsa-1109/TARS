@@ -1,0 +1,31 @@
+WEBVTT - Customer Discovery & Lost Deal Debrief
+Call Reference: CALL-2026-09-18-DEBRIEF-003
+Date: 2026-09-18T11:00:00-04:00
+Participants:
+- Sarah Jenkins (Enterprise Sales Lead, AetherFlow AI)
+- Marcus Chen (Head of Product, AetherFlow AI)
+- Context: Post-Mortem on $48,000 ARR Lost Deal with PayVanguard Fintech
+
+00:00:01.000 --> 00:00:07.500
+Marcus Chen: Hey Sarah, thanks for hopping on. I saw the Closed-Lost update in the pipeline for PayVanguard. What happened there?
+
+00:00:08.000 --> 00:00:16.500
+Sarah Jenkins: Hey Marcus. Yeah, it's a painful one because their engineering leads loved our Tree-sitter AST invariant engine. But we lost to a legacy cloud tool on two specific issues.
+
+00:00:17.000 --> 00:00:26.500
+Marcus Chen: Was it pricing, or was it compliance? They're an SEC-regulated payment processor, right?
+
+00:00:27.000 --> 00:00:38.000
+Sarah Jenkins: It was both. First, their compliance officer asked for an exportable, tamper-proof SOC2 audit log table. They needed to see every query and code scan indexed with tenant and user IDs.
+
+00:00:38.500 --> 00:00:49.000
+Marcus Chen: Ah. Liam has the audit log schema built in `app/models/audit_log.py`, but it doesn't have an indexed foreign key yet, so we haven't exposed the compliance export UI.
+
+00:00:49.500 --> 00:01:00.000
+Sarah Jenkins: Exactly. And the second issue was our rigid tier pricing. We offered our Growth Pro plan at $1,499/mo, but they wanted a usage-based token metering model because their team only has 14 active developers.
+
+00:01:00.500 --> 00:01:12.000
+Marcus Chen: That makes complete sense. We're actively discussing token metering in the `#pricing-strategy` Slack channel right now. We need to bridge the gap between our $499 starter and $4,000 enterprise tier.
+
+00:01:12.500 --> 00:01:24.000
+Sarah Jenkins: If we had a clean compliance audit export and token-based pricing, we would have closed PayVanguard for $48,000 ARR without hesitation. Let's make sure we log this as product feedback for Q4.

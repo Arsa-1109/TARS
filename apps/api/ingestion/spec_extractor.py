@@ -60,22 +60,45 @@ class VoiceToSpecExtractor:
         # 1. Attempt extraction via Local SLM (Ollama)
         spec_dict = self._extract_with_slm(transcript, client_name)
 
-        # 2. If SLM is offline or times out, fallback to deterministic heuristic extractor
+        # 2. Extract heuristics and backfill any missing keys
+        heuristics_dict = self._extract_with_heuristics(transcript, client_name)
         if not spec_dict:
-            spec_dict = self._extract_with_heuristics(transcript, client_name)
+            spec_dict = heuristics_dict
+        else:
+            for key in ["pain_points", "feature_requests", "commitments"]:
+                if not spec_dict.get(key) and heuristics_dict.get(key):
+                    spec_dict[key] = heuristics_dict[key]
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         logger.info(f"Voice-to-Spec extraction for {call_id} completed in {elapsed_ms:.1f}ms")
+
+        def _to_str_list(val: Any) -> List[str]:
+            if not val:
+                return []
+            if isinstance(val, str):
+                return [val]
+            if isinstance(val, list):
+                res = []
+                for item in val:
+                    if isinstance(item, str):
+                        res.append(item)
+                    elif isinstance(item, dict):
+                        text = item.get("text") or item.get("description") or item.get("commitment") or item.get("detail") or " - ".join(str(v) for v in item.values())
+                        res.append(str(text))
+                    else:
+                        res.append(str(item))
+                return res
+            return [str(val)]
 
         # 3. Assemble contract-frozen response
         response = VoiceToSpecResponse(
             call_id=call_id,
             client_name=client_name,
-            sentiment=spec_dict.get("sentiment", "NEUTRAL").upper(),
-            summary=spec_dict.get("summary", "Call summary pending."),
-            pain_points=spec_dict.get("pain_points", []),
-            feature_requests=spec_dict.get("feature_requests", []),
-            commitments=spec_dict.get("commitments", []),
+            sentiment=str(spec_dict.get("sentiment", "NEUTRAL")).upper(),
+            summary=str(spec_dict.get("summary", "Call summary pending.")),
+            pain_points=_to_str_list(spec_dict.get("pain_points")),
+            feature_requests=_to_str_list(spec_dict.get("feature_requests")),
+            commitments=_to_str_list(spec_dict.get("commitments")),
             audio_duration_seconds=audio_duration,
         )
 

@@ -149,6 +149,11 @@ export function useSessionStore() {
 
   // Check if current user role has clearance for a given workspace
   const canAccessWorkspace = (ws: WorkspaceId): { allowed: boolean; reason?: string } => {
+    // Founder has sovereign root clearance across all workspaces
+    if (profile.role === 'FOUNDER') {
+      return { allowed: true };
+    }
+
     const allowed = ROLE_WORKSPACES[currentRole] || [];
     if (!allowed.includes(ws)) {
       if (ws === 'decisions') {
@@ -174,6 +179,7 @@ export function useSessionStore() {
         reason: `Access restricted. Your current clearance role (${currentRole}) does not have permission for the ${ws} workspace.`,
       };
     }
+
     return { allowed: true };
   };
 
