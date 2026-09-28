@@ -154,7 +154,21 @@ def seed():
                 source_id=item.get("id"),
                 source_offset=item.get("source_reference", ""),
             )
-            action_hub_repo.create(dto)
+            try:
+                if not action_hub_repo.get_by_id(dto.id):
+                    action_hub_repo.create(dto)
+                else:
+                    action_hub_repo.update(dto.id, {"description": dto.description, "owner": dto.owner, "status": dto.status})
+            except Exception as e:
+                print(f"  Note on ingestion action item {dto.id}: {e}")
+
+            # Also ensure it is present in Core action hub table
+            try:
+                from apps.api.core.action_hub import action_hub_repo as core_action_repo
+                if not core_action_repo.get(dto.id):
+                    core_action_repo.create(dto)
+            except Exception:
+                pass
 
         print(f"  -> Seeded {len(items_data)} Action Items into the Unified Action Hub.")
 
