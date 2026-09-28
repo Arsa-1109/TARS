@@ -9,9 +9,9 @@ export function useNavigationStore() {
     open: false,
     citation: null,
   });
-  const [activeCallId, setActiveCallId] = useState<string | null>('CALL-ACME-01');
-  const [activeDecisionId, setActiveDecisionId] = useState<string | null>('DEC-14');
-  const [activeFindingId, setActiveFindingId] = useState<string | null>('INV-017');
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [activeDecisionId, setActiveDecisionId] = useState<string | null>(null);
+  const [activeFindingId, setActiveFindingId] = useState<string | null>(null);
 
   const openCitation = useCallback((citation: SearchCitation) => {
     setCitationState({ open: true, citation });

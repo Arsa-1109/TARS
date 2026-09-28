@@ -243,6 +243,7 @@ export function App() {
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}
+      onSelectRole={setRole}
       onLogout={() => {
         logout();
         transitionToLanding();

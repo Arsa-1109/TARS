@@ -18,7 +18,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Executive & Strategy Domain',
     tagline: 'Strategic decisions, runway simulations & executive synthesis',
     allowedRoles: ['FOUNDER'],
-    allowedWorkspaces: ['decisions', 'knowledge', 'thinktank'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
     requiredClearance: 'EXECUTIVE_ONLY',
   },
   engineering: {
@@ -141,13 +141,11 @@ export function useSessionStore() {
 
   // Check if current user role has clearance for a given workspace
   const canAccessWorkspace = (ws: WorkspaceId): { allowed: boolean; reason?: string } => {
-    // RBAC: Verify workspace is within the user's active domain
-    if (currentDomainConfig && !currentDomainConfig.allowedWorkspaces.includes(ws)) {
-      return {
-        allowed: false,
-        reason: `Restricted Workspace: The ${ws} workspace is not accessible for the ${profile.role} role in ${currentDomainConfig.name}.`,
-      };
+    // Founder has sovereign root clearance across all workspaces
+    if (profile.role === 'FOUNDER') {
+      return { allowed: true };
     }
+
     if (ws === 'decisions') {
       if (profile.clearance !== 'EXECUTIVE_ONLY') {
         return {
@@ -156,6 +154,15 @@ export function useSessionStore() {
         };
       }
     }
+
+    // RBAC: Verify workspace is within the user's active domain
+    if (currentDomainConfig && !currentDomainConfig.allowedWorkspaces.includes(ws)) {
+      return {
+        allowed: false,
+        reason: `Restricted Workspace: The ${ws} workspace is not accessible for the ${profile.role} role in ${currentDomainConfig.name}.`,
+      };
+    }
+
     return { allowed: true };
   };
 

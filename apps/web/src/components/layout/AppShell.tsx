@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { WorkspaceId, UserRole, UserProfile } from '../../types/contracts';
 import { WorkspaceDomain } from '../../state/useSessionStore';
 import { TopBar } from './TopBar';
@@ -26,6 +26,7 @@ interface AppShellProps {
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
+  onSelectRole: (role: UserRole) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -45,6 +46,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentRole,
   profile,
   activeDomain,
+  onSelectRole,
   onLogout,
   theme,
   onToggleTheme,
@@ -68,6 +70,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         currentRole={currentRole}
         profile={profile}
         activeDomain={activeDomain}
+        onSelectRole={onSelectRole}
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}

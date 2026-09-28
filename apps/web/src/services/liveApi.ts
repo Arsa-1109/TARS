@@ -64,9 +64,48 @@ export class LiveTarsApi implements TarsApi {
   async getCalls(): Promise<VoiceToSpecResponse[]> {
     try {
       const data = await this.fetchJson<any>('/ingestion/calls');
-      if (Array.isArray(data)) return data;
-      if (data && Array.isArray(data.calls)) return data.calls;
-      return [];
+      const rawCalls = Array.isArray(data) ? data : (data && Array.isArray(data.calls) ? data.calls : []);
+      return rawCalls.map((c: any): VoiceToSpecResponse => {
+        const callId = c.call_id || c.task_id || `CALL-${Math.random().toString(36).slice(2, 8)}`;
+        const clientName = c.client_name || c.filename || 'Voice Memo';
+        const transcriptText = c.transcript_text || (typeof c.transcript === 'string' ? c.transcript : '') || c.transcript_snippet || '';
+        
+        let transcriptArray: { speaker: string; timestamp: string; seconds: number; text: string }[] = [];
+        if (Array.isArray(c.transcript)) {
+          transcriptArray = c.transcript.map((t: any) => ({
+            speaker: t.speaker || clientName,
+            timestamp: t.timestamp || '00:00',
+            seconds: typeof t.seconds === 'number' ? t.seconds : 0,
+            text: t.text || '',
+          }));
+        } else if (transcriptText) {
+          transcriptArray = [
+            {
+              speaker: clientName,
+              timestamp: '00:00',
+              seconds: 0,
+              text: transcriptText,
+            },
+          ];
+        }
+
+        const dateStr = c.created_at
+          ? new Date(c.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : (c.recorded_at || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+        return {
+          call_id: callId,
+          client_name: clientName,
+          sentiment: c.sentiment || 'NEUTRAL',
+          summary: c.summary || (transcriptText ? `Transcription: "${transcriptText.slice(0, 160)}..."` : 'Voice memo recording recorded on device.'),
+          pain_points: Array.isArray(c.pain_points) ? c.pain_points : [],
+          feature_requests: Array.isArray(c.feature_requests) ? c.feature_requests : [],
+          commitments: Array.isArray(c.commitments) ? c.commitments : [],
+          audio_duration_seconds: Math.round(c.audio_duration_seconds || c.duration_seconds || 15),
+          recorded_at: dateStr,
+          transcript: transcriptArray,
+        };
+      });
     } catch {
       return [];
     }
@@ -74,7 +113,43 @@ export class LiveTarsApi implements TarsApi {
 
   async getCall(id: string): Promise<VoiceToSpecResponse | null> {
     try {
-      return await this.fetchJson<VoiceToSpecResponse>(`/ingestion/calls/${id}`);
+      const c = await this.fetchJson<any>(`/ingestion/calls/${id}`);
+      if (!c) return null;
+      const callId = c.call_id || c.task_id || id;
+      const clientName = c.client_name || c.filename || 'Voice Memo';
+      const transcriptText = c.transcript_text || (typeof c.transcript === 'string' ? c.transcript : '') || c.transcript_snippet || '';
+      
+      let transcriptArray: { speaker: string; timestamp: string; seconds: number; text: string }[] = [];
+      if (Array.isArray(c.transcript)) {
+        transcriptArray = c.transcript.map((t: any) => ({
+          speaker: t.speaker || clientName,
+          timestamp: t.timestamp || '00:00',
+          seconds: typeof t.seconds === 'number' ? t.seconds : 0,
+          text: t.text || '',
+        }));
+      } else if (transcriptText) {
+        transcriptArray = [
+          {
+            speaker: clientName,
+            timestamp: '00:00',
+            seconds: 0,
+            text: transcriptText,
+          },
+        ];
+      }
+
+      return {
+        call_id: callId,
+        client_name: clientName,
+        sentiment: c.sentiment || 'NEUTRAL',
+        summary: c.summary || (transcriptText ? `Transcription: "${transcriptText.slice(0, 160)}..."` : 'Voice memo recording.'),
+        pain_points: Array.isArray(c.pain_points) ? c.pain_points : [],
+        feature_requests: Array.isArray(c.feature_requests) ? c.feature_requests : [],
+        commitments: Array.isArray(c.commitments) ? c.commitments : [],
+        audio_duration_seconds: Math.round(c.audio_duration_seconds || c.duration_seconds || 15),
+        recorded_at: c.recorded_at || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        transcript: transcriptArray,
+      };
     } catch {
       return null;
     }

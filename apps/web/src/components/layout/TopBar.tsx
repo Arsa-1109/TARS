@@ -35,6 +35,7 @@ interface TopBarProps {
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
+  onSelectRole: (role: UserRole) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -53,6 +54,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentRole,
   profile,
   activeDomain,
+  onSelectRole,
   onLogout,
   theme,
   onToggleTheme,
@@ -83,7 +85,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain] || WORKSPACE_DOMAINS.executive;
-  const filteredOptions = currentDomainConfig.allowedWorkspaces.map((wsId) => allWorkspaceOptions[wsId]);
+  const workspaceIds: WorkspaceId[] = profile.role === 'FOUNDER'
+    ? ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding']
+    : (currentDomainConfig.allowedWorkspaces || ['knowledge', 'thinktank']);
+  const filteredOptions = workspaceIds.map((wsId) => allWorkspaceOptions[wsId]);
 
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
@@ -196,6 +201,51 @@ export const TopBar: React.FC<TopBarProps> = ({
                     <span className="font-medium text-[#3C3C43] dark:text-[#EBEBF5]">
                       {profile.clearance === 'EXECUTIVE_ONLY' ? 'Executive (Level 3)' : 'Team (Level 2)'}
                     </span>
+                  </div>
+                </div>
+
+                {/* Switch Persona / Role Section */}
+                <div className="p-2 border-b border-black/[0.07] dark:border-white/[0.07] bg-black/[0.02] dark:bg-white/[0.02]">
+                  <div className="text-[10px] font-semibold text-[#8E8E93] uppercase tracking-wider px-2 py-1 flex items-center justify-between">
+                    <span>Switch Role</span>
+                    <span className="font-mono text-[9px] text-[#0071E3] dark:text-[#0A84FF]">RBAC</span>
+                  </div>
+                  <div className="space-y-0.5 mt-0.5">
+                    {[
+                      { role: 'FOUNDER' as UserRole, name: 'Aryan', title: 'Founder & CEO', badge: 'L3 Root' },
+                      { role: 'ENGINEER' as UserRole, name: 'Elena Rostova', title: 'Lead Architect', badge: 'L2 Eng' },
+                      { role: 'PRODUCT' as UserRole, name: 'Marcus Vance', title: 'Head of Product', badge: 'L2 Prod' },
+                      { role: 'SALES' as UserRole, name: 'Sarah Vance', title: 'Sales & Growth', badge: 'L2 Sales' },
+                      { role: 'NEW_HIRE' as UserRole, name: 'Maya Lin', title: 'Software Engineer', badge: 'L2 New' },
+                    ].map((p) => {
+                      const isActive = profile.role === p.role;
+                      return (
+                        <button
+                          key={p.role}
+                          onClick={() => {
+                            onSelectRole(p.role);
+                            setProfileOpen(false);
+                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded-[8px] text-[11px] flex items-center justify-between transition-all ${
+                            isActive
+                              ? 'bg-black/[0.08] dark:bg-white/[0.12] font-semibold text-black dark:text-white'
+                              : 'text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-black dark:hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              isActive ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/[0.06] dark:bg-white/[0.08]'
+                            }`}>
+                              {p.name.charAt(0)}
+                            </div>
+                            <span className="truncate">{p.name} ({p.role.toLowerCase()})</span>
+                          </div>
+                          <span className="text-[9px] font-mono px-1 rounded bg-black/[0.04] dark:bg-white/[0.06] text-[#8E8E93]">
+                            {p.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

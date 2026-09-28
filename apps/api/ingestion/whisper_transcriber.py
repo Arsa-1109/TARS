@@ -43,8 +43,20 @@ class WhisperTask:
         self.spec_result: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        call_id = self.task_id.replace("WSP-", "CALL-")
+        clean_transcript = self.transcript or ""
+        transcript_list = [
+            {
+                "speaker": self.client_name or "Speaker",
+                "timestamp": "00:00",
+                "seconds": 0,
+                "text": clean_transcript,
+            }
+        ] if clean_transcript else []
+
+        res = {
             "task_id": self.task_id,
+            "call_id": call_id,
             "file_path": self.file_path,
             "filename": os.path.basename(self.file_path),
             "client_name": self.client_name,
@@ -52,11 +64,27 @@ class WhisperTask:
             "created_at": self.created_at,
             "completed_at": self.completed_at,
             "duration_seconds": self.duration_seconds,
-            "transcript_snippet": self.transcript[:200] if self.transcript else "",
-            "transcript": self.transcript,
+            "audio_duration_seconds": self.duration_seconds or 15.0,
+            "transcript_snippet": clean_transcript[:200] if clean_transcript else "",
+            "transcript": transcript_list,
+            "transcript_text": clean_transcript,
             "has_spec": self.spec_result is not None,
+            "spec_result": self.spec_result,
             "error": self.error,
+            "sentiment": "NEUTRAL",
+            "summary": (clean_transcript[:200] + "...") if clean_transcript else "Audio memo recorded.",
+            "pain_points": [],
+            "feature_requests": [],
+            "commitments": [],
+            "recorded_at": time.strftime("%H:%M", time.localtime(self.created_at)),
         }
+        if self.spec_result and isinstance(self.spec_result, dict):
+            for k in ["sentiment", "summary", "pain_points", "feature_requests", "commitments"]:
+                if k in self.spec_result and self.spec_result[k]:
+                    res[k] = self.spec_result[k]
+            if "transcript" in self.spec_result and isinstance(self.spec_result["transcript"], list) and self.spec_result["transcript"]:
+                res["transcript"] = self.spec_result["transcript"]
+        return res
 
 
 class WhisperTranscriber:

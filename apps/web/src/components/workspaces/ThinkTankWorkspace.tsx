@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
 import { Dialog } from '../primitives/Dialog';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
+import { api } from '../../services/client';
+import { DecisionItem, SearchCitation } from '../../types/contracts';
 import {
   MessageSquare,
   Send,
@@ -28,6 +30,12 @@ type ViewMode = 'document' | 'split' | 'canvas';
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
 }) => {
+  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
+
+  useEffect(() => {
+    api.getDecisions().then((d) => setDecisions(d)).catch(() => {});
+  }, []);
+
   const [channels, setChannels] = useState<{ id: string; name: string; topic: string }[]>([
     { id: 'general', name: '#general', topic: 'Company strategic alignment & cross-functional topics' }
   ]);
@@ -92,13 +100,14 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     setNewChannelTopic('');
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
+    const userPrompt = inputMessage.trim();
     const newMsg = {
       id: `m-${Date.now()}`,
       sender: 'You',
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: inputMessage.trim(),
+      text: userPrompt,
     };
 
     setMessages((prev) => ({
@@ -107,61 +116,70 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     }));
     setInputMessage('');
 
-    // If query includes @TARS or ask, trigger simulated synthesis
-    if (newMsg.text.includes('@TARS') || newMsg.text.toLowerCase().includes('simulate')) {
-      setTimeout(() => {
+    // If query mentions TARS or asks for analysis/simulation, evaluate via live backend Cortex
+    const lower = userPrompt.toLowerCase();
+    if (
+      userPrompt.includes('@TARS') ||
+      lower.includes('tars') ||
+      lower.includes('simulate') ||
+      lower.includes('check') ||
+      lower.includes('conflict') ||
+      lower.includes('contradict')
+    ) {
+      try {
+        const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim();
+
+        // 1. Check for institutional decision contradictions
+        const conflictRes = await api.checkContradiction(cleanQuery || userPrompt);
+
+        let aiText = '';
+        let provenance = '';
+
+        if (conflictRes.has_conflict) {
+          aiText = `⚠️ Contradiction Detected: ${conflictRes.explanation}`;
+          provenance = conflictRes.conflicting_decision_id
+            ? `Decision ${conflictRes.conflicting_decision_id} · Local Institutional Graph`
+            : 'Institutional Invariant Rule';
+        } else {
+          // 2. Query knowledge base for institutional context
+          const ragRes = await api.search({ query: cleanQuery || userPrompt });
+          aiText = ragRes.answer;
+          if (ragRes.citations && ragRes.citations.length > 0) {
+            provenance = ragRes.citations.map((c: SearchCitation) => c.doc_title || c.doc_id).slice(0, 3).join(' · ');
+          } else {
+            provenance = 'TARS Institutional Cortex Engine';
+          }
+        }
+
         const aiMsg = {
           id: `m-ai-${Date.now()}`,
           sender: 'TARS (@TARS)',
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isAi: true,
-          text: "Evaluated in-channel proposal against active knowledge graph: Decision #14 restricts bespoke engineering prior to Q4. If this proposal advances, counter-offering with an OIDC provider preserves $80k ARR with zero branch divergence.",
-          provenance: "Decision #14 · ADR-014 · Call #ACME-01",
+          text: aiText,
+          provenance: provenance || undefined,
         };
+
         setMessages((prev) => ({
           ...prev,
           [activeChannelId]: [...(prev[activeChannelId] || []), aiMsg],
         }));
-      }, 700);
+      } catch (err) {
+        console.error('Think Tank TARS evaluation error:', err);
+      }
     }
   };
 
-  // Structured diagram entities for the optional canvas
-  const canvasNodes = [
-    {
-      id: 'node-1',
-      title: 'Acme Corp ($80k ARR)',
-      type: 'Customer Request',
-      x: 40,
-      y: 80,
-      detail: 'Mandatory on-prem SAML 2.0 by May 1st',
-    },
-    {
-      id: 'node-2',
-      title: 'Decision #14',
-      type: 'Company Policy',
-      x: 280,
-      y: 80,
-      detail: 'Zero enterprise customisations before Q4',
-      isConflict: true,
-    },
-    {
-      id: 'node-3',
-      title: 'Self-Serve Product Launch',
-      type: 'Core Milestone',
-      x: 520,
-      y: 80,
-      detail: '3.5-week delay if 2 devs reallocated',
-    },
-    {
-      id: 'node-4',
-      title: 'Runway Impact (-1.8 mo)',
-      type: 'Financial Simulation',
-      x: 280,
-      y: 220,
-      detail: 'Net cash runway drops from 11.4 to 9.6 mo',
-    },
-  ];
+  // Structured diagram entities derived dynamically from recorded decisions
+  const canvasNodes = decisions.slice(0, 4).map((d, idx) => ({
+    id: d.id,
+    title: d.title.length > 24 ? d.title.slice(0, 23) + '...' : d.title,
+    type: d.category || 'DECISION',
+    x: 40 + (idx % 2) * 260,
+    y: 80 + Math.floor(idx / 2) * 140,
+    detail: d.context || d.chosen_option || 'Institutional decision record',
+    isConflict: d.lifecycle_status === 'SUPERSEDED',
+  }));
 
   return (
     <div className="space-y-6">
@@ -323,123 +341,108 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               </div>
 
               {/* Interactive SVG Relationship Canvas */}
-              <div className="flex-1 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-[#1C1C1E] relative overflow-hidden flex items-center justify-center p-4">
-                <svg className="w-full h-full" viewBox="0 0 700 360">
-                  {/* Connecting Edges */}
-                  <line
-                    x1="180"
-                    y1="110"
-                    x2="280"
-                    y2="110"
-                    stroke="#E5A000"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                  />
-                  <text x="205" y="100" fill="#E5A000" fontSize="9" fontWeight="bold">
-                    CONTRADICTS
-                  </text>
+              {canvasNodes.length === 0 ? (
+                <div className="flex-1 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-[#1C1C1E] flex flex-col items-center justify-center p-8 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#8E8E93] mb-1">
+                    <Layers className="w-5 h-5" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-black dark:text-white">No Decision Nodes Mapped</h4>
+                  <p className="text-xs text-[#8E8E93] max-w-sm">
+                    Record company decisions in Workspace 3 to visualize institutional topology, trade-offs, and invariants here.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex-1 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-[#1C1C1E] relative overflow-hidden flex items-center justify-center p-4">
+                  <svg className="w-full h-full" viewBox="0 0 700 360">
+                    {/* Render Connecting Edges if multiple nodes */}
+                    {canvasNodes.length > 1 && (
+                      <line
+                        x1="200"
+                        y1="115"
+                        x2="300"
+                        y2="115"
+                        stroke="rgba(128,128,128,0.3)"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
+                      />
+                    )}
 
-                  <line
-                    x1="420"
-                    y1="110"
-                    x2="520"
-                    y2="110"
-                    stroke="rgba(128,128,128,0.3)"
-                    strokeWidth="1.5"
-                  />
-                  <text x="450" y="100" fill="#8E8E93" fontSize="9">
-                    DELAYS
-                  </text>
-
-                  <line
-                    x1="350"
-                    y1="150"
-                    x2="350"
-                    y2="220"
-                    stroke="rgba(128,128,128,0.3)"
-                    strokeWidth="1.5"
-                  />
-                  <text x="355" y="185" fill="#8E8E93" fontSize="9">
-                    IMPACTS
-                  </text>
-
-                  {/* Render Analytical Nodes */}
-                  {canvasNodes.map((n) => {
-                    const isSelected = selectedNode === n.id;
-                    return (
-                      <g
-                        key={n.id}
-                        transform={`translate(${n.x}, ${n.y})`}
-                        onClick={() => setSelectedNode(n.id)}
-                        className="cursor-pointer"
-                      >
-                        <rect
-                          width="140"
-                          height="70"
-                          rx="12"
-                          className={isSelected ? 'fill-white dark:fill-[#242428]' : 'fill-white dark:fill-[#141416]'}
-                          stroke={
-                            isSelected
-                              ? '#0071E3'
-                              : n.isConflict
-                              ? '#E5A000'
-                              : 'rgba(128,128,128,0.25)'
-                          }
-                          strokeWidth={isSelected ? '2' : '1'}
-                        />
-                        <text
-                          x="12"
-                          y="22"
-                          fill="#8E8E93"
-                          fontSize="9"
-                          fontWeight="bold"
+                    {/* Render Analytical Nodes */}
+                    {canvasNodes.map((n) => {
+                      const isSelected = selectedNode === n.id;
+                      return (
+                        <g
+                          key={n.id}
+                          transform={`translate(${n.x}, ${n.y})`}
+                          onClick={() => setSelectedNode(n.id)}
+                          className="cursor-pointer"
                         >
-                          {n.type.toUpperCase()}
-                        </text>
-                        <text
-                          x="12"
-                          y="40"
-                          fill="currentColor"
-                          className="text-black dark:text-white"
-                          fontSize="11"
-                          fontWeight="bold"
-                        >
-                          {n.title}
-                        </text>
-                        <text
-                          x="12"
-                          y="56"
-                          fill="#8E8E93"
-                          fontSize="9.5"
-                        >
-                          {n.detail.slice(0, 22)}...
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
-              </div>
+                          <rect
+                            width="160"
+                            height="75"
+                            rx="12"
+                            className={isSelected ? 'fill-white dark:fill-[#242428]' : 'fill-white dark:fill-[#141416]'}
+                            stroke={
+                              isSelected
+                                ? '#0071E3'
+                                : n.isConflict
+                                ? '#E5A000'
+                                : 'rgba(128,128,128,0.25)'
+                            }
+                            strokeWidth={isSelected ? '2' : '1'}
+                          />
+                          <text
+                            x="12"
+                            y="22"
+                            fill="#8E8E93"
+                            fontSize="9"
+                            fontWeight="bold"
+                          >
+                            {n.type.toUpperCase()}
+                          </text>
+                          <text
+                            x="12"
+                            y="40"
+                            fill="currentColor"
+                            className="text-black dark:text-white"
+                            fontSize="11"
+                            fontWeight="bold"
+                          >
+                            {n.title}
+                          </text>
+                          <text
+                            x="12"
+                            y="58"
+                            fill="#8E8E93"
+                            fontSize="9.5"
+                          >
+                            {n.detail.slice(0, 24)}...
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              )}
 
               {/* Selected Node Details Footer */}
               {selectedNode && (
                 <div className="mt-3 p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-xs flex items-center justify-between">
                   <div>
                     <span className="font-semibold text-black dark:text-white">
-                      {canvasNodes.find((n) => n.id === selectedNode)?.title}
+                      {canvasNodes.find((n) => n.id === selectedNode)?.title || selectedNode}
                     </span>
                     <span className="text-[#6E6E73] dark:text-[#8E8E93] ml-2">
                       {canvasNodes.find((n) => n.id === selectedNode)?.detail}
                     </span>
                   </div>
-                  {selectedNode === 'node-2' && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => onNavigateDecision('DEC-14')}
-                    >
-                      Open Decision #14
-                    </Button>
-                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onNavigateDecision(selectedNode)}
+                  >
+                    Open Decision
+                  </Button>
                 </div>
               )}
             </Surface>
