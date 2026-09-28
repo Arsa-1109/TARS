@@ -215,3 +215,46 @@ def test_clear_all_items(repo):
     assert len(repo.list_items()) == 5
     repo.clear()
     assert len(repo.list_items()) == 0
+
+
+def test_workspace_2_extracted_actions_appear_in_core_action_hub():
+    """
+    Verify that action items extracted from customer calls in Workspace 2
+    appear seamlessly when querying GET /api/core/action_hub (preventing database split-brain).
+    """
+    from fastapi.testclient import TestClient
+    from apps.api.main import app
+    from apps.api.ingestion.voice_to_spec import voice_to_spec
+
+    action_hub_repo.clear()
+    try:
+        client = TestClient(app)
+
+        # Ingest transcript simulating Workspace 2 Client Call Studio
+        sample_transcript = (
+            "Thanks for joining. We promise to deliver the enterprise SAML SSO integration "
+            "by next Friday 5:00 PM without delay."
+        )
+        spec = voice_to_spec.extract_spec(
+            transcript=sample_transcript,
+            client_name="Acme Corp",
+            auto_create_action_items=True,
+        )
+        assert len(spec.commitments) > 0
+
+        # Query GET /api/core/action_hub
+        res = client.get("/api/core/action_hub")
+        assert res.status_code == 200
+        items = res.json()
+        assert len(items) > 0
+
+        # Verify extracted action item is present in core action hub
+        found = any(
+            "SAML SSO" in item.get("description", "")
+            or "Friday" in item.get("description", "")
+            for item in items
+        )
+        assert found is True, f"Extracted action item not found in core action hub list: {items}"
+    finally:
+        action_hub_repo.clear()
+

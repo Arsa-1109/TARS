@@ -4,12 +4,14 @@ import json
 import asyncio
 from typing import Optional, Dict, Any
 from apps.api.core.concurrency import governor, Priority
+from apps.api.core.model_router import model_router
 
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 class OllamaClient:
     def __init__(self, timeout: float = 60.0):
         self.timeout = timeout
+        self.router = model_router
         
     async def is_available(self) -> bool:
         try:
@@ -19,40 +21,17 @@ class OllamaClient:
         except Exception:
             return False
 
-    async def _get_available_models(self) -> list:
-        try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                res = await client.get(f"{OLLAMA_URL}/api/tags")
-                if res.status_code == 200:
-                    data = res.json()
-                    return [m.get("name", "") for m in data.get("models", [])]
-        except Exception:
-            pass
-        return []
-
     async def generate(self, prompt: str, task_complexity: str = "light", structured_format: Optional[str] = None, priority: int = Priority.INTERACTIVE) -> Dict[str, Any]:
         # Acquire QoS lock based on priority
         await governor.acquire(priority)
         try:
+            # Standalone Model Router with fallback cascade (Patch P-08)
+            chosen_model = self.router.resolve_model(task_complexity)
+
             # Local-only / zero-egress safety check
             if "localhost" not in OLLAMA_URL and "127.0.0.1" not in OLLAMA_URL:
                  return {"success": False, "error": "Zero-egress violation: OLLAMA_BASE_URL must be local."}
 
-            available = await self._get_available_models()
-            
-            # Cascade definitions
-            if task_complexity == "deep":
-                candidates = ["qwen3:8b", "qwen2.5-coder:7b", "qwen2.5:7b", "qwen2.5:8b", "qwen2.5:1.5b"]
-            else:
-                candidates = ["qwen3:1.7b", "qwen2.5:1.5b", "qwen2.5-coder:7b", "qwen2.5:7b", "qwen2.5:8b"]
-
-            # Choose first matching available model, or candidate default
-            chosen_model = candidates[0]
-            for cand in candidates:
-                if any(cand in m or m.startswith(cand.split(":")[0]) for m in available):
-                    chosen_model = next((m for m in available if cand in m or m.startswith(cand.split(":")[0])), cand)
-                    break
-                 
             payload = {
                 "model": chosen_model,
                 "prompt": prompt,

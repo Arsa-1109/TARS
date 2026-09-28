@@ -278,9 +278,7 @@ async def mcp_internal_dispatch(payload: MCPToolInvocation):
 
     elif tool == "tars_get_client_commitments":
         return {
-            "commitments": [
-                {"client": "Acme Corp", "commitment": "On-prem deployment by May 1st", "value": "$80,000", "status": "ACTIVE"}
-            ]
+            "commitments": graph_engine.get_all_commitments()
         }
 
     elif tool == "tars_simulate_decision":

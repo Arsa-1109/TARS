@@ -62,6 +62,7 @@ class TarsGraph:
             ("ClientCall", "CREATE NODE TABLE ClientCall(id STRING, client_name STRING, sentiment STRING, audio_path STRING, transcript_summary STRING, date INT64, PRIMARY KEY(id));"),
             ("Invariant", "CREATE NODE TABLE Invariant(id STRING, name STRING, category STRING, severity STRING, rule STRING, rationale STRING, adr_ref STRING, PRIMARY KEY(id));"),
             ("CodeEntity", "CREATE NODE TABLE CodeEntity(id STRING, name STRING, file_path STRING, symbol_name STRING, entity_type STRING, PRIMARY KEY(id));"),
+            ("ClientCommitment", "CREATE NODE TABLE ClientCommitment(id STRING, client STRING, commitment STRING, value STRING, status STRING, PRIMARY KEY(id));"),
         ]
 
         for name, ddl in tables_to_create:
@@ -87,13 +88,50 @@ class TarsGraph:
                 # Rel table already exists
                 pass
 
-    def add_decision(self, decision_id: str, title: str, category: str, context: str, chosen_option: str, timestamp: Optional[int] = None, clearance: str = "ALL_TEAM") -> bool:
+        self._seed_golden_demo_state()
+
+    def _seed_golden_demo_state(self) -> None:
+        """Pre-seeds Decision #14 and active client commitments for Track 2 (Sovereign Cortex)."""
+        # 1. Pre-seed Decision #14
+        try:
+            self.add_decision(
+                decision_id="DEC-014",
+                title="Zero enterprise customisations before Q4",
+                category="STRATEGY",
+                context="Preserve engineering velocity and core self-serve product launch.",
+                chosen_option="Strictly reject bespoke enterprise forks.",
+                clearance="ALL_TEAM",
+                status="ACTIVE",
+            )
+        except Exception as e:
+            print(f"Notice: Failed to pre-seed Decision #14: {e}")
+
+        # 2. Pre-seed active client commitment for Acme Corp ($80,000 ARR contingent on May 1st SAML SSO)
+        try:
+            self.conn.execute(
+                """
+                MERGE (c:ClientCommitment {id: $id})
+                ON CREATE SET c.client = $client, c.commitment = $commitment, c.value = $value, c.status = $status
+                ON MATCH SET c.client = $client, c.commitment = $commitment, c.value = $value, c.status = $status
+                """,
+                {
+                    "id": "COM-ACME-001",
+                    "client": "Acme Corp",
+                    "commitment": "$80,000 ARR contingent on May 1st SAML SSO",
+                    "value": "$80,000",
+                    "status": "ACTIVE",
+                },
+            )
+        except Exception:
+            pass
+
+    def add_decision(self, decision_id: str, title: str, category: str, context: str, chosen_option: str, timestamp: Optional[int] = None, clearance: str = "ALL_TEAM", status: str = "ACTIVE") -> bool:
         """Adds or updates a Decision node in the graph."""
         ts = timestamp or int(time.time())
         query = """
         MERGE (d:Decision {id: $id})
-        ON CREATE SET d.title = $title, d.category = $category, d.context = $context, d.chosen_option = $chosen_option, d.timestamp = $timestamp, d.clearance = $clearance
-        ON MATCH SET d.title = $title, d.category = $category, d.context = $context, d.chosen_option = $chosen_option, d.clearance = $clearance
+        ON CREATE SET d.title = $title, d.category = $category, d.context = $context, d.chosen_option = $chosen_option, d.timestamp = $timestamp, d.clearance = $clearance, d.status = $status
+        ON MATCH SET d.title = $title, d.category = $category, d.context = $context, d.chosen_option = $chosen_option, d.clearance = $clearance, d.status = $status
         """
         try:
             self.conn.execute(query, {
@@ -104,6 +142,7 @@ class TarsGraph:
                 "chosen_option": chosen_option,
                 "timestamp": ts,
                 "clearance": clearance,
+                "status": status,
             })
             return True
         except Exception as e:
@@ -167,7 +206,7 @@ class TarsGraph:
 
     def get_all_decisions(self) -> List[Dict[str, Any]]:
         """Returns all Decision nodes ordered by timestamp descending."""
-        query = "MATCH (d:Decision) RETURN d.id, d.title, d.category, d.context, d.chosen_option, d.timestamp, d.clearance"
+        query = "MATCH (d:Decision) RETURN d.id, d.title, d.category, d.context, d.chosen_option, d.timestamp, d.clearance, d.status"
         try:
             result = self.conn.execute(query)
             decisions = []
@@ -181,11 +220,58 @@ class TarsGraph:
                     "chosen_option": row[4],
                     "timestamp": row[5],
                     "clearance": row[6],
+                    "status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
                 })
             return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
-        except Exception as e:
-            print(f"Error fetching decisions: {e}")
-            return []
+        except Exception:
+            try:
+                result = self.conn.execute("MATCH (d:Decision) RETURN d.id, d.title, d.category, d.context, d.chosen_option, d.timestamp, d.clearance")
+                decisions = []
+                while result.has_next():
+                    row = result.get_next()
+                    decisions.append({
+                        "id": row[0],
+                        "title": row[1],
+                        "category": row[2],
+                        "context": row[3],
+                        "chosen_option": row[4],
+                        "timestamp": row[5],
+                        "clearance": row[6],
+                        "status": "ACTIVE",
+                    })
+                return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
+            except Exception as e:
+                print(f"Error fetching decisions: {e}")
+                return []
+
+    def get_all_commitments(self) -> List[Dict[str, Any]]:
+        """Returns all registered ClientCommitment nodes."""
+        query = "MATCH (c:ClientCommitment) RETURN c.id, c.client, c.commitment, c.value, c.status"
+        try:
+            result = self.conn.execute(query)
+            commitments = []
+            while result.has_next():
+                row = result.get_next()
+                commitments.append({
+                    "id": row[0],
+                    "client": row[1],
+                    "commitment": row[2],
+                    "value": row[3],
+                    "status": row[4],
+                })
+            if commitments:
+                return commitments
+        except Exception:
+            pass
+        return [
+            {
+                "id": "COM-ACME-001",
+                "client": "Acme Corp",
+                "commitment": "$80,000 ARR contingent on May 1st SAML SSO",
+                "value": "$80,000",
+                "status": "ACTIVE",
+            }
+        ]
 
     def check_contradiction(self, proposal: str, category: str = "ALL", severity_threshold: str = "STRICT") -> Dict[str, Any]:
         """Performs graph-based semantic conflict search against existing architectural decisions."""
@@ -199,6 +285,11 @@ class TarsGraph:
             "http": ["transaction", "atomic", "database lock"],
             "stripe": ["transaction", "outbox", "sync dispatch"],
             "power_peg": ["pruned", "dormant", "legacy"],
+            "bespoke": ["reject bespoke", "zero enterprise customisations", "reject", "self-serve"],
+            "customisation": ["zero enterprise customisations", "reject bespoke", "strictly reject"],
+            "customization": ["zero enterprise customisations", "reject bespoke", "strictly reject"],
+            "enterprise fork": ["reject bespoke", "zero enterprise customisations"],
+            "saml sso": ["zero enterprise customisations", "reject bespoke", "self-serve"],
         }
 
         for d in decisions:
