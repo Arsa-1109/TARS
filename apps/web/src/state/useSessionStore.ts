@@ -57,31 +57,31 @@ export const ROLE_WORKSPACES: Record<UserRole, WorkspaceId[]> = {
 
 export const ROLES: Record<UserRole, UserProfile> = {
   FOUNDER: {
-    name: 'Aryan',
+    name: 'Alex Vance',
     role: 'FOUNDER',
     department: 'Executive',
     clearance: 'EXECUTIVE_ONLY',
   },
   PRODUCT: {
-    name: 'Marcus Vance',
+    name: 'Marcus Chen',
     role: 'PRODUCT',
     department: 'Product',
     clearance: 'ALL_TEAM',
   },
   SALES: {
-    name: 'Sarah Vance',
+    name: 'Sarah Jenkins',
     role: 'SALES',
     department: 'Sales & Growth',
     clearance: 'ALL_TEAM',
   },
   ENGINEER: {
-    name: 'Elena Rostova',
+    name: 'Dr. Elena Rostova',
     role: 'ENGINEER',
     department: 'Engineering',
     clearance: 'ALL_TEAM',
   },
   NEW_HIRE: {
-    name: 'Maya Lin',
+    name: 'Chloe Dubois',
     role: 'NEW_HIRE',
     department: 'Engineering',
     clearance: 'ALL_TEAM',

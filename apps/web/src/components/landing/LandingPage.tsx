@@ -156,9 +156,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="p-3.5 rounded-[14px] bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.08] dark:border-white/[0.10] font-mono text-[11px] space-y-2">
           <div className="flex items-center justify-between text-[#C0392B] dark:text-[#FF453A] font-bold">
             <span>[BLOCKED] INV-017: HTTP call inside DB transaction</span>
-            <span>line 84</span>
+            <span>line 22</span>
           </div>
-          <div className="text-[#6E6E73] dark:text-[#8E8E93] pl-2">File: src/payments/service.py</div>
+          <div className="text-[#6E6E73] dark:text-[#8E8E93] pl-2">File: app/services/billing.py</div>
           <div className="text-[#0071E3] dark:text-[#0A84FF] pl-2">Recommendation: Apply Transactional Outbox pattern</div>
         </div>
       ),

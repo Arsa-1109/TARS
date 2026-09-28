@@ -39,16 +39,16 @@ export class MockTarsApi implements TarsApi {
     id: 'CMP-GENESIS-01',
     company_name: 'AetherFlow AI',
     website: 'https://aetherflow.ai',
-    industry: 'AI / DevTools',
+    industry: 'Developer Tools / Sovereign AI',
     stage: 'Seed',
-    team_size: '6–15',
-    runway_months: 24,
-    one_liner: 'Autonomous self-healing streaming pipelines for distributed data architectures.',
-    core_thesis: 'Data engineering teams waste 40% of sprint capacity maintaining fragile pipelines.',
-    icp: 'Series A-C Data Platform Engineers and VP Engineering',
-    tech_stack: 'Python, TypeScript, Rust, SQLite, Apache Kafka',
+    team_size: '12 FTE',
+    runway_months: 9.0,
+    one_liner: 'Privacy-preserving sovereign institutional memory and codebase invariant operating system.',
+    core_thesis: 'Early-stage startups die of institutional context decay, code invariant breaches, and unvetted cloud AI leaks.',
+    icp: 'Regulated Enterprises, Defense Contractors, and Fast-Growing Startups',
+    tech_stack: 'Python, TypeScript, FastAPI, React 19, SQLite WAL, Kùzu Graph, Tree-sitter',
     enterprise_policy: 'REJECT_CUSTOM_FORKS',
-    pricing_model: 'USAGE_BASED',
+    pricing_model: 'TIERED_SUBSCRIPTION',
     tars_tone: 'CONCISE_EXECUTIVE',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -359,11 +359,12 @@ export class MockTarsApi implements TarsApi {
 
   // --- User & Identity Registry ---
   private mockUsers: import('../types/contracts').UserDTO[] = [
-    { id: 'usr-aryan', name: 'Aryan', email: 'aryan@tars.local', role: 'FOUNDER', department: 'Executive', clearance: 'EXECUTIVE_ONLY', created_at: Date.now() - 86400000 },
-    { id: 'usr-elena', name: 'Elena Rostova', email: 'elena@tars.local', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 72000000 },
-    { id: 'usr-marcus', name: 'Marcus Vance', email: 'marcus@tars.local', role: 'PRODUCT', department: 'Product', clearance: 'ALL_TEAM', created_at: Date.now() - 54000000 },
-    { id: 'usr-sarah', name: 'Sarah Vance', email: 'sarah@tars.local', role: 'SALES', department: 'Sales & Growth', clearance: 'ALL_TEAM', created_at: Date.now() - 36000000 },
-    { id: 'usr-maya', name: 'Maya Lin', email: 'maya@tars.local', role: 'NEW_HIRE', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 18000000 },
+    { id: 'usr-alex', name: 'Alex Vance', email: 'alex@aetherflow.ai', role: 'FOUNDER', department: 'Executive', clearance: 'EXECUTIVE_ONLY', created_at: Date.now() - 86400000 },
+    { id: 'usr-elena', name: 'Dr. Elena Rostova', email: 'elena@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 72000000 },
+    { id: 'usr-marcus', name: 'Marcus Chen', email: 'marcus@aetherflow.ai', role: 'PRODUCT', department: 'Product', clearance: 'ALL_TEAM', created_at: Date.now() - 54000000 },
+    { id: 'usr-sarah', name: 'Sarah Jenkins', email: 'sarah@aetherflow.ai', role: 'SALES', department: 'Sales & Growth', clearance: 'ALL_TEAM', created_at: Date.now() - 36000000 },
+    { id: 'usr-chloe', name: 'Chloe Dubois', email: 'chloe@aetherflow.ai', role: 'NEW_HIRE', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 18000000 },
+    { id: 'usr-liam', name: 'Liam Patel', email: 'liam@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 40000000 },
   ];
 
   async getUsers(): Promise<import('../types/contracts').UserDTO[]> {

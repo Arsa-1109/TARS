@@ -25,11 +25,12 @@ os.environ["TARS_DATA_DIR"] = TEST_TMP_DIR
 from apps.api.core.db import db
 
 CANONICAL_USER_IDS = (
-    "usr-aryan",
+    "usr-alex",
     "usr-elena",
     "usr-marcus",
     "usr-sarah",
-    "usr-maya",
+    "usr-chloe",
+    "usr-liam",
 )
 
 

@@ -196,10 +196,10 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       let reply = 'All company operations are designed for deterministic execution.';
       let cite = 'Founding Manifesto P.1';
 
-      if (userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom')) {
+      if (userMsg.toLowerCase().includes('bdr-014') || userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom')) {
         reply =
-          'Decision #14 was ratified to protect cash runway and prevent Bus Factor = 1 amnesia. With a 4-person team, maintaining bespoke branches diverts 50% of founder capacity and delays the core self-serve product.';
-        cite = 'Decision #14 (ADR Ratified 2026-09-14)';
+          'BDR-014 was ratified 2026-09-12 to protect cash runway and prevent Bus Factor = 1 amnesia. With a 12-person team, maintaining bespoke forks diverts senior engineering capacity and delays the core self-serve product. SAML SSO is the sole exception under BDR-018.';
+        cite = 'BDR-014 (Ratified 2026-09-12) · BDR-018 (Exception Log)';
       } else if (userMsg.toLowerCase().includes('inv-017') || userMsg.toLowerCase().includes('transaction')) {
         reply =
           'INV-017 strictly prevents wrapping outbound HTTP calls inside database transactions. If external APIs experience latency, database row locks remain open, exhausting connection pools.';

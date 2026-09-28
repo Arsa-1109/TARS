@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Drawer } from '../primitives/Drawer';
 import { ActionItemDTO } from '../../types/contracts';
 import { ActionItemRow } from './ActionItemRow';
@@ -187,10 +187,12 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                 onChange={(e) => setOwner(e.target.value)}
                 className="px-2.5 py-1.5 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
               >
-                <option value="Aryan (Founder)">Aryan (Founder)</option>
-                <option value="Mir Farzin (Lead)">Mir Farzin (Lead)</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Product">Product</option>
+                <option value="Alex Vance">Alex Vance (CEO)</option>
+                <option value="Dr. Elena Rostova">Dr. Elena Rostova (CTO)</option>
+                <option value="Marcus Chen">Marcus Chen (Product)</option>
+                <option value="Sarah Jenkins">Sarah Jenkins (Sales)</option>
+                <option value="Liam Patel">Liam Patel (Backend)</option>
+                <option value="Chloe Dubois">Chloe Dubois (Frontend)</option>
               </select>
 
               <select

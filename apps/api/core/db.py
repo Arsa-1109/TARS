@@ -203,11 +203,12 @@ class LocalDB:
 
         # Seed default demo personas if table is empty
         default_personas = [
-            ("usr-aryan", "Aryan", "aryan@tars.local", "FOUNDER", "Executive", "EXECUTIVE_ONLY"),
-            ("usr-elena", "Elena Rostova", "elena@tars.local", "ENGINEER", "Engineering", "ALL_TEAM"),
-            ("usr-marcus", "Marcus Vance", "marcus@tars.local", "PRODUCT", "Product", "ALL_TEAM"),
-            ("usr-sarah", "Sarah Vance", "sarah@tars.local", "SALES", "Sales & Growth", "ALL_TEAM"),
-            ("usr-maya", "Maya Lin", "maya@tars.local", "NEW_HIRE", "Engineering", "ALL_TEAM"),
+            ("usr-alex", "Alex Vance", "alex@aetherflow.ai", "FOUNDER", "Executive", "EXECUTIVE_ONLY"),
+            ("usr-elena", "Dr. Elena Rostova", "elena@aetherflow.ai", "ENGINEER", "Engineering", "ALL_TEAM"),
+            ("usr-marcus", "Marcus Chen", "marcus@aetherflow.ai", "PRODUCT", "Product", "ALL_TEAM"),
+            ("usr-sarah", "Sarah Jenkins", "sarah@aetherflow.ai", "SALES", "Sales & Growth", "ALL_TEAM"),
+            ("usr-chloe", "Chloe Dubois", "chloe@aetherflow.ai", "NEW_HIRE", "Engineering", "ALL_TEAM"),
+            ("usr-liam", "Liam Patel", "liam@aetherflow.ai", "ENGINEER", "Engineering", "ALL_TEAM"),
         ]
         import time as _t
         now_ts = int(_t.time())

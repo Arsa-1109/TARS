@@ -7,6 +7,7 @@ import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
 import { DecisionItem, SearchCitation } from '../../types/contracts';
+import { MOCK_THINKTANK_CHANNELS, MOCK_THINKTANK_MESSAGES } from '../../mocks/fixtures';
 import {
   MessageSquare,
   Send,
@@ -37,10 +38,12 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   }, []);
 
   const [channels, setChannels] = useState<{ id: string; name: string; topic: string }[]>([
+    ...MOCK_THINKTANK_CHANNELS,
     { id: 'general', name: '#general', topic: 'Company strategic alignment & cross-functional topics' }
   ]);
-  const [activeChannelId, setActiveChannelId] = useState('general');
+  const [activeChannelId, setActiveChannelId] = useState(MOCK_THINKTANK_CHANNELS[0]?.id || 'general');
   const [messages, setMessages] = useState<Record<string, Array<{ id: string; sender: string; time: string; text: string; isAi?: boolean; provenance?: string }>>>({
+    ...MOCK_THINKTANK_MESSAGES,
     general: [
       {
         id: 'msg-welcome',
