@@ -224,12 +224,21 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
         user_role: userRole,
       });
 
-      if (searchRes && searchRes.citations && searchRes.citations.length > 0) {
+      if (searchRes && searchRes.answer && searchRes.answer.trim().length > 0 && !searchRes.answer.startsWith('Found 0')) {
+        let reply = searchRes.answer;
+        const cite = (searchRes.citations && searchRes.citations.length > 0)
+          ? `${searchRes.citations[0].doc_title} (P.${searchRes.citations[0].page_number || 1})`
+          : 'TARS Institutional Intelligence (qwen2.5:1.5b)';
+        if (searchRes.citations && searchRes.citations.length > 0 && !reply.includes(searchRes.citations[0].snippet)) {
+          reply = `${reply}\n\nTop insight: "${searchRes.citations[0].snippet}"`;
+        }
+        setMentorMessages((prev) => [
+          ...prev,
+          { sender: 'mentor', text: reply, citation: cite },
+        ]);
+      } else if (searchRes && searchRes.citations && searchRes.citations.length > 0) {
         const topCitation = searchRes.citations[0];
-        const reply =
-          searchRes.answer && !searchRes.answer.startsWith('Found ')
-            ? `${searchRes.answer}\n\nTop insight: "${topCitation.snippet}"`
-            : `According to internal record '${topCitation.doc_title}': "${topCitation.snippet}"`;
+        const reply = `According to internal record '${topCitation.doc_title}': "${topCitation.snippet}"`;
         const cite = `${topCitation.doc_title} (P.${topCitation.page_number || 1})`;
         setMentorMessages((prev) => [
           ...prev,

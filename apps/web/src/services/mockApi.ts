@@ -114,18 +114,50 @@ export class MockTarsApi implements TarsApi {
 
 
   async search(req: SearchRequest): Promise<SearchResponse> {
-    await sleep(65);
-    const q = req.query.toLowerCase();
-    if (q.includes('saml') || q.includes('sso') || q.includes('acme') || q.includes('commitment')) {
-      return MOCK_SEARCH_RESULTS.saml;
-    }
-    if (req.query.trim().length === 0) {
+    if (!req.query || req.query.trim().length === 0) {
       return {
         query: "",
         answer: "Please enter a search query to search across company documents, past decisions, client transcripts, and architectural records.",
         citations: [],
         latency_ms: 12.4
       };
+    }
+
+    // Pass through to local backend SLM (Qwen) if available
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const res = await fetch('/api/core/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const liveRes = await res.json();
+        if (liveRes && liveRes.answer && !liveRes.answer.startsWith('Found 0 relevant')) {
+          const q = req.query.toLowerCase();
+          const fallbackCits = (q.includes('saml') || q.includes('sso') || q.includes('acme'))
+            ? MOCK_SEARCH_RESULTS.saml.citations
+            : MOCK_SEARCH_RESULTS.default.citations;
+          return {
+            query: liveRes.query || req.query,
+            answer: liveRes.answer,
+            citations: Array.isArray(liveRes.citations) && liveRes.citations.length > 0
+              ? liveRes.citations
+              : fallbackCits,
+            latency_ms: liveRes.latency_ms || 28.5,
+          };
+        }
+      }
+    } catch {
+      // Local backend offline or timed out; fall back to canonical fixtures
+    }
+
+    const q = req.query.toLowerCase();
+    if (q.includes('saml') || q.includes('sso') || q.includes('acme') || q.includes('commitment')) {
+      return MOCK_SEARCH_RESULTS.saml;
     }
     return {
       ...MOCK_SEARCH_RESULTS.default,
