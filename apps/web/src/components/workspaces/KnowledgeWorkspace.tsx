@@ -246,12 +246,6 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                     </button>
                   ))}
                 </div>
-
-                {result && (
-                  <div className="text-[12px] text-[#86868B] dark:text-[#8E8E93] tabular-nums font-normal">
-                    {result.latency_ms}ms retrieval
-                  </div>
-                )}
               </div>
             </form>
 
