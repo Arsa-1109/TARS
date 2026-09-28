@@ -336,8 +336,12 @@ async def reset_workspace(payload: WorkspaceResetRequest):
 
     # Mirror changes to .tars/vault.db if present
     try:
-        vault_path = os.path.join(os.getcwd(), ".tars", "vault.db")
-        if os.path.exists(vault_path):
+        if os.getenv("TARS_IS_TEST") == "1" or os.getenv("TARS_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST"):
+            vault_path = os.getenv("TARS_VAULT_PATH")
+        else:
+            vault_path = os.getenv("TARS_VAULT_PATH", os.path.join(os.getcwd(), ".tars", "vault.db"))
+
+        if vault_path and os.path.exists(vault_path):
             import sqlite3
             with sqlite3.connect(vault_path) as v_conn:
                 if reset_type in {"ALL", "DEMO_ONLY", "DOCUMENTS"}:

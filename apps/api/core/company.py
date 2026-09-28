@@ -184,8 +184,12 @@ class CompanyProfileRepository:
 
         # Synchronise with .tars/vault.db if accessible
         try:
-            vault_path = os.path.join(os.getcwd(), ".tars", "vault.db")
-            if os.path.abspath(vault_path) != os.path.abspath(DB_PATH):
+            if os.getenv("TARS_IS_TEST") == "1" or os.getenv("TARS_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST"):
+                vault_path = os.getenv("TARS_VAULT_PATH")
+            else:
+                vault_path = os.getenv("TARS_VAULT_PATH", os.path.join(os.getcwd(), ".tars", "vault.db"))
+
+            if vault_path and os.path.abspath(vault_path) != os.path.abspath(db.db_path):
                 vault_conn = sqlite3.connect(vault_path)
                 try:
                     vault_conn.execute('ALTER TABLE company_profile ADD COLUMN is_bloomed INTEGER DEFAULT 1')

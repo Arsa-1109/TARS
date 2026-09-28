@@ -4,29 +4,58 @@ import os
 import threading
 from typing import Optional, List, Dict, Any
 
-DB_PATH = os.getenv("TARS_DB_PATH", "tars_local.db")
+def get_db_path() -> str:
+    return os.getenv("TARS_DB_PATH", "tars_local.db")
+
+DB_PATH = get_db_path()
 
 class LocalDB:
     def __init__(self):
         self.local = threading.local()
 
+    @property
+    def db_path(self) -> str:
+        return get_db_path()
+
     def get_connection(self):
-        if not hasattr(self.local, "conn"):
-            # Ensure database directory exists
-            os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
-            self.local.conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-            self.local.conn.row_factory = sqlite3.Row
+        target_path = self.db_path
+        conn = getattr(self.local, "conn", None)
+        conn_path = getattr(self.local, "conn_path", None)
+
+        if conn is None or conn_path != target_path:
+            if conn is not None:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            db_dir = os.path.dirname(os.path.abspath(target_path))
+            if db_dir:
+                os.makedirs(db_dir, exist_ok=True)
+            conn = sqlite3.connect(target_path, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            self.local.conn = conn
+            self.local.conn_path = target_path
             # Try loading sqlite-vec extension if available
             try:
                 import sqlite_vec
-                self.local.conn.enable_load_extension(True)
-                sqlite_vec.load(self.local.conn)
-                self.local.conn.enable_load_extension(False)
+                conn.enable_load_extension(True)
+                sqlite_vec.load(conn)
+                conn.enable_load_extension(False)
             except ImportError:
-                print("sqlite_vec module not found. Using simple fallback search.")
+                pass
             except Exception as e:
                 print(f"Warning: sqlite-vec could not be loaded: {e}")
         return self.local.conn
+
+    def close_connection(self):
+        conn = getattr(self.local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self.local.conn = None
+            self.local.conn_path = None
 
     def initialize(self):
         conn = self.get_connection()
@@ -192,10 +221,16 @@ class LocalDB:
 
         # Guarantee synchronisation with sovereign vault database (.tars/vault.db)
         try:
-            vault_dir = os.path.join(os.getcwd(), ".tars")
-            os.makedirs(vault_dir, exist_ok=True)
-            vault_path = os.path.join(vault_dir, "vault.db")
-            if os.path.abspath(vault_path) != os.path.abspath(DB_PATH):
+            if os.getenv("TARS_IS_TEST") == "1" or os.getenv("TARS_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST"):
+                vault_path = os.getenv("TARS_VAULT_PATH")
+                if not vault_path:
+                    return
+            else:
+                vault_dir = os.path.join(os.getcwd(), ".tars")
+                os.makedirs(vault_dir, exist_ok=True)
+                vault_path = os.getenv("TARS_VAULT_PATH", os.path.join(vault_dir, "vault.db"))
+
+            if os.path.abspath(vault_path) != os.path.abspath(self.db_path):
                 vault_conn = sqlite3.connect(vault_path)
                 vault_conn.execute('''
                     CREATE TABLE IF NOT EXISTS users (

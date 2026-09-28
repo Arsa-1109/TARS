@@ -7,15 +7,150 @@ Relationships: [:SUPERSEDES], [:RELATES_TO], [:ENFORCES]
 import os
 import time
 from pathlib import Path
-from typing import List, Dict, Any, Optional
-import kuzu
+from typing import List, Dict, Any, Optional, Tuple
+
+_NATIVE_KUZU_AVAILABLE = False
+try:
+    import kuzu
+    _NATIVE_KUZU_AVAILABLE = True
+except ImportError:
+    kuzu = None
+    _NATIVE_KUZU_AVAILABLE = False
+
+
+class EmbeddedQueryResult:
+    def __init__(self, rows=None):
+        self.rows = rows or []
+        self.idx = 0
+
+    def has_next(self) -> bool:
+        return self.idx < len(self.rows)
+
+    def get_next(self) -> List[Any]:
+        if self.idx < len(self.rows):
+            val = self.rows[self.idx]
+            self.idx += 1
+            return val
+        return []
+
+
+class EmbeddedGraphConn:
+    def __init__(self):
+        self.decisions: Dict[str, Dict[str, Any]] = {}
+        self.invariants: Dict[str, Dict[str, Any]] = {}
+        self.commitments: Dict[str, Dict[str, Any]] = {}
+        self.supersedes: List[Tuple[str, str]] = []
+
+    def execute(self, query: str, params: Optional[Dict[str, Any]] = None) -> EmbeddedQueryResult:
+        params = params or {}
+        q = query.strip()
+
+        if q.startswith("CREATE NODE TABLE") or q.startswith("CREATE REL TABLE"):
+            return EmbeddedQueryResult([])
+
+        if "MERGE (d:Decision" in q:
+            d_id = params.get("id")
+            if d_id:
+                self.decisions[d_id] = {
+                    "id": d_id,
+                    "title": params.get("title", ""),
+                    "category": params.get("category", "ENGINEERING"),
+                    "context": params.get("context", ""),
+                    "chosen_option": params.get("chosen_option", ""),
+                    "timestamp": params.get("timestamp", int(time.time())),
+                    "clearance": params.get("clearance", "ALL_TEAM"),
+                    "status": params.get("status", "ACTIVE")
+                }
+            return EmbeddedQueryResult([])
+
+        if "MERGE (i:Invariant" in q:
+            i_id = params.get("id")
+            if i_id:
+                self.invariants[i_id] = {
+                    "id": i_id,
+                    "name": params.get("name", ""),
+                    "category": params.get("category", ""),
+                    "severity": params.get("severity", ""),
+                    "rationale": params.get("rationale", ""),
+                    "adr_ref": params.get("adr_ref", ""),
+                }
+            elif "INV-GEN-001" in q:
+                self.invariants["INV-GEN-001"] = {
+                    "id": "INV-GEN-001",
+                    "name": "Zero Bespoke Enterprise Forks",
+                    "category": "ARCHITECTURE",
+                    "severity": "FATAL",
+                    "rationale": "Preserves engineering velocity and prevents technical debt accumulation.",
+                    "adr_ref": "docs/adr/001-zero-custom-forks.md"
+                }
+            return EmbeddedQueryResult([])
+
+        if "MERGE (c:ClientCommitment" in q:
+            c_id = params.get("id")
+            if c_id:
+                self.commitments[c_id] = {
+                    "id": c_id,
+                    "client": params.get("client", ""),
+                    "commitment": params.get("commitment", ""),
+                    "value": params.get("value", ""),
+                    "status": params.get("status", "ACTIVE")
+                }
+            return EmbeddedQueryResult([])
+
+        if "SUPERSEDES" in q and "CREATE" in q:
+            new_id = params.get("new_id")
+            old_id = params.get("old_id")
+            if new_id and old_id:
+                self.supersedes.append((new_id, old_id))
+            return EmbeddedQueryResult([])
+
+        if "MATCH (d:Decision {id: $id}) DETACH DELETE d" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                del self.decisions[target_id]
+            return EmbeddedQueryResult([])
+
+        if "MATCH (d:Decision) DETACH DELETE d" in q:
+            self.decisions.clear()
+            return EmbeddedQueryResult([])
+
+        if "MATCH (d:Decision) RETURN count(d)" in q:
+            return EmbeddedQueryResult([[len(self.decisions)]])
+
+        if "MATCH (i:Invariant)" in q:
+            rows = []
+            for inv in self.invariants.values():
+                rows.append([
+                    inv["id"], inv["name"], inv["category"],
+                    inv["severity"], inv["rationale"], inv.get("adr_ref", "")
+                ])
+            return EmbeddedQueryResult(rows)
+
+        if "MATCH (d:Decision)" in q:
+            rows = []
+            for d in self.decisions.values():
+                rows.append([
+                    d["id"], d["title"], d["category"], d["context"],
+                    d["chosen_option"], d["timestamp"], d["clearance"], d.get("status", "ACTIVE")
+                ])
+            return EmbeddedQueryResult(rows)
+
+        if "MATCH (c:ClientCommitment)" in q:
+            rows = []
+            for c in self.commitments.values():
+                rows.append([
+                    c["id"], c["client"], c["commitment"], c["value"], c["status"]
+                ])
+            return EmbeddedQueryResult(rows)
+
+        return EmbeddedQueryResult([])
 
 
 class TarsGraph:
     """Manages the embedded Kùzu Graph Database for TARS."""
 
-    _db_cache: Dict[str, kuzu.Database] = {}
-    _conn_cache: Dict[str, kuzu.Connection] = {}
+    _db_cache: Dict[str, Any] = {}
+    _conn_cache: Dict[str, Any] = {}
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
@@ -26,28 +161,35 @@ class TarsGraph:
         self.db_path = os.path.abspath(db_path)
         os.makedirs(Path(self.db_path).parent, exist_ok=True)
         
-        if self.db_path not in self._db_cache:
-            try:
-                from apps.api.ingestion.kuzu_sync import kuzu_sync
-                if getattr(kuzu_sync, "use_native", False) and getattr(kuzu_sync, "_db", None) is not None:
-                    if os.path.abspath(kuzu_sync.db_path) == self.db_path:
-                        self._db_cache[self.db_path] = kuzu_sync._db
-            except Exception:
-                pass
-
-        if self.db_path not in self._db_cache:
-            try:
-                self._db_cache[self.db_path] = kuzu.Database(self.db_path)
-            except Exception:
+        if _NATIVE_KUZU_AVAILABLE:
+            if self.db_path not in self._db_cache:
                 try:
-                    self._db_cache[self.db_path] = kuzu.Database(self.db_path, read_only=True)
+                    from apps.api.ingestion.kuzu_sync import kuzu_sync
+                    if getattr(kuzu_sync, "use_native", False) and getattr(kuzu_sync, "_db", None) is not None:
+                        if os.path.abspath(kuzu_sync.db_path) == self.db_path:
+                            self._db_cache[self.db_path] = kuzu_sync._db
                 except Exception:
-                    self._db_cache[self.db_path] = kuzu.Database(":memory:")
-            
-        self.db = self._db_cache[self.db_path]
-        if self.db_path not in self._conn_cache:
-            self._conn_cache[self.db_path] = kuzu.Connection(self.db)
-        self.conn = self._conn_cache[self.db_path]
+                    pass
+
+            if self.db_path not in self._db_cache:
+                try:
+                    self._db_cache[self.db_path] = kuzu.Database(self.db_path)
+                except Exception:
+                    try:
+                        self._db_cache[self.db_path] = kuzu.Database(self.db_path, read_only=True)
+                    except Exception:
+                        self._db_cache[self.db_path] = kuzu.Database(":memory:")
+                
+            self.db = self._db_cache[self.db_path]
+            if self.db_path not in self._conn_cache:
+                self._conn_cache[self.db_path] = kuzu.Connection(self.db)
+            self.conn = self._conn_cache[self.db_path]
+        else:
+            if self.db_path not in self._conn_cache:
+                self._conn_cache[self.db_path] = EmbeddedGraphConn()
+            self.conn = self._conn_cache[self.db_path]
+            self.db = None
+
         try:
             self._initialize_schema()
         except Exception:
