@@ -17,3 +17,5 @@ PyYAML
 sqlite-vec
 faster-whisper
 markitdown
+mcp
+openpyxl
