@@ -62,3 +62,4 @@ playwright-report/
 
 # Ignore markdown files
 *.md
+*.pdf
