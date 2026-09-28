@@ -20,8 +20,6 @@ import {
   ExternalLink,
   Plus,
 } from 'lucide-react';
-import { api } from '../../services/client';
-import { SearchCitation } from '../../types/contracts';
 
 interface ThinkTankWorkspaceProps {
   onNavigateDecision: (decId: string) => void;
