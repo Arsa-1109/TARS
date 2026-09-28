@@ -55,6 +55,7 @@ export function App() {
   } = useNavigationStore();
 
   const [showLanding, setShowLanding] = useState(!isAuthenticated);
+  const [appVisible, setAppVisible] = useState(isAuthenticated);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [roleOnboardingOpen, setRoleOnboardingOpen] = useState(false);
@@ -68,6 +69,21 @@ export function App() {
     requiredClearance: 'EXECUTIVE_ONLY',
   });
 
+  const transitionToApp = () => {
+    // Apple-style: brief dissolve before revealing the workspace shell
+    setTimeout(() => {
+      setShowLanding(false);
+      setAppVisible(true);
+    }, 220);
+  };
+
+  const transitionToLanding = () => {
+    setAppVisible(false);
+    setTimeout(() => {
+      setShowLanding(true);
+    }, 220);
+  };
+
   const [actionItems, setActionItems] = useState<ActionItemDTO[]>([]);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -80,7 +96,7 @@ export function App() {
   // Update landing view state if authentication status changes
   useEffect(() => {
     if (!isAuthenticated) {
-      setShowLanding(true);
+      transitionToLanding();
     }
   }, [isAuthenticated]);
 
@@ -111,15 +127,6 @@ export function App() {
         requiredClearance: 'EXECUTIVE_ONLY (Level 3)',
       });
       return;
-    }
-    const currentDomainCfg = WORKSPACE_DOMAINS[activeDomain];
-    if (currentDomainCfg && !currentDomainCfg.allowedWorkspaces.includes(targetWs)) {
-      const targetDomainEntry = Object.values(WORKSPACE_DOMAINS).find(
-        (d) => d.allowedWorkspaces.includes(targetWs) && d.allowedRoles.includes(currentRole)
-      );
-      if (targetDomainEntry) {
-        switchDomain(targetDomainEntry.id);
-      }
     }
     setWorkspace(targetWs);
   };
@@ -189,7 +196,7 @@ export function App() {
           }}
           onLaunchDemo={() => {
             login('FOUNDER');
-            setShowLanding(false);
+            transitionToApp();
           }}
           theme={theme}
           onToggleTheme={toggleTheme}
@@ -200,7 +207,7 @@ export function App() {
           onClose={() => setAuthModalOpen(false)}
           onLogin={(role) => {
             login(role);
-            setShowLanding(false);
+            transitionToApp();
           }}
           initialMode={authModalMode}
         />
@@ -209,6 +216,10 @@ export function App() {
   }
 
   return (
+    <div
+      className={`transition-opacity duration-200 ease-in-out ${appVisible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ willChange: 'opacity' }}
+    >
     <AppShell
       currentWorkspace={workspace}
       onSelectWorkspace={handleSelectWorkspace}
@@ -218,71 +229,72 @@ export function App() {
       onOpenSettings={() => setSettingsOpen(true)}
       onOpenVoiceMemo={() => setVoiceMemoOpen(true)}
       onOpenOnboarding={() => setRoleOnboardingOpen(true)}
-      onGoToLanding={() => setShowLanding(true)}
+      onGoToLanding={() => transitionToLanding()}
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}
-      onSwitchRole={setRole}
       onLogout={() => {
         logout();
-        setShowLanding(true);
+        transitionToLanding();
       }}
       theme={theme}
       onToggleTheme={toggleTheme}
     >
-      {/* Workspace Routing */}
-      {workspace === 'knowledge' && (
-        <KnowledgeWorkspace
-          onOpenCitation={openCitation}
-          userRole={currentRole}
-          clearance={profile.clearance}
-        />
-      )}
+      {/* Workspace Routing with Apple subtle fade transition */}
+      <div key={workspace} className="animate-fade-in">
+        {workspace === 'knowledge' && (
+          <KnowledgeWorkspace
+            onOpenCitation={openCitation}
+            userRole={currentRole}
+            clearance={profile.clearance}
+          />
+        )}
 
-      {workspace === 'calls' && (
-        <CallStudioWorkspace
-          activeCallId={activeCallId}
-          onSelectCall={setActiveCallId}
-          onPromoteAction={handlePromoteCommitment}
-        />
-      )}
+        {workspace === 'calls' && (
+          <CallStudioWorkspace
+            activeCallId={activeCallId}
+            onSelectCall={setActiveCallId}
+            onPromoteAction={handlePromoteCommitment}
+          />
+        )}
 
-      {workspace === 'onboarding' && (
-        <OnboardingWorkspace
-          userRole={currentRole}
-          onOpenCitation={(title, snippet) =>
-            openCitation({
-              doc_id: 'DOC-FOUNDING',
-              doc_title: title,
-              page_number: 1,
-              snippet,
-            })
-          }
-        />
-      )}
+        {workspace === 'onboarding' && (
+          <OnboardingWorkspace
+            userRole={currentRole}
+            onOpenCitation={(title, snippet) =>
+              openCitation({
+                doc_id: 'DOC-FOUNDING',
+                doc_title: title,
+                page_number: 1,
+                snippet,
+              })
+            }
+          />
+        )}
 
-      {workspace === 'thinktank' && (
-        <ThinkTankWorkspace
-          onNavigateDecision={(decId) => {
-            setActiveDecisionId(decId);
-            setWorkspace('decisions');
-          }}
-        />
-      )}
+        {workspace === 'thinktank' && (
+          <ThinkTankWorkspace
+            onNavigateDecision={(decId) => {
+              setActiveDecisionId(decId);
+              setWorkspace('decisions');
+            }}
+          />
+        )}
 
-      {workspace === 'decisions' && (
-        <DecisionsWorkspace
-          activeDecisionId={activeDecisionId}
-          onSelectDecision={setActiveDecisionId}
-        />
-      )}
+        {workspace === 'decisions' && (
+          <DecisionsWorkspace
+            activeDecisionId={activeDecisionId}
+            onSelectDecision={setActiveDecisionId}
+          />
+        )}
 
-      {workspace === 'architecture' && (
-        <ArchitectureWorkspace
-          activeFindingId={activeFindingId}
-          onSelectFinding={setActiveFindingId}
-        />
-      )}
+        {workspace === 'architecture' && (
+          <ArchitectureWorkspace
+            activeFindingId={activeFindingId}
+            onSelectFinding={setActiveFindingId}
+          />
+        )}
+      </div>
 
       {/* Global Unified Action Hub Drawer */}
       <ActionHubDrawer
@@ -352,6 +364,7 @@ export function App() {
         }}
       />
     </AppShell>
+    </div>
   );
 }
 

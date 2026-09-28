@@ -126,7 +126,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             }`}
           >
             <div className="flex items-center gap-2">
-              <Phone className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+              <Phone className="w-3.5 h-3.5 text-black dark:text-white" />
               <span>{call.client_name}</span>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${
@@ -142,29 +142,29 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         ))}
       </div>
 
-      {/* Apple Audio Player Surface with Waveform Scrubber */}
-      <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 shadow-sm space-y-4">
+      {/* Apple Podcasts/Voice Memos-Style Audio Player */}
+      <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] p-5 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-bold tracking-tight text-black dark:text-white">
+            <h3 className="text-base font-semibold tracking-tight text-black dark:text-white">
               {selectedCall.client_name}
             </h3>
-            <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
-              Recorded: {selectedCall.recorded_at} • Duration: {formatSeconds(selectedCall.audio_duration_seconds)}
+            <p className="text-xs text-[#86868B] dark:text-[#8E8E93] mt-0.5">
+              {selectedCall.recorded_at} · {formatSeconds(selectedCall.audio_duration_seconds)}
             </p>
           </div>
 
           <div className="flex items-center gap-2.5">
             {/* Speed Toggles */}
-            <div className="flex items-center rounded-[8px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.04] dark:bg-white/[0.08] p-0.5 text-xs font-mono">
+            <div className="flex items-center rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] p-0.5 text-xs">
               {[1, 1.25, 1.5, 2].map((spd) => (
                 <button
                   key={spd}
                   onClick={() => setPlaybackSpeed(spd)}
-                  className={`px-2 py-0.5 rounded-[6px] text-[11px] font-medium transition-all ${
+                  className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
                     playbackSpeed === spd
-                      ? 'bg-white dark:bg-[#2C2C2E] text-black dark:text-white shadow-2xs font-bold'
-                      : 'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white'
+                      ? 'bg-white dark:bg-[#323236] text-black dark:text-white shadow-xs font-semibold'
+                      : 'text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white'
                   }`}
                 >
                   {spd}x
@@ -175,21 +175,21 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             <Button
               variant="primary"
               size="sm"
-              icon={isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+              icon={isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
               onClick={() => setIsPlaying(!isPlaying)}
             >
-              {isPlaying ? 'Pause' : 'Play Audio'}
+              {isPlaying ? 'Pause' : 'Play'}
             </Button>
-            <div className="text-xs font-mono text-[#6E6E73] dark:text-[#8E8E93] tabular-nums">
+            <div className="text-xs text-[#86868B] dark:text-[#8E8E93] tabular-nums font-mono">
               {formatSeconds(playbackSeconds)} / {formatSeconds(selectedCall.audio_duration_seconds)}
             </div>
           </div>
         </div>
 
-        {/* Dynamic Waveform Visualizer & Scrubber */}
+        {/* Apple Dynamic Waveform Visualizer */}
         <div className="space-y-1.5">
           <div
-            className="h-12 w-full flex items-end gap-[3px] py-1 px-2 rounded-[14px] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 cursor-pointer overflow-hidden border border-black/[0.04] dark:border-white/[0.06]"
+            className="h-12 w-full flex items-end gap-[3px] py-1 px-3 rounded-[12px] bg-black/[0.03] dark:bg-white/[0.04] cursor-pointer overflow-hidden"
             onClick={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const clickX = e.clientX - rect.left;
@@ -206,8 +206,8 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                   style={{ height: `${barHeight}%` }}
                   className={`flex-1 rounded-full transition-all duration-75 ${
                     isPast
-                      ? 'bg-[#0071E3] dark:bg-[#0A84FF]'
-                      : 'bg-black/[0.12] dark:bg-white/[0.15] hover:bg-black/[0.25] dark:hover:bg-white/[0.30]'
+                      ? 'bg-black dark:bg-white'
+                      : 'bg-black/[0.12] dark:bg-white/[0.14] hover:bg-black/[0.25] dark:hover:bg-white/[0.28]'
                   }`}
                 />
               );
@@ -397,7 +397,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                         variant={isPromoted ? 'ghost' : 'secondary'}
                         size="sm"
                         disabled={isPromoted}
-                        icon={isPromoted ? <CheckCircle2 className="w-3.5 h-3.5 text-[#34C759] dark:text-[#30D158]" /> : <Plus className="w-3.5 h-3.5" />}
+                        icon={isPromoted ? <CheckCircle2 className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Plus className="w-3.5 h-3.5" />}
                         onClick={() => handlePromote(comm, idx)}
                         className="shrink-0 text-xs"
                       >

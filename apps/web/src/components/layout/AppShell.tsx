@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { WorkspaceId, UserRole, UserProfile } from '../../types/contracts';
 import { WorkspaceDomain } from '../../state/useSessionStore';
 import { TopBar } from './TopBar';
@@ -29,7 +29,6 @@ interface AppShellProps {
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  onSwitchRole?: (role: UserRole) => void;
   children: React.ReactNode;
 }
 
@@ -49,7 +48,6 @@ export const AppShell: React.FC<AppShellProps> = ({
   onLogout,
   theme,
   onToggleTheme,
-  onSwitchRole,
   children,
 }) => {
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
@@ -73,7 +71,6 @@ export const AppShell: React.FC<AppShellProps> = ({
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}
-        onSwitchRole={onSwitchRole}
       />
 
       {/* Main Viewport */}
@@ -117,8 +114,8 @@ export const AppShell: React.FC<AppShellProps> = ({
                 onClick={() => { setMoreSheetOpen(false); onOpenSettings(); }}
                 className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] flex items-center gap-2.5 text-left"
               >
-                <div className="w-8 h-8 rounded-[10px] bg-[#0071E3]/[0.10] dark:bg-[#0A84FF]/[0.12] flex items-center justify-center">
-                  <Sliders className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                <div className="w-8 h-8 rounded-[10px] bg-black/[0.06] dark:bg-white/[0.08] flex items-center justify-center">
+                  <Sliders className="w-4 h-4 text-black dark:text-white" />
                 </div>
                 <span className="text-[13px] font-medium text-black dark:text-white">Setup</span>
               </button>
@@ -155,7 +152,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           {/* Footer controls */}
           <div className="pt-2 flex items-center justify-between border-t border-black/[0.07] dark:border-white/[0.07]">
             <div className="flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-[#8E8E93]">
-              <Shield className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" />
+              <Shield className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
               <span className="font-mono">0.00 KB Egress</span>
             </div>
             <button

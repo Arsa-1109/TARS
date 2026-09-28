@@ -17,10 +17,10 @@ export const InlineNotice: React.FC<InlineNoticeProps> = ({
   className = '',
 }) => {
   const styles = {
-    info:     'bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0071E3] dark:text-[#0A84FF] border-[#0071E3]/[0.18] dark:border-[#0A84FF]/[0.22]',
+    info:     'bg-black/[0.04] dark:bg-white/[0.06] text-black dark:text-white border-black/[0.08] dark:border-white/[0.12]',
     warning:  'bg-[#FF9500]/[0.10] dark:bg-[#FF9F0A]/[0.12] text-[#B25000] dark:text-[#FF9F0A] border-[#FF9500]/[0.22] dark:border-[#FF9F0A]/[0.22]',
     critical: 'bg-[#FF3B30]/[0.08] dark:bg-[#FF453A]/[0.10] text-[#C0392B] dark:text-[#FF453A] border-[#FF3B30]/[0.18] dark:border-[#FF453A]/[0.22]',
-    success:  'bg-[#34C759]/[0.08] dark:bg-[#30D158]/[0.10] text-[#1D8348] dark:text-[#30D158] border-[#34C759]/[0.18] dark:border-[#30D158]/[0.22]',
+    success:  'bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0A84FF] dark:text-[#0A84FF] border-[#0071E3]/[0.18] dark:border-[#0A84FF]/[0.22]',
   };
 
   const icons = {

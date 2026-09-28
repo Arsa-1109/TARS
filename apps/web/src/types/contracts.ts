@@ -94,11 +94,26 @@ export interface ActionItemDTO {
   id: string;
   description: string;
   owner: string;
+  title?: string;
+  priority?: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
+  department?: string;
   deadline?: number | null;
   status: 'OPEN' | 'IN_PROGRESS' | 'DONE';
   source_type: 'CALL' | 'DECISION' | 'CHAT' | 'ARCHITECTURE';
   source_id: string;
   source_offset: string;
+}
+
+// Cursor MCP Config
+export interface CursorMcpConfig {
+  mcpServers: Record<
+    string,
+    {
+      command: string;
+      args: string[];
+      env?: Record<string, string>;
+    }
+  >;
 }
 
 // Role Profile

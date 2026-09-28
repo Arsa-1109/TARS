@@ -23,30 +23,29 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const base =
-    'inline-flex items-center justify-center font-medium transition-all duration-150 ' +
+    'inline-flex items-center justify-center font-medium transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]/40 dark:focus-visible:ring-[#0A84FF]/40 ' +
-    'disabled:opacity-50 disabled:pointer-events-none select-none active:scale-[0.98]';
+    'disabled:opacity-40 disabled:pointer-events-none select-none active:scale-[0.97] cursor-pointer';
 
   const sizes = {
-    xs: 'text-[11px] px-2.5 py-1 h-7 gap-1 rounded-lg',
-    sm: 'text-xs px-3 py-1.5 h-8 gap-1.5 rounded-[10px]',
-    md: 'text-sm px-4 py-2 h-9 gap-2 rounded-[12px]',
-    lg: 'text-sm px-5 py-2.5 h-11 gap-2 rounded-[14px]',
+    xs: 'text-[11px] px-2.5 py-1 h-7 gap-1 rounded-full',
+    sm: 'text-xs px-3 py-1.5 h-8 gap-1.5 rounded-full',
+    md: 'text-[13px] px-4 py-2 h-9 gap-2 rounded-full',
+    lg: 'text-sm px-5 py-2.5 h-10 gap-2 rounded-full',
   };
 
   const variants = {
     primary:
-      'bg-black text-white hover:bg-[#1C1C1E] dark:bg-white dark:text-black dark:hover:bg-[#E5E5EA] shadow-sm',
+      'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm font-medium',
     accent:
-      'bg-[#0071E3] text-white hover:bg-[#0077ED] dark:bg-[#0A84FF] dark:hover:bg-[#0071E3] shadow-sm',
+      'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 shadow-sm font-medium',
     secondary:
-      'bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.12] text-black dark:text-white ' +
-      'hover:bg-black/[0.04] dark:hover:bg-white/[0.08] shadow-xs',
+      'bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white ' +
+      'hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.08]',
     ghost:
-      'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08]',
+      'text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]',
     destructive:
-      'border border-[#FF3B30]/30 text-[#FF3B30] dark:text-[#FF453A] ' +
-      'hover:bg-[#FF3B30]/10',
+      'bg-[#FF3B30]/10 text-[#FF3B30] dark:text-[#FF453A] border border-[#FF3B30]/20 hover:bg-[#FF3B30]/15',
   };
 
   return (

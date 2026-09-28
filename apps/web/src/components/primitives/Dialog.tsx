@@ -50,17 +50,17 @@ export const Dialog: React.FC<DialogProps> = ({
       {/* Dialog panel */}
       <div
         className={[
-          'relative w-full z-10 overflow-hidden animate-apple-in',
+          'relative w-full z-10 overflow-hidden animate-modal-in',
           width,
-          // Light mode: pure white surface
-          'bg-white dark:bg-[#1C1C1E]',
+          // Light mode: pure white surface, Dark mode: rich dark graphite
+          'bg-white dark:bg-[#141416]',
           // Border — specular on dark, soft on light
           'border border-black/[0.10] dark:border-white/[0.14]',
           // Apple squircle shape
           'rounded-[22px]',
-          // Shadows
+          // Shadows — natural soft Apple blur
           'shadow-[0_24px_60px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)]',
-          'dark:shadow-[0_32px_80px_rgba(0,0,0,0.75)]',
+          'dark:shadow-[0_32px_80px_rgba(0,0,0,0.85),0_0_0_1px_rgba(255,255,255,0.06)]',
         ].join(' ')}
         role="dialog"
         aria-modal="true"

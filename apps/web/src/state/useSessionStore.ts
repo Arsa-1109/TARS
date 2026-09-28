@@ -141,6 +141,13 @@ export function useSessionStore() {
 
   // Check if current user role has clearance for a given workspace
   const canAccessWorkspace = (ws: WorkspaceId): { allowed: boolean; reason?: string } => {
+    // RBAC: Verify workspace is within the user's active domain
+    if (currentDomainConfig && !currentDomainConfig.allowedWorkspaces.includes(ws)) {
+      return {
+        allowed: false,
+        reason: `Restricted Workspace: The ${ws} workspace is not accessible for the ${profile.role} role in ${currentDomainConfig.name}.`,
+      };
+    }
     if (ws === 'decisions') {
       if (profile.clearance !== 'EXECUTIVE_ONLY') {
         return {
@@ -148,15 +155,6 @@ export function useSessionStore() {
           reason: 'Executive Clearance Level 3 required. Strategic Decision Registry & What-If Runway Simulations are isolated to Founders and Sovereign Admins.',
         };
       }
-    }
-    const allowedInAnyDomain = Object.values(WORKSPACE_DOMAINS).some(
-      (d) => d.allowedRoles.includes(profile.role) && d.allowedWorkspaces.includes(ws)
-    );
-    if (!allowedInAnyDomain) {
-      return {
-        allowed: false,
-        reason: `Restricted Workspace: The ${ws} workspace is not accessible for the ${profile.role} role.`,
-      };
     }
     return { allowed: true };
   };

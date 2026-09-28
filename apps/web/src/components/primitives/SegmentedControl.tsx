@@ -39,8 +39,8 @@ export function SegmentedControl<T extends string>({
       role="tablist"
       className={[
         'inline-flex items-center',
-        // Apple segmented track — solid surface, not glass
-        'bg-black/[0.06] dark:bg-white/[0.08]',
+        // macOS Sonoma/Sequoia segmented control track
+        'bg-black/[0.05] dark:bg-white/[0.08]',
         containerClasses[size],
         className,
       ].join(' ')}
@@ -55,16 +55,16 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(opt.value)}
             className={[
               'relative flex items-center justify-center gap-1.5',
-              'font-medium transition-all duration-150 select-none',
+              'font-medium select-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]',
               'focus-visible:outline-none',
               itemClasses[size],
               isSelected
                 ? [
-                    // Active pill — solid white on both modes
-                    'bg-white dark:bg-[#3A3A3C]',
+                    // Active pill — crisp white on light, layered dark surface on dark
+                    'bg-white dark:bg-[#323236]',
                     'text-black dark:text-white',
-                    'shadow-[0_1px_3px_rgba(0,0,0,0.12),0_0_0_0.5px_rgba(0,0,0,0.06)]',
-                    'dark:shadow-[0_1px_4px_rgba(0,0,0,0.40)]',
+                    'shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_0.5px_rgba(0,0,0,0.04)]',
+                    'dark:shadow-[0_1px_3px_rgba(0,0,0,0.40),0_0_0_0.5px_rgba(255,255,255,0.08)]',
                     'font-semibold',
                   ].join(' ')
                 : 'text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white',

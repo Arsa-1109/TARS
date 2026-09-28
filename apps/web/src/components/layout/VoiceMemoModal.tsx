@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Mic, Square, CheckCircle2, Shield, X } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
 
@@ -104,7 +104,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
                 recording
                   ? 'bg-[#FF3B30] text-white shadow-[0_0_0_0_rgba(255,59,48,0.4)] animate-recording-pulse'
                   : done
-                    ? 'bg-[#1D8348] dark:bg-[#30D158] text-white'
+                    ? 'bg-[#0071E3] dark:bg-[#0A84FF] text-white'
                     : 'bg-black dark:bg-white text-white dark:text-black hover:scale-[1.04] active:scale-[0.96]',
                 'shadow-[0_8px_24px_rgba(0,0,0,0.22)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.60)]',
               ].join(' ')}
@@ -128,7 +128,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
             {/* Status label */}
             <div className="text-[13px] text-[#6E6E73] dark:text-[#8E8E93] text-center min-h-[20px]">
               {done ? (
-                <span className="text-[#1D8348] dark:text-[#30D158] font-medium flex items-center gap-1.5 justify-center">
+                <span className="text-[#0071E3] dark:text-[#0A84FF] font-medium flex items-center gap-1.5 justify-center">
                   <CheckCircle2 className="w-4 h-4" />
                   Transcribed and queued to ingestion
                 </span>
@@ -159,7 +159,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
 
             {/* Done transcript preview */}
             {done && (
-              <div className="w-full p-3.5 rounded-[14px] border border-[#30D158]/25 bg-[#30D158]/[0.08] text-left">
+              <div className="w-full p-3.5 rounded-[14px] border border-[#0A84FF]/25 bg-[#0A84FF]/[0.08] text-left">
                 <p className="text-[12px] text-[#3C3C43] dark:text-[#EBEBF5] italic leading-relaxed">
                   "Discussed pilot deployment with hospital partner. Agreed to deliver zero-cloud-egress local container by end of month."
                 </p>
@@ -170,7 +170,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
           {/* Footer */}
           <div className="px-5 pb-5 flex items-center justify-between text-[11px] text-[#8E8E93] font-mono">
             <div className="flex items-center gap-1.5">
-              <Shield className="w-3 h-3 text-[#1D8348] dark:text-[#30D158]" />
+              <Shield className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
               <span>Air-Gapped · Local Whisper</span>
             </div>
             <button

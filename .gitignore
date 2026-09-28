@@ -1,146 +1,64 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# C extensions & Python builds
-build/
-develop-eggs/
-dist/
-dist-ssr/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Testing & Coverage
-.pytest_cache/
-.coverage
-coverage/
-.nyc_output/
-*.lcov
-test-results/
-playwright-report/
-htmlcov/
-*.log
-
-# Virtual Environments & Secrets
-.env
-.env.*
-!.env.example
-.venv/
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Frontend / Node
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.pnpm-debug.log*
-lerna-debug.log*
-apps/web/dist/
-apps/web/.turbo/
+
+# Build and production outputs
+dist/
+dist-ssr/
+build/
 out/
 .next/
 *.tsbuildinfo
 next-env.d.ts
 
-# Databases & Graph Store
-*.db
-*.sqlite
-*.sqlite3
-*.db-journal
-*.sqlite-journal
-*.db-shm
-*.db-wal
-tars_local.db*
-*.kuzu_lock
-*.kuzu
-*.kuzu/
-.tars/*.kuzu*
-.tars/graph.kuzu/
-.tars/test_graph.kuzu/
+# Environment and secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+*.env.*
+!.env.example
 
-# Model Weights & Audio Cache
-models/
-.cache/
-huggingface/
-*.bin
-*.pt
-*.onnx
-
-# Drop Ingestion Folder (keep folder structure via .gitkeep)
-drop/*
-!drop/.gitkeep
-*.wav
-*.mp3
-*.m4a
-*.flac
-*.ogg
-*.webm
+# Logs and debugging
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Runtime data & temp files
+.cache/
 tmp/
 temp/
 scratch/
+*.swp
+*.swo
 *.tmp
 *~
 
-# OS & Editor Files
+# Editor and OS files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
 .DS_Store
 Thumbs.db
 desktop.ini
 *.bak
-.idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-*.sublime-project
-*.sublime-workspace
-*.swp
-*.swo
 
-# Antigravity tooling
-.agent/
-.agents/
-.gemini/
-.gsd/
-GSD-STYLE.md
-PROJECT_RULES.md
-adapters/
-docs/model-selection-playbook.md
-docs/runbook.md
-docs/token-optimization-guide.md
-model_capabilities.yaml
-scripts/search_repo.*
-scripts/setup_search.*
-scripts/validate-*
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
 
-# Markdown Rule: Ignore all markdown files except README.md
+# Ignore markdown files
 *.md
-!README.md
-!readme.md
-**/*.md
-!**/README.md
-!**/readme.md
-
-# PDF Rule: Ignore all PDF files
-*.pdf
-**/*.pdf
-

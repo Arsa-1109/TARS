@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import {
@@ -190,8 +190,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                       </Button>
                     </div>
                   ) : (
-                    <div className="p-4 rounded-[14px] border border-[#34C759]/[0.25] bg-[#34C759]/[0.08] space-y-2 text-xs">
-                      <div className="flex items-center gap-1.5 text-[#1D8348] dark:text-[#30D158] font-bold text-[13px]">
+                    <div className="p-4 rounded-[14px] border border-[#0A84FF]/[0.25] bg-[#0A84FF]/[0.08] space-y-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-[#0071E3] dark:text-[#0A84FF] font-bold text-[13px]">
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Genesis Interview Completed!</span>
                       </div>
@@ -244,7 +244,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                       {bloomingNodesCount > 4 && (
                         <>
                           <line x1="120" y1="90" x2="180" y2="140" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                          <circle cx="180" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#30D158" />
+                          <circle cx="180" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#0A84FF" />
                           <text x="180" y="143" textAnchor="middle" fill="currentColor" className="text-black dark:text-white" fontSize="6.5">ADRs</text>
 
                           <line x1="60" y1="40" x2="30" y2="80" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1" strokeDasharray="2 2" />
@@ -337,15 +337,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {/* TAB 3: AIR-GAP SOVEREIGN PROOF */}
           {activeTab === 'airgap' && (
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-[14px] border border-[#34C759]/[0.25] bg-[#34C759]/[0.08] space-y-2">
+              <div className="p-4 rounded-[14px] border border-[#0A84FF]/[0.25] bg-[#0A84FF]/[0.08] space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[#1D8348] dark:text-[#30D158]" />
+                    <Shield className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
                     <span className="text-sm font-bold text-black dark:text-white">
                       100% Sovereign Air-Gap Guarantee
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-[#1D8348] text-white font-bold">
+                  <span className="px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-[#0071E3] text-white font-bold">
                     E_net = 0.00 KB
                   </span>
                 </div>
@@ -370,7 +370,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                   </Button>
                 </div>
 
-                <div className="p-4 rounded-[12px] bg-black text-[#30D158] font-mono text-xs space-y-1 overflow-x-auto select-text">
+                <div className="p-4 rounded-[12px] bg-black text-[#0A84FF] font-mono text-xs space-y-1 overflow-x-auto select-text">
                   <div>[TARS-AUDIT] Socket probe: 127.0.0.1:11434 (Ollama) ... OK (Local)</div>
                   <div>[TARS-AUDIT] Socket probe: 127.0.0.1:7777 (Gateway) ... OK (Local)</div>
                   <div>[TARS-AUDIT] External WAN probe (0.0.0.0/0) ... BLOCKED [Egress = 0.00 KB]</div>

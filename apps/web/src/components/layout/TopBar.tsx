@@ -38,7 +38,6 @@ interface TopBarProps {
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  onSwitchRole?: (role: UserRole) => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -57,7 +56,6 @@ export const TopBar: React.FC<TopBarProps> = ({
   onLogout,
   theme,
   onToggleTheme,
-  onSwitchRole,
 }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -78,56 +76,41 @@ export const TopBar: React.FC<TopBarProps> = ({
   const allWorkspaceOptions: Record<WorkspaceId, { value: WorkspaceId; label: string; icon: React.ReactNode }> = {
     knowledge:    { value: 'knowledge',    label: 'Knowledge',    icon: <Layers className="w-3.5 h-3.5" /> },
     calls:        { value: 'calls',        label: 'Calls',        icon: <Phone className="w-3.5 h-3.5" /> },
-    onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
-    thinktank:    { value: 'thinktank',   label: 'Discussions',  icon: <MessageSquare className="w-3.5 h-3.5" /> },
     decisions:    { value: 'decisions',    label: 'Decisions',    icon: <Scale className="w-3.5 h-3.5" /> },
     architecture: { value: 'architecture', label: 'Architecture', icon: <Cpu className="w-3.5 h-3.5" /> },
+    thinktank:    { value: 'thinktank',   label: 'Discussions',  icon: <MessageSquare className="w-3.5 h-3.5" /> },
+    onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
   };
 
-  const workspaceOrder: WorkspaceId[] = [
-    'knowledge',
-    'calls',
-    'onboarding',
-    'thinktank',
-    'decisions',
-    'architecture',
-  ];
-  const workspaceOptions = workspaceOrder.map((wsId) => allWorkspaceOptions[wsId]);
+  const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain] || WORKSPACE_DOMAINS.executive;
+  const filteredOptions = currentDomainConfig.allowedWorkspaces.map((wsId) => allWorkspaceOptions[wsId]);
 
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
   return (
-    <header className="sticky top-0 z-30 h-[52px] flex items-center justify-between px-4 sm:px-5 shrink-0 select-none transition-colors bg-white/88 dark:bg-black/85 backdrop-saturate-180 backdrop-blur-[20px] border-b border-black/[0.08] dark:border-white/[0.10]">
+    <header className="sticky top-0 z-30 h-[52px] flex items-center justify-between px-5 shrink-0 select-none transition-colors bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.08]">
 
-      {/* Leading: Brand */}
+      {/* Leading: Clean Brand */}
       <div className="flex items-center gap-3 shrink-0">
         <button
           onClick={onGoToLanding}
-          className="flex items-center gap-2 group focus:outline-none"
+          className="flex items-center gap-2.5 group focus:outline-none"
           title="Return to Overview"
         >
-          <div className="w-7 h-7 rounded-[8px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-[13px] shadow-sm group-hover:scale-95 transition-transform">
+          <div className="w-7 h-7 rounded-[8px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-[13px] shadow-sm transition-transform active:scale-95">
             T
           </div>
-          <span className="font-semibold text-[13px] tracking-tight text-black dark:text-white hidden sm:inline">
+          <span className="font-semibold text-[14px] tracking-tight text-black dark:text-white">
             TARS
           </span>
         </button>
-
-        {/* Air-gap badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.07] border border-black/[0.07] dark:border-white/[0.10] text-[11px] text-[#3C3C43] dark:text-[#EBEBF5]">
-          <Shield className="w-3 h-3 text-[#1D8348] dark:text-[#30D158]" />
-          <span className="font-medium">Local</span>
-          <span className="text-[#AEAEB2] dark:text-[#48484A]">·</span>
-          <span className="text-[#6E6E73] dark:text-[#8E8E93] font-mono">0.00 KB</span>
-        </div>
       </div>
 
       {/* Center: Workspace nav */}
       <div className="hidden md:flex items-center justify-center flex-1 px-6">
         <SegmentedControl
           size="sm"
-          options={workspaceOptions}
+          options={filteredOptions}
           value={currentWorkspace}
           onChange={onSelectWorkspace}
         />
@@ -215,33 +198,6 @@ export const TopBar: React.FC<TopBarProps> = ({
                     </span>
                   </div>
                 </div>
-
-                {/* Switch Role Section */}
-                {onSwitchRole && (
-                  <div className="p-2 border-b border-black/[0.07] dark:border-white/[0.07]">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-[#8E8E93] px-1.5 mb-1">
-                      Simulate Role
-                    </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {(['FOUNDER', 'ENGINEER', 'PRODUCT', 'SALES', 'NEW_HIRE'] as UserRole[]).map((r) => (
-                        <button
-                          key={r}
-                          onClick={() => {
-                            onSwitchRole(r);
-                            setProfileOpen(false);
-                          }}
-                          className={`px-2 py-1 text-[11px] rounded-[6px] text-left font-medium transition-colors ${
-                            currentRole === r
-                              ? 'bg-black text-white dark:bg-white dark:text-black font-semibold'
-                              : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.07] text-[#6E6E73] dark:text-[#8E8E93]'
-                          }`}
-                        >
-                          {r === 'FOUNDER' ? 'Founder' : r === 'ENGINEER' ? 'Engineer' : r === 'PRODUCT' ? 'Product' : r === 'SALES' ? 'Sales' : 'New Hire'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Menu items */}
                 <div className="p-1.5 space-y-0.5">

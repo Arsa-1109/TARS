@@ -126,17 +126,24 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     handleSearch(query);
   }, [department]);
 
-  const handleFileUpload = async (files: FileList | null) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  const handleFileUploadWithRef = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
+    setUploadError(null);
     try {
       const uploaded = await api.uploadDocument(files[0]);
       setUploadSuccess(`Ingested "${uploaded.title}" (${uploaded.pages} pages) into local vector index.`);
       setTimeout(() => setUploadSuccess(null), 5000);
     } catch (err) {
+      setUploadError('Upload failed. Ensure the file is a supported format.');
       console.error(err);
     } finally {
       setUploading(false);
+      // reset input so same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -173,40 +180,47 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               value={activeView}
               onChange={(v) => setActiveView(v as any)}
             />
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.docx,.txt,.csv,.xlsx"
-                onChange={(e) => handleFileUpload(e.target.files)}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<UploadCloud className="w-4 h-4" />}
-                loading={uploading}
-              >
-                Upload Document
-              </Button>
-            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.docx,.txt,.csv,.xlsx"
+              onChange={(e) => handleFileUploadWithRef(e.target.files)}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<UploadCloud className="w-4 h-4" />}
+              loading={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload Document
+            </Button>
           </div>
         }
       />
 
       {uploadSuccess && (
-        <div className="p-3.5 rounded-[12px] border border-[#34C759]/[0.22] dark:border-[#30D158]/[0.22] bg-[#34C759]/[0.08] dark:bg-[#30D158]/[0.10] text-[#1D8348] dark:text-[#30D158] text-[13px] flex items-center justify-between">
-          <span>{uploadSuccess}</span>
-          <button onClick={() => setUploadSuccess(null)} className="underline text-[11px] font-medium ml-3 opacity-70 hover:opacity-100">
-            Dismiss
-          </button>
+        <div className="p-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-[13px] flex items-center gap-2 animate-slide-up">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+          <span className="flex-1">{uploadSuccess}</span>
+          <button onClick={() => setUploadSuccess(null)} className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="p-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] bg-[#FF3B30]/[0.08] text-[#C0392B] dark:text-[#FF453A] text-[13px] flex items-center gap-2 animate-slide-up">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/><path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 8v4m0 4h.01"/></svg>
+          <span className="flex-1">{uploadError}</span>
+          <button onClick={() => setUploadError(null)} className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity">Dismiss</button>
         </div>
       )}
 
       {/* VIEW 1: SEARCH & CITATIONS */}
       {activeView === 'search' && (
         <>
-          {/* Dominant Apple-Style Search Input Card */}
-          <div className="rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-[0_2px_8px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.30)] p-4 sm:p-5 space-y-3">
+          {/* Apple Clean Search Input */}
+          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm p-4 sm:p-5 space-y-3">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -215,15 +229,15 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               className="space-y-3"
             >
               <div className="relative flex items-center">
-                <Search className="w-5 h-5 text-[#8E8E93] absolute left-3.5 pointer-events-none" />
+                <Search className="w-4 h-4 text-[#8E8E93] absolute left-4 pointer-events-none" />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Ask any question about company strategy, customer contracts, or past decisions..."
-                  className="w-full pl-11 pr-24 py-3.5 text-[14px] sm:text-[15px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 dark:focus:ring-[#0A84FF]/20 focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
+                  placeholder="Search institutional memory, contracts, or architecture records..."
+                  className="w-full pl-11 pr-24 py-3 text-[14px] sm:text-[15px] rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all font-normal"
                 />
-                <div className="absolute right-2">
+                <div className="absolute right-1.5">
                   <Button type="submit" variant="primary" size="sm" loading={loading}>
                     Search
                   </Button>
@@ -233,18 +247,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               {/* Department Filter */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-                  <span className="text-[#8E8E93] font-medium flex items-center gap-1">
-                    <Filter className="w-3 h-3" /> Dept:
+                  <span className="text-[#86868B] dark:text-[#8E8E93] text-[12px] font-normal mr-1">
+                    Filter:
                   </span>
                   {departments.map((dept) => (
                     <button
                       type="button"
                       key={dept}
                       onClick={() => setDepartment(dept)}
-                      className={`px-2.5 py-1 rounded-[8px] border text-[11px] font-medium transition-all ${
+                      className={`px-3 py-1 rounded-full text-[12px] transition-all cursor-pointer ${
                         department === dept
-                          ? 'border-black/[0.20] dark:border-white/[0.25] bg-black/[0.06] dark:bg-white/[0.10] font-semibold text-black dark:text-white'
-                          : 'border-black/[0.08] dark:border-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                          ? 'bg-black text-white dark:bg-white dark:text-black font-medium shadow-xs'
+                          : 'text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                       }`}
                     >
                       {dept}
@@ -253,8 +267,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                 </div>
 
                 {result && (
-                  <div className="text-[11px] text-[#8E8E93] font-mono tabular-nums">
-                    Latency: <span className="font-semibold text-black dark:text-white">{result.latency_ms} ms</span>
+                  <div className="text-[12px] text-[#86868B] dark:text-[#8E8E93] tabular-nums font-normal">
+                    {result.latency_ms}ms retrieval
                   </div>
                 )}
               </div>
@@ -271,7 +285,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                     setQuery(sq);
                     handleSearch(sq);
                   }}
-                  className="text-[11px] text-[#0071E3] dark:text-[#0A84FF] hover:underline bg-black/[0.03] dark:bg-white/[0.04] px-2.5 py-1 rounded-[8px] border border-black/[0.07] dark:border-white/[0.07] transition-colors"
+                  className="text-[11px] text-black dark:text-white hover:underline bg-black/[0.03] dark:bg-white/[0.04] px-2.5 py-1 rounded-[8px] border border-black/[0.07] dark:border-white/[0.07] transition-colors"
                 >
                   "{sq}"
                 </button>
@@ -286,14 +300,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               <div className="rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-[0_2px_8px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.30)] p-6 space-y-5">
                 <div className="flex items-center justify-between border-b border-black/[0.07] dark:border-white/[0.07] pb-3">
                   <div className="flex items-center gap-2 text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
-                    <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                    <FileText className="w-4 h-4 text-black dark:text-white" />
                     <span>Company Answer</span>
                   </div>
                   {result && (
                     <Button
                       variant="secondary"
                       size="sm"
-                      icon={copiedBundle ? <Check className="w-3.5 h-3.5 text-[#1D8348] dark:text-[#30D158]" /> : <Copy className="w-3.5 h-3.5" />}
+                      icon={copiedBundle ? <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3.5 h-3.5" />}
                       onClick={handleCopyCitationBundle}
                     >
                       {copiedBundle ? 'Copied' : 'Export Citations'}
@@ -343,14 +357,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                               <div className="flex items-center justify-between text-[12px] font-semibold text-black dark:text-white">
                                 <span className="truncate pr-2">{c.doc_title}</span>
                                 <span className="text-[10px] font-mono text-[#8E8E93] shrink-0">
-                                  p.{c.page_number}
+                                   p.{c.page_number}
                                 </span>
                               </div>
                               <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] line-clamp-2 mt-1.5 italic leading-relaxed">
                                 "{c.snippet}"
                               </p>
                             </div>
-                            <div className="mt-2.5 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between text-[11px] text-[#0071E3] dark:text-[#0A84FF] font-medium">
+                            <div className="mt-2.5 pt-1.5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between text-[11px] text-black dark:text-white font-medium">
                               <span>Inspect Source Snippet</span>
                               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                             </div>
@@ -381,7 +395,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOver(false);
-                  handleFileUpload(e.dataTransfer.files);
+                  handleFileUploadWithRef(e.dataTransfer.files);
                 }}
                 className={`relative p-6 rounded-[18px] border-2 border-dashed text-center transition-all cursor-pointer ${
                   dragOver
@@ -393,7 +407,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   type="file"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
-                  onChange={(e) => handleFileUpload(e.target.files)}
+                  onChange={(e) => handleFileUploadWithRef(e.target.files)}
                   title="Click or drop files to ingest"
                 />
                 <div className="w-10 h-10 rounded-full bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center mx-auto mb-2 text-[#6E6E73] dark:text-[#8E8E93]">
