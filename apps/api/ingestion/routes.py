@@ -437,6 +437,38 @@ async def upload_audio_memo(
     )
 
 
+@router.post("/calls/upload", response_model=VoiceToSpecResponse)
+async def upload_call_audio_direct(
+    audio: Optional[UploadFile] = File(None),
+    file: Optional[UploadFile] = File(None),
+    client_name: str = Form("Enterprise Client"),
+):
+    """Uploads call audio/transcript and directly returns extracted 4-part Voice-to-Spec payload."""
+    upload = audio or file
+    if not upload:
+        raise HTTPException(status_code=400, detail="No audio file uploaded.")
+    
+    safe_filename = os.path.basename(upload.filename or f"call_{uuid.uuid4().hex[:6]}.wav")
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(upload.file, buffer)
+        
+    ext = os.path.splitext(safe_filename)[1].lower()
+    if ext in [".vtt", ".srt", ".txt"]:
+        transcript, duration = whisper_transcriber._parse_transcript_file(file_path)
+    else:
+        transcript, duration = whisper_transcriber._transcribe_audio(file_path)
+        
+    spec = spec_extractor.extract_spec(
+        transcript=transcript,
+        client_name=client_name,
+        audio_duration=duration,
+        audio_path=file_path,
+        sync_to_graph=True
+    )
+    return spec
+
+
 @router.get("/calls/{task_id}")
 def get_call_task_status(task_id: str):
     """Retrieves transcription progress and auto-extracted 4-part Voice-to-Spec payload."""

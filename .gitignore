@@ -89,7 +89,19 @@ coverage/
 test-results/
 playwright-report/
 
-# Ignore PDF and binary document files
+# Python & DB runtime data
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+.tars/
+drop/*
+!drop/.gitkeep
+
+# Ignore generated documents
 *.pdf
 *.md
-
+!README.md

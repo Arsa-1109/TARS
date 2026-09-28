@@ -38,15 +38,20 @@ class TarsGraph:
         if self.db_path not in self._db_cache:
             try:
                 self._db_cache[self.db_path] = kuzu.Database(self.db_path)
-            except Exception as e:
-                # Fallback to in-memory graph if file lock cannot be acquired (e.g., Uvicorn server holds exclusive lock)
-                self._db_cache[self.db_path] = kuzu.Database(":memory:")
+            except Exception:
+                try:
+                    self._db_cache[self.db_path] = kuzu.Database(self.db_path, read_only=True)
+                except Exception:
+                    self._db_cache[self.db_path] = kuzu.Database(":memory:")
             
         self.db = self._db_cache[self.db_path]
         if self.db_path not in self._conn_cache:
             self._conn_cache[self.db_path] = kuzu.Connection(self.db)
         self.conn = self._conn_cache[self.db_path]
-        self._initialize_schema()
+        try:
+            self._initialize_schema()
+        except Exception:
+            pass
 
     def _initialize_schema(self) -> None:
         """Initializes tables and relationships if not already present."""

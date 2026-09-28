@@ -1,0 +1,84 @@
+{
+  "simulation_metadata": {
+    "fixture_id": "SIM-2026-09-24-ACME-BDR018",
+    "target_model": "qwen3:8b",
+    "engine": "TARS Causal Decision Simulator",
+    "created_at": "2026-09-24T18:00:00Z",
+    "test_purpose": "Ground-truth benchmark for live stage demo What-If counterfactual reasoning"
+  },
+  "candidate_decision": {
+    "id": "BDR-018",
+    "title": "Build Custom SAML/SCIM SSO for Acme Corp Pilot",
+    "source_document": "mock_data/ws5_decisions/BDR-018-acme-corp-saml-sso-exception.md",
+    "status": "PROPOSED"
+  },
+  "conflicting_decision": {
+    "id": "BDR-014",
+    "title": "Zero Custom Enterprise Feature Forks or Bespoke SSO Customisations",
+    "source_document": "mock_data/ws5_decisions/BDR-014-no-custom-enterprise-features.md",
+    "status": "ACTIVE"
+  },
+  "contradiction_detection_metrics": {
+    "is_contradiction": true,
+    "confidence_score": 0.94,
+    "contradiction_category": "BUSINESS_POLICY_VS_CLIENT_COMMITMENT",
+    "sensitivity_thresholds": {
+      "strict": { "triggered": true, "threshold": 0.70, "score": 0.94 },
+      "balanced": { "triggered": true, "threshold": 0.85, "score": 0.94 },
+      "lenient": { "triggered": false, "threshold": 0.95, "score": 0.94 }
+    }
+  },
+  "counterfactual_causal_variables": {
+    "financial_impact": {
+      "contract_arr_injection_usd": 80000,
+      "monthly_mrr_addition_usd": 6667,
+      "baseline_net_monthly_burn_usd": -74000,
+      "simulated_net_monthly_burn_usd": -67333,
+      "baseline_cash_reserve_usd": 666000,
+      "baseline_runway_months": 9.0,
+      "baseline_zero_cash_date": "2027-05-28",
+      "simulated_runway_months": 9.9,
+      "simulated_zero_cash_date": "2027-06-25",
+      "net_runway_extension_days": 28
+    },
+    "engineering_impact": {
+      "estimated_engineering_weeks": 7.0,
+      "assigned_engineers": ["Liam Patel", "Dr. Elena Rostova"],
+      "delayed_core_milestone": "PRD-102: Self-Serve Codebase Health Analytics Dashboard",
+      "roadmap_delay_days": 60,
+      "affected_customer_segment": "Starter ($499/mo) & Pro ($1,499/mo) PLG funnel"
+    },
+    "downstream_expansion": {
+      "year_2_contract_potential_usd": 300000,
+      "total_target_seats": 1000,
+      "enterprise_logo_tier": "Fortune 500 Global Manufacturing"
+    }
+  },
+  "cognitive_trace_expected_steps": [
+    {
+      "step": 1,
+      "title": "Invariant & Policy Lookup",
+      "description": "Locate active BDR policies governing enterprise customization; identify BDR-014 (logged 2026-09-12)."
+    },
+    {
+      "step": 2,
+      "title": "Contradiction Invariant Evaluation",
+      "description": "Evaluate semantic conflict: BDR-014 bans custom SSO, while BDR-018 commits to custom SAML SSO by May 1st."
+    },
+    {
+      "step": 3,
+      "title": "Financial Runway Modeling",
+      "description": "Calculate runway delta: $80,000 cash injection extends runway from 9.0 to 9.9 months (+28 days)."
+    },
+    {
+      "step": 4,
+      "title": "Engineering Velocity Simulation",
+      "description": "Model engineering capacity loss: 7 weeks backend effort delays PRD-102 by 60 days."
+    },
+    {
+      "step": 5,
+      "title": "Synthesis & Compromise Recommendation",
+      "description": "Recommend approving BDR-018 conditioned upon using upfront cash to unlock Senior Infrastructure Engineer hire ($14K/mo)."
+    }
+  ]
+}

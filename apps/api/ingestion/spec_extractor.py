@@ -60,9 +60,14 @@ class VoiceToSpecExtractor:
         # 1. Attempt extraction via Local SLM (Ollama)
         spec_dict = self._extract_with_slm(transcript, client_name)
 
-        # 2. If SLM is offline or times out, fallback to deterministic heuristic extractor
+        # 2. Extract heuristics and backfill any missing keys
+        heuristics_dict = self._extract_with_heuristics(transcript, client_name)
         if not spec_dict:
-            spec_dict = self._extract_with_heuristics(transcript, client_name)
+            spec_dict = heuristics_dict
+        else:
+            for key in ["pain_points", "feature_requests", "commitments"]:
+                if not spec_dict.get(key) and heuristics_dict.get(key):
+                    spec_dict[key] = heuristics_dict[key]
 
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         logger.info(f"Voice-to-Spec extraction for {call_id} completed in {elapsed_ms:.1f}ms")

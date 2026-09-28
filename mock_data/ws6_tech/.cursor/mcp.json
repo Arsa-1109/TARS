@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "tars-sovereign-memory": {
+      "command": "python",
+      "args": [
+        "-u",
+        "apps/api/cortex/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "TARS_DISPATCH_URL": "http://127.0.0.1:7777/api/mcp/internal-dispatch",
+        "TARS_AIRGAP_MODE": "true"
+      }
+    }
+  }
+}
