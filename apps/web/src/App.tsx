@@ -319,7 +319,7 @@ export function App() {
       onOpenOnboarding={() => setRoleOnboardingOpen(true)}
       onGoToLanding={() => transitionToLanding()}
       onOpenGenesis={() => setGenesisWizardOpen(true)}
-      companyName={profile.company_name || companyProfile?.company_name}
+      companyName={companyProfile?.company_name || profile.company_name}
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}

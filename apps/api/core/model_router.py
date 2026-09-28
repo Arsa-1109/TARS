@@ -14,8 +14,11 @@ logger = logging.getLogger("tars.core.model_router")
 
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-# Defined fallback cascades per Patch P-08 specification
+# Defined fallback cascades prioritizing local lightweight Qwen model
 DEEP_REASONING_CASCADE: List[str] = [
+    "qwen3:1.5b",
+    "qwen2.5:1.5b",
+    "qwen3.5:0.8b",
     "qwen3:8b",
     "qwen2.5-coder:7b",
     "qwen2.5:7b",
@@ -23,8 +26,10 @@ DEEP_REASONING_CASCADE: List[str] = [
 ]
 
 SUBSECOND_EXTRACTION_CASCADE: List[str] = [
-    "qwen3:1.7b",
+    "qwen3:1.5b",
     "qwen2.5:1.5b",
+    "qwen3.5:0.8b",
+    "qwen3:1.7b",
     "llama3.2:1b",
     "qwen2.5-coder:1.5b",
 ]
@@ -117,6 +122,10 @@ class ModelRouter:
         """
         is_deep = task_complexity in ("deep", "reasoning", "heavy", "complex")
         cascade = DEEP_REASONING_CASCADE if is_deep else SUBSECOND_EXTRACTION_CASCADE
+
+        # Auto-probe if not already populated
+        if not self._installed_models:
+            self.probe_installed_models()
 
         # If models have been probed and any are installed, match against cascade
         if self._installed_models:

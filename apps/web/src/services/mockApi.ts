@@ -59,16 +59,10 @@ export class MockTarsApi implements TarsApi {
   private invariants: InvariantCheckResult[] = [...MOCK_INVARIANTS];
   private actions: ActionItemDTO[] = [...MOCK_ACTION_ITEMS];
 
-  async getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null> {
+  async getCompanyProfile(_companyIdOrName?: string): Promise<CompanyProfile | null> {
     await sleep(40);
-    if (!this.companyProfile) return null;
-    if (companyIdOrName) {
-      const match =
-        this.companyProfile.id === companyIdOrName ||
-        this.companyProfile.company_name.toLowerCase() === companyIdOrName.toLowerCase();
-      if (!match) return null;
-    }
-    return { ...this.companyProfile };
+    // In mock mode always return the canonical profile regardless of query
+    return this.companyProfile ? { ...this.companyProfile } : null;
   }
 
   async saveCompanyProfile(profile: Partial<CompanyProfile>): Promise<CompanyProfile> {
@@ -359,12 +353,12 @@ export class MockTarsApi implements TarsApi {
 
   // --- User & Identity Registry ---
   private mockUsers: import('../types/contracts').UserDTO[] = [
-    { id: 'usr-alex', name: 'Alex Vance', email: 'alex@aetherflow.ai', role: 'FOUNDER', department: 'Executive', clearance: 'EXECUTIVE_ONLY', created_at: Date.now() - 86400000 },
-    { id: 'usr-elena', name: 'Dr. Elena Rostova', email: 'elena@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 72000000 },
-    { id: 'usr-marcus', name: 'Marcus Chen', email: 'marcus@aetherflow.ai', role: 'PRODUCT', department: 'Product', clearance: 'ALL_TEAM', created_at: Date.now() - 54000000 },
-    { id: 'usr-sarah', name: 'Sarah Jenkins', email: 'sarah@aetherflow.ai', role: 'SALES', department: 'Sales & Growth', clearance: 'ALL_TEAM', created_at: Date.now() - 36000000 },
-    { id: 'usr-chloe', name: 'Chloe Dubois', email: 'chloe@aetherflow.ai', role: 'NEW_HIRE', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 18000000 },
-    { id: 'usr-liam', name: 'Liam Patel', email: 'liam@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 40000000 },
+    { id: 'usr-alex', name: 'Alex Vance', email: 'alex@aetherflow.ai', role: 'FOUNDER', department: 'Executive', clearance: 'EXECUTIVE_ONLY', created_at: Date.now() - 86400000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
+    { id: 'usr-elena', name: 'Dr. Elena Rostova', email: 'elena@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 72000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
+    { id: 'usr-marcus', name: 'Marcus Chen', email: 'marcus@aetherflow.ai', role: 'PRODUCT', department: 'Product', clearance: 'ALL_TEAM', created_at: Date.now() - 54000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
+    { id: 'usr-sarah', name: 'Sarah Jenkins', email: 'sarah@aetherflow.ai', role: 'SALES', department: 'Sales & Growth', clearance: 'ALL_TEAM', created_at: Date.now() - 36000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
+    { id: 'usr-chloe', name: 'Chloe Dubois', email: 'chloe@aetherflow.ai', role: 'NEW_HIRE', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 18000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
+    { id: 'usr-liam', name: 'Liam Patel', email: 'liam@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 40000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
   ];
 
   async getUsers(): Promise<import('../types/contracts').UserDTO[]> {

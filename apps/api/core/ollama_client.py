@@ -58,6 +58,8 @@ class OllamaClient:
                 response.raise_for_status()
                 result = response.json()
                 raw_text = result.get("response", "")
+                if not raw_text or not raw_text.strip():
+                    raw_text = result.get("thinking", "")
                 
                 if structured_format == "json":
                     try:
