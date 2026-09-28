@@ -20,6 +20,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { Button } from '../primitives/Button';
+import { api } from '../../services/client';
 
 interface RoleOnboardingModalProps {
   isOpen: boolean;
@@ -367,7 +368,7 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
 
   const currentTrack = ONBOARDING_TRACKS[selectedRole] || ONBOARDING_TRACKS.FOUNDER;
 
-  const handleSocraticSubmit = (e: React.FormEvent) => {
+  const handleSocraticSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!socraticInput.trim()) return;
 
@@ -375,23 +376,20 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
     setSocraticInput('');
     setSocraticMessages((prev) => [...prev, { role: 'user', text: userText }]);
 
-    setTimeout(() => {
-      let reply = "Based on our architecture and decisions, this is governed by our founding principles.";
-      let cite = 'DOC-FOUNDING · Section 2';
-
-      if (userText.toLowerCase().includes('decision 14') || userText.toLowerCase().includes('bespoke')) {
-        reply = "Decision #14 (ratified Sept 14) established that we strictly build single-tenant-deployable unified software rather than custom branches for early enterprise prospects. This prevents Bus Factor = 1 and maintains our sub-50ms pre-commit invariant checks.";
-        cite = 'DEC-14 · ADR-014-no-custom-branches.md';
-      } else if (userText.toLowerCase().includes('inv-017') || userText.toLowerCase().includes('outbox')) {
-        reply = "INV-017 enforces that no external HTTP or gRPC calls are permitted within database transactions. This prevents split-brain anomalies and connection pool starvation. We require the Transactional Outbox pattern documented in ADR-017.";
-        cite = 'INV-017 · ADR-017-outbox-pattern.md';
-      } else if (userText.toLowerCase().includes('air-gap') || userText.toLowerCase().includes('sovereign')) {
-        reply = "Our core hardware invariant requires zero network egress (E_net = 0.00 KB). All vector retrieval, Whisper transcription, and AST parsing execute locally on Apple Silicon or on-premise NVMe hardware.";
-        cite = 'DOC-SOVEREIGN-01 · Section 1.3';
-      }
+    try {
+      const res = await api.search({ query: userText });
+      const reply = res.answer || "Based on our architecture and decisions, this is governed by our founding principles.";
+      const cite = res.citations && res.citations.length > 0
+        ? `${res.citations[0].doc_title} · P.${res.citations[0].page_number}`
+        : 'DOC-FOUNDING · Section 2';
 
       setSocraticMessages((prev) => [...prev, { role: 'tars', text: reply, citation: cite }]);
-    }, 600);
+    } catch {
+      setSocraticMessages((prev) => [
+        ...prev,
+        { role: 'tars', text: "Error connecting to local SLM engine. Please ensure backend is running.", citation: "Local Gateway" }
+      ]);
+    }
   };
 
   return createPortal(

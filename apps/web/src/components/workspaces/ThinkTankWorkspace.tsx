@@ -116,57 +116,47 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     }));
     setInputMessage('');
 
-    // If query mentions TARS or asks for analysis/simulation, evaluate via live backend Cortex
-    const lower = userPrompt.toLowerCase();
-    if (
-      userPrompt.includes('@TARS') ||
-      lower.includes('tars') ||
-      lower.includes('simulate') ||
-      lower.includes('check') ||
-      lower.includes('conflict') ||
-      lower.includes('contradict')
-    ) {
-      try {
-        const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim();
+    // TARS monitors threads in real-time and evaluates all messages via live Cortex & SLM
+    try {
+      const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim() || userPrompt;
 
-        // 1. Check for institutional decision contradictions
-        const conflictRes = await api.checkContradiction(cleanQuery || userPrompt);
+      // 1. Check for institutional decision contradictions
+      const conflictRes = await api.checkContradiction(cleanQuery);
 
-        let aiText = '';
-        let provenance = '';
+      let aiText = '';
+      let provenance = '';
 
-        if (conflictRes.has_conflict) {
-          aiText = `⚠️ Contradiction Detected: ${conflictRes.explanation}`;
-          provenance = conflictRes.conflicting_decision_id
-            ? `Decision ${conflictRes.conflicting_decision_id} · Local Institutional Graph`
-            : 'Institutional Invariant Rule';
+      if (conflictRes.has_conflict) {
+        aiText = `⚠️ Contradiction Detected: ${conflictRes.explanation}`;
+        provenance = conflictRes.conflicting_decision_id
+          ? `Decision ${conflictRes.conflicting_decision_id} · Local Institutional Graph`
+          : 'Institutional Invariant Rule';
+      } else {
+        // 2. Query knowledge base for institutional context with local Compound SLM
+        const ragRes = await api.search({ query: cleanQuery });
+        aiText = ragRes.answer;
+        if (ragRes.citations && ragRes.citations.length > 0) {
+          provenance = ragRes.citations.map((c: SearchCitation) => c.doc_title || c.doc_id).slice(0, 3).join(' · ');
         } else {
-          // 2. Query knowledge base for institutional context
-          const ragRes = await api.search({ query: cleanQuery || userPrompt });
-          aiText = ragRes.answer;
-          if (ragRes.citations && ragRes.citations.length > 0) {
-            provenance = ragRes.citations.map((c: SearchCitation) => c.doc_title || c.doc_id).slice(0, 3).join(' · ');
-          } else {
-            provenance = 'TARS Institutional Cortex Engine';
-          }
+          provenance = 'TARS Institutional Cortex Engine';
         }
-
-        const aiMsg = {
-          id: `m-ai-${Date.now()}`,
-          sender: 'TARS (@TARS)',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isAi: true,
-          text: aiText,
-          provenance: provenance || undefined,
-        };
-
-        setMessages((prev) => ({
-          ...prev,
-          [activeChannelId]: [...(prev[activeChannelId] || []), aiMsg],
-        }));
-      } catch (err) {
-        console.error('Think Tank TARS evaluation error:', err);
       }
+
+      const aiMsg = {
+        id: `m-ai-${Date.now()}`,
+        sender: 'TARS (@TARS)',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isAi: true,
+        text: aiText,
+        provenance: provenance || undefined,
+      };
+
+      setMessages((prev) => ({
+        ...prev,
+        [activeChannelId]: [...(prev[activeChannelId] || []), aiMsg],
+      }));
+    } catch (err) {
+      console.error('Think Tank TARS evaluation error:', err);
     }
   };
 
