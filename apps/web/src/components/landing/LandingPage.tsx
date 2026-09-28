@@ -201,9 +201,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Apple-grade Sticky Header */}
       <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none relative">
         <div className="flex items-center gap-2.5 z-10">
-          <div className="w-7 h-7 rounded-[8px] bg-black text-white dark:bg-white dark:text-black flex items-center justify-center font-bold text-xs shadow-sm">
-            T
-          </div>
+          <img
+            src="/tars-logo.jpg"
+            alt="TARS Logo"
+            className="w-7 h-7 rounded-[8px] object-cover shadow-sm border border-black/10 dark:border-white/10"
+          />
           <span className="font-semibold text-[15px] tracking-tight text-black dark:text-white">TARS</span>
         </div>
 
@@ -460,9 +462,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <footer className="border-t border-black/[0.08] dark:border-white/[0.08] py-10 px-6 lg:px-12 max-w-5xl mx-auto text-xs text-[#8E8E93] font-mono select-none">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-[6px] bg-black text-white dark:bg-white dark:text-black font-bold text-[10px] flex items-center justify-center">
-              T
-            </div>
+            <img
+              src="/tars-logo.jpg"
+              alt="TARS Logo"
+              className="w-5 h-5 rounded-[6px] object-cover shadow-xs border border-black/10 dark:border-white/10"
+            />
             <span className="text-black dark:text-white font-sans font-semibold">TARS Sovereign OS</span>
           </div>
           <div className="flex items-center gap-6 text-[11px]">

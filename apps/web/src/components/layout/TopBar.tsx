@@ -110,9 +110,11 @@ export const TopBar: React.FC<TopBarProps> = ({
           className="flex items-center gap-2.5 group focus:outline-none"
           title="Return to Overview"
         >
-          <div className="w-7 h-7 rounded-[8px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center font-bold text-[13px] shadow-sm transition-transform active:scale-95">
-            T
-          </div>
+          <img
+            src="/tars-logo.jpg"
+            alt="TARS Logo"
+            className="w-7 h-7 rounded-[8px] object-cover shadow-sm transition-transform active:scale-95 border border-black/10 dark:border-white/10"
+          />
           <span className="font-semibold text-[14px] tracking-tight text-black dark:text-white">
             TARS
           </span>

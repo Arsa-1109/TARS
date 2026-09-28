@@ -209,9 +209,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* Brand header */}
             <div className="text-center">
-              <div className="w-12 h-12 rounded-[14px] bg-black dark:bg-white text-white dark:text-black flex items-center justify-center mx-auto mb-3.5 font-bold text-[18px] shadow-sm tracking-tight">
-                T
-              </div>
+              <img
+                src="/tars-logo.jpg"
+                alt="TARS Logo"
+                className="w-12 h-12 rounded-[14px] object-cover mx-auto mb-3.5 shadow-sm border border-black/10 dark:border-white/10"
+              />
               <h2 className="text-[20px] font-bold tracking-tight text-black dark:text-white leading-tight">
                 {mode === 'signin' ? 'Sign in to TARS' : 'Create Workspace Account'}
               </h2>
