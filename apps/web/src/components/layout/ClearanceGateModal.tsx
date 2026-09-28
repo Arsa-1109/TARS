@@ -10,7 +10,7 @@ interface ClearanceGateModalProps {
   requiredClearance: string;
   targetWorkspaceName: string;
   currentProfile: UserProfile;
-  onSwitchToFounder: () => void;
+  onSwitchToFounder?: () => void;
 }
 
 export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
@@ -19,7 +19,6 @@ export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
   requiredClearance,
   targetWorkspaceName,
   currentProfile,
-  onSwitchToFounder,
 }) => {
   if (!isOpen) return null;
 
@@ -44,11 +43,11 @@ export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
             <Lock className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-            Clearance Level 3 Required
+            Restricted Clearance Level
           </h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Access to <span className="text-zinc-900 dark:text-white font-medium">{targetWorkspaceName}</span> is
-            sovereignly isolated under Executive & Strategy domain.
+            Access to <span className="text-zinc-900 dark:text-white font-medium">{targetWorkspaceName}</span> requires{' '}
+            <span className="font-semibold text-red-600 dark:text-red-400">{requiredClearance}</span>.
           </p>
         </div>
 
@@ -77,21 +76,10 @@ export const ClearanceGateModal: React.FC<ClearanceGateModalProps> = ({
           <Button
             variant="primary"
             className="w-full justify-center h-10 text-xs font-semibold rounded-xl bg-black text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-sm"
-            onClick={() => {
-              onSwitchToFounder();
-              onClose();
-            }}
-          >
-            <span>Switch to Aryan (Founder & Sovereign Admin)</span>
-            <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-          </Button>
-
-          <Button
-            variant="secondary"
-            className="w-full justify-center h-10 text-xs font-medium rounded-xl border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300"
             onClick={onClose}
           >
-            Return to Permitted Workspace
+            <span>Return to Permitted Workspace</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
           </Button>
         </div>
 

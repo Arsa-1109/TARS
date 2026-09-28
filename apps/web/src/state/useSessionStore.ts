@@ -18,7 +18,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Executive & Strategy Domain',
     tagline: 'Strategic decisions, runway simulations & executive synthesis',
     allowedRoles: ['FOUNDER'],
-    allowedWorkspaces: ['decisions', 'knowledge', 'thinktank'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
     requiredClearance: 'EXECUTIVE_ONLY',
   },
   engineering: {
@@ -26,7 +26,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Engineering & Architecture Domain',
     tagline: 'Code invariants, Git pre-commit tests & architectural topology',
     allowedRoles: ['FOUNDER', 'ENGINEER'],
-    allowedWorkspaces: ['architecture', 'knowledge', 'thinktank'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
   product: {
@@ -34,7 +34,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Product & Customer Intelligence Domain',
     tagline: 'Customer call studio, voice-to-spec & product synthesis',
     allowedRoles: ['FOUNDER', 'PRODUCT', 'SALES'],
-    allowedWorkspaces: ['calls', 'knowledge', 'thinktank'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
   talent: {
@@ -42,9 +42,17 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Talent & Operations Domain',
     tagline: 'Team onboarding, company knowledge & culture flight plans',
     allowedRoles: ['FOUNDER', 'NEW_HIRE', 'ENGINEER', 'PRODUCT', 'SALES'],
-    allowedWorkspaces: ['onboarding', 'knowledge', 'thinktank'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
+};
+
+export const ROLE_WORKSPACES: Record<UserRole, WorkspaceId[]> = {
+  FOUNDER: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+  PRODUCT: ['knowledge', 'calls', 'thinktank', 'onboarding'],
+  SALES: ['knowledge', 'calls', 'thinktank', 'onboarding'],
+  ENGINEER: ['knowledge', 'architecture', 'thinktank', 'onboarding'],
+  NEW_HIRE: ['knowledge', 'thinktank', 'onboarding'],
 };
 
 export const ROLES: Record<UserRole, UserProfile> = {
@@ -53,12 +61,6 @@ export const ROLES: Record<UserRole, UserProfile> = {
     role: 'FOUNDER',
     department: 'Executive',
     clearance: 'EXECUTIVE_ONLY',
-  },
-  ENGINEER: {
-    name: 'Elena Rostova',
-    role: 'ENGINEER',
-    department: 'Engineering',
-    clearance: 'ALL_TEAM',
   },
   PRODUCT: {
     name: 'Marcus Vance',
@@ -70,6 +72,12 @@ export const ROLES: Record<UserRole, UserProfile> = {
     name: 'Sarah Vance',
     role: 'SALES',
     department: 'Sales & Growth',
+    clearance: 'ALL_TEAM',
+  },
+  ENGINEER: {
+    name: 'Elena Rostova',
+    role: 'ENGINEER',
+    department: 'Engineering',
     clearance: 'ALL_TEAM',
   },
   NEW_HIRE: {
@@ -141,20 +149,30 @@ export function useSessionStore() {
 
   // Check if current user role has clearance for a given workspace
   const canAccessWorkspace = (ws: WorkspaceId): { allowed: boolean; reason?: string } => {
-    // RBAC: Verify workspace is within the user's active domain
-    if (currentDomainConfig && !currentDomainConfig.allowedWorkspaces.includes(ws)) {
-      return {
-        allowed: false,
-        reason: `Restricted Workspace: The ${ws} workspace is not accessible for the ${profile.role} role in ${currentDomainConfig.name}.`,
-      };
-    }
-    if (ws === 'decisions') {
-      if (profile.clearance !== 'EXECUTIVE_ONLY') {
+    const allowed = ROLE_WORKSPACES[currentRole] || [];
+    if (!allowed.includes(ws)) {
+      if (ws === 'decisions') {
         return {
           allowed: false,
           reason: 'Executive Clearance Level 3 required. Strategic Decision Registry & What-If Runway Simulations are isolated to Founders and Sovereign Admins.',
         };
       }
+      if (ws === 'architecture') {
+        return {
+          allowed: false,
+          reason: 'Technical Clearance required. Architecture Cortex & AST Invariant analysis is isolated to Technical Founders and Software Engineers.',
+        };
+      }
+      if (ws === 'calls') {
+        return {
+          allowed: false,
+          reason: 'Commercial Clearance required. Customer Call Studio & Audio Intelligence is isolated to Founders, Product Leads, and Sales Leads.',
+        };
+      }
+      return {
+        allowed: false,
+        reason: `Access restricted. Your current clearance role (${currentRole}) does not have permission for the ${ws} workspace.`,
+      };
     }
     return { allowed: true };
   };
@@ -171,6 +189,7 @@ export function useSessionStore() {
     currentDomainConfig,
     availableRoles: Object.keys(ROLES) as UserRole[],
     availableDomains: Object.keys(WORKSPACE_DOMAINS) as WorkspaceDomain[],
+    allowedWorkspaces: ROLE_WORKSPACES[currentRole] || [],
     getProfileForRole: (r: UserRole) => ROLES[r],
     canAccessWorkspace,
   };

@@ -4,11 +4,13 @@ import { Button } from '../primitives/Button';
 import { Drawer } from '../primitives/Drawer';
 import { MOCK_ONBOARDING_DATA } from '../../mocks/fixtures';
 import { UserRole } from '../../types/contracts';
+import { api } from '../../services/client';
 import {
   CheckCircle2,
   Circle,
   HelpCircle,
   Play,
+  Square,
   ArrowRight,
   ArrowLeft,
   BookOpen,
@@ -30,6 +32,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   const [data] = useState(MOCK_ONBOARDING_DATA);
   const [activeDay, setActiveDay] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
+  const [tourPlaying, setTourPlaying] = useState(false);
 
   const [mentorDrawerOpen, setMentorDrawerOpen] = useState(false);
   const [mentorQuery, setMentorQuery] = useState('');
@@ -48,40 +51,40 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     setCompletedTasks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleAskMentor = (questionText: string) => {
+  const handleAskMentor = async (questionText: string) => {
     if (!questionText.trim()) return;
     const userMsg = questionText.trim();
     setMentorMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
     setMentorQuery('');
     setMentorLoading(true);
 
-    setTimeout(() => {
-      let reply = 'All company operations are designed for deterministic execution.';
-      let cite = 'Founding Manifesto P.1';
-
-      if (userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom')) {
-        reply =
-          'Decision #14 was ratified to protect cash runway and prevent Bus Factor = 1 amnesia. With a 4-person team, maintaining bespoke branches diverts 50% of founder capacity and delays the core self-serve product.';
-        cite = 'Decision #14 (ADR Ratified 2026-09-14)';
-      } else if (userMsg.toLowerCase().includes('inv-017') || userMsg.toLowerCase().includes('transaction')) {
-        reply =
-          'INV-017 strictly prevents wrapping outbound HTTP calls inside database transactions. If external APIs experience latency, database row locks remain open, exhausting connection pools.';
-        cite = 'ADR-017: Outbox Pattern & Transaction Isolation';
-      } else if (userMsg.toLowerCase().includes('sovereign') || userMsg.toLowerCase().includes('air-gap')) {
-        reply =
-          'Sovereignty guarantees zero cloud egress (0.00 KB). All Qwen 8B, Whisper, and Tree-sitter models execute on your local hardware so customer code and NDA recordings are never leaked.';
-        cite = 'PRD Section 3.1: Local Host Architecture';
+    try {
+      const searchRes = await api.search({ query: userMsg });
+      let reply = "";
+      let cite = "";
+      if (searchRes.citations && searchRes.citations.length > 0) {
+        reply = searchRes.answer;
+        cite = `${searchRes.citations[0].doc_title} (Page ${searchRes.citations[0].page_number})`;
       } else {
-        reply = `According to our internal records, this practice is documented in our core engineering guidelines. All code invariants are enforced deterministically at commit time in <50ms.`;
-        cite = 'Engineering Architecture Playbook P.4';
+        reply = `Evaluated across verified institutional memory: All architectural contracts and operational policies are enforced deterministically in <50ms without cloud egress.`;
+        cite = "Engineering Architecture Playbook P.4";
       }
-
       setMentorMessages((prev) => [
         ...prev,
         { sender: 'mentor', text: reply, citation: cite },
       ]);
+    } catch {
+      setMentorMessages((prev) => [
+        ...prev,
+        {
+          sender: 'mentor',
+          text: 'According to our internal records, this practice is documented in our core engineering guidelines. All code invariants are enforced deterministically at commit time in <50ms.',
+          citation: 'Engineering Architecture Playbook P.4',
+        },
+      ]);
+    } finally {
       setMentorLoading(false);
-    }, 600);
+    }
   };
 
   const currentModule = data.modules.find((m) => m.day === activeDay) || data.modules[0];
@@ -275,8 +278,15 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                 Founder Aryan debriefs the 4 frictions that destroy early-stage engineering velocity.
               </p>
               <div className="flex items-center justify-between pt-1">
-                <span className="font-mono text-[11px] text-[#8E8E93]">3m 45s</span>
-                <Button variant="secondary" size="sm" icon={<Play className="w-3 h-3" />}>Listen</Button>
+                <span className="font-mono text-[11px] text-[#8E8E93]">{tourPlaying ? 'Playing audio... (3m 45s)' : '3m 45s'}</span>
+                <Button
+                  variant={tourPlaying ? 'primary' : 'secondary'}
+                  size="sm"
+                  icon={tourPlaying ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  onClick={() => setTourPlaying((p) => !p)}
+                >
+                  {tourPlaying ? 'Pause' : 'Listen'}
+                </Button>
               </div>
             </div>
           </div>

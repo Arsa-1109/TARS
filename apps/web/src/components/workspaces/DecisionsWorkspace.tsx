@@ -178,12 +178,40 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
             type="text"
             value={testProposal}
             onChange={(e) => setTestProposal(e.target.value)}
-            placeholder="Test a pending strategic proposal against company memory..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                runContradictionCheck();
+              }
+            }}
+            placeholder="Test a pending strategic proposal (e.g. 'Build bespoke SAML auth for Acme Corp')..."
             className="flex-1 px-4 py-2.5 text-[13px] rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all"
           />
           <Button variant="secondary" size="sm" loading={checkingContradiction} onClick={runContradictionCheck}>
             Check Contradiction
           </Button>
+        </div>
+
+        {/* Quick Test Pill Suggestions */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#8E8E93]">
+          <span className="text-[11px]">Quick test:</span>
+          {[
+            'Build custom bespoke SAML auth for enterprise lead',
+            'Spin up AWS S3 bucket for storing customer attachments',
+            'Branch code into separate enterprise repo with custom fork',
+          ].map((sample, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setTestProposal(sample);
+                api.checkContradiction(sample, sensitivity).then((res) => setContradictionResult(res));
+              }}
+              className="text-[11px] px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors truncate max-w-[280px]"
+            >
+              "{sample}"
+            </button>
+          ))}
         </div>
 
         {contradictionResult?.has_conflict && (

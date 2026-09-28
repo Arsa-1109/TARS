@@ -103,31 +103,35 @@ export function App() {
     }
   }, [isAuthenticated]);
 
-  // Enforce domain containment: ensure current workspace is always within activeDomain's allowed workspaces
-  useEffect(() => {
-    const domainCfg = WORKSPACE_DOMAINS[activeDomain];
-    if (domainCfg && !domainCfg.allowedWorkspaces.includes(workspace)) {
-      setWorkspace(domainCfg.allowedWorkspaces[0]);
-    }
-  }, [activeDomain, workspace, setWorkspace]);
-
-  // When domain changes, ensure current workspace is allowed in that domain
+  // When domain changes, update active domain
   const handleDomainChange = (domainId: typeof activeDomain) => {
     switchDomain(domainId);
-    const domainCfg = WORKSPACE_DOMAINS[domainId];
-    if (domainCfg && !domainCfg.allowedWorkspaces.includes(workspace)) {
-      setWorkspace(domainCfg.allowedWorkspaces[0]);
-    }
   };
 
   // Safe workspace selection with Clearance Gates (Workspace Isolation)
   const handleSelectWorkspace = (targetWs: WorkspaceId) => {
     const access = canAccessWorkspace(targetWs);
     if (!access.allowed) {
+      const names: Record<WorkspaceId, string> = {
+        decisions: 'Strategic Decision Registry & Simulation',
+        architecture: 'Tech & Architecture Cortex',
+        calls: 'Client Call Intelligence Studio',
+        knowledge: 'Universal Knowledge Base',
+        thinktank: 'Collaborative Think Tank',
+        onboarding: 'Role Onboarding Flight Plan',
+      };
+      const clearanceReq: Record<WorkspaceId, string> = {
+        decisions: 'EXECUTIVE_ONLY (Level 3 Clearance)',
+        architecture: 'TECHNICAL_ENGINEERING (Level 2 Clearance)',
+        calls: 'COMMERCIAL_PRODUCT (Level 2 Clearance)',
+        knowledge: 'ALL_TEAM',
+        thinktank: 'ALL_TEAM',
+        onboarding: 'ALL_TEAM',
+      };
       setClearanceGateState({
         open: true,
-        targetWorkspaceName: targetWs === 'decisions' ? 'Strategic Decision Registry' : targetWs,
-        requiredClearance: 'EXECUTIVE_ONLY (Level 3)',
+        targetWorkspaceName: names[targetWs] || targetWs,
+        requiredClearance: clearanceReq[targetWs] || 'Restricted Role Clearance',
       });
       return;
     }
@@ -206,6 +210,7 @@ export function App() {
           }}
           onLaunchDemo={() => {
             login('FOUNDER');
+            setWorkspace('knowledge');
             transitionToApp();
           }}
           theme={theme}
@@ -217,6 +222,8 @@ export function App() {
           onClose={() => setAuthModalOpen(false)}
           onLogin={(role) => {
             login(role);
+            // Default to knowledge workspace which is accessible to all clearance levels
+            setWorkspace('knowledge');
             transitionToApp();
           }}
           initialMode={authModalMode}
@@ -243,6 +250,7 @@ export function App() {
       currentRole={currentRole}
       profile={profile}
       activeDomain={activeDomain}
+      onSwitchRole={setRole}
       onLogout={() => {
         logout();
         transitionToLanding();

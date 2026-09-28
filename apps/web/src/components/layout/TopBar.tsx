@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { WorkspaceId, UserRole, UserProfile } from '../../types/contracts';
-import { WorkspaceDomain, WORKSPACE_DOMAINS } from '../../state/useSessionStore';
+import { WorkspaceDomain, WORKSPACE_DOMAINS, ROLE_WORKSPACES } from '../../state/useSessionStore';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import {
   Shield,
@@ -35,6 +35,7 @@ interface TopBarProps {
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
+  onSwitchRole?: (role: UserRole) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -53,6 +54,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentRole,
   profile,
   activeDomain,
+  onSwitchRole,
   onLogout,
   theme,
   onToggleTheme,
@@ -82,8 +84,10 @@ export const TopBar: React.FC<TopBarProps> = ({
     onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
   };
 
-  const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain] || WORKSPACE_DOMAINS.executive;
-  const filteredOptions = currentDomainConfig.allowedWorkspaces.map((wsId) => allWorkspaceOptions[wsId]);
+  const allowedWorkspaces = ROLE_WORKSPACES[currentRole] || ['knowledge', 'thinktank', 'onboarding'];
+  const filteredOptions = allowedWorkspaces
+    .map((wsId) => allWorkspaceOptions[wsId])
+    .filter(Boolean);
 
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
@@ -156,6 +160,15 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
         </button>
 
+        {/* Company Setup direct button */}
+        <button
+          onClick={onOpenSettings}
+          className="h-8 w-8 rounded-[10px] border border-black/[0.09] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.10] transition-all flex items-center justify-center"
+          title="Company Setup & Preferences"
+        >
+          <Sliders className="w-3.5 h-3.5" />
+        </button>
+
         {/* Profile dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
@@ -198,6 +211,8 @@ export const TopBar: React.FC<TopBarProps> = ({
                     </span>
                   </div>
                 </div>
+
+
 
                 {/* Menu items */}
                 <div className="p-1.5 space-y-0.5">

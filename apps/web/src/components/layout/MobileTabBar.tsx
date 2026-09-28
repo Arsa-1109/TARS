@@ -1,12 +1,14 @@
 import React from 'react';
-import { WorkspaceId } from '../../types/contracts';
-import { Layers, Phone, MessageSquare, Scale, MoreHorizontal } from 'lucide-react';
+import { WorkspaceId, UserRole } from '../../types/contracts';
+import { ROLE_WORKSPACES } from '../../state/useSessionStore';
+import { Layers, Phone, MessageSquare, Scale, Cpu, Compass, MoreHorizontal } from 'lucide-react';
 
 interface MobileTabBarProps {
   currentWorkspace: WorkspaceId;
   onSelectWorkspace: (ws: WorkspaceId) => void;
   onOpenMore: () => void;
   moreActive?: boolean;
+  currentRole: UserRole;
 }
 
 export const MobileTabBar: React.FC<MobileTabBarProps> = ({
@@ -14,13 +16,20 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
   onSelectWorkspace,
   onOpenMore,
   moreActive = false,
+  currentRole,
 }) => {
-  const tabs: { id: WorkspaceId; label: string; icon: React.ReactNode }[] = [
-    { id: 'knowledge',  label: 'Knowledge', icon: <Layers className="w-5 h-5" /> },
-    { id: 'calls',      label: 'Calls',     icon: <Phone className="w-5 h-5" /> },
-    { id: 'thinktank', label: 'Discuss',    icon: <MessageSquare className="w-5 h-5" /> },
-    { id: 'decisions',  label: 'Decisions', icon: <Scale className="w-5 h-5" /> },
+  const allTabs: { id: WorkspaceId; label: string; icon: React.ReactNode }[] = [
+    { id: 'knowledge',    label: 'Knowledge', icon: <Layers className="w-5 h-5" /> },
+    { id: 'calls',        label: 'Calls',     icon: <Phone className="w-5 h-5" /> },
+    { id: 'thinktank',    label: 'Discuss',   icon: <MessageSquare className="w-5 h-5" /> },
+    { id: 'decisions',    label: 'Decisions', icon: <Scale className="w-5 h-5" /> },
+    { id: 'architecture', label: 'Arch',      icon: <Cpu className="w-5 h-5" /> },
+    { id: 'onboarding',   label: 'Flight',    icon: <Compass className="w-5 h-5" /> },
   ];
+
+  const allowed = ROLE_WORKSPACES[currentRole] || ['knowledge', 'thinktank', 'onboarding'];
+  // Keep up to 4 primary tabs for the user's role on the bottom bar, plus the More tab
+  const tabs = allTabs.filter((t) => allowed.includes(t.id)).slice(0, 4);
 
   return (
     <nav

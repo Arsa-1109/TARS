@@ -1,6 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { WorkspaceId, UserRole, UserProfile } from '../../types/contracts';
-import { WorkspaceDomain } from '../../state/useSessionStore';
+import { WorkspaceDomain, ROLE_WORKSPACES } from '../../state/useSessionStore';
 import { TopBar } from './TopBar';
 import { MobileTabBar } from './MobileTabBar';
 import { Sheet } from '../primitives/Sheet';
@@ -26,6 +26,7 @@ interface AppShellProps {
   currentRole: UserRole;
   profile: UserProfile;
   activeDomain: WorkspaceDomain;
+  onSwitchRole: (role: UserRole) => void;
   onLogout: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -45,6 +46,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentRole,
   profile,
   activeDomain,
+  onSwitchRole,
   onLogout,
   theme,
   onToggleTheme,
@@ -68,6 +70,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         currentRole={currentRole}
         profile={profile}
         activeDomain={activeDomain}
+        onSwitchRole={onSwitchRole}
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -84,6 +87,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         onSelectWorkspace={onSelectWorkspace}
         onOpenMore={() => setMoreSheetOpen(true)}
         moreActive={moreSheetOpen}
+        currentRole={currentRole}
       />
 
       {/* Mobile "More" Sheet */}
@@ -94,8 +98,46 @@ export const AppShell: React.FC<AppShellProps> = ({
         subtitle="Quick tools and operator settings"
       >
         <div className="space-y-4">
-          {/* Quick tools */}
+          {/* Workspaces & Quick tools */}
           <div>
+            <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider mb-2">
+              Permitted Workspaces
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {(ROLE_WORKSPACES[currentRole] || []).map((wsId) => {
+                const labels: Record<WorkspaceId, { label: string; icon: string }> = {
+                  knowledge:    { label: 'Knowledge Base', icon: '📚' },
+                  calls:        { label: 'Client Calls',   icon: '📞' },
+                  decisions:    { label: 'Decisions',      icon: '⚖️' },
+                  architecture: { label: 'Architecture',   icon: '🏛️' },
+                  thinktank:    { label: 'Discussions',    icon: '💬' },
+                  onboarding:   { label: 'Flight Plan',    icon: '🧭' },
+                };
+                const info = labels[wsId];
+                if (!info) return null;
+                const isCurrent = currentWorkspace === wsId;
+                return (
+                  <button
+                    key={wsId}
+                    onClick={() => {
+                      setMoreSheetOpen(false);
+                      onSelectWorkspace(wsId);
+                    }}
+                    className={`p-3 rounded-[14px] border text-left flex items-center gap-2.5 transition-colors ${
+                      isCurrent
+                        ? 'border-black/20 dark:border-white/20 bg-black/5 dark:bg-white/10 font-semibold'
+                        : 'border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E]'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-[8px] bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs">{info.icon}</span>
+                    </div>
+                    <span className="text-[13px] text-black dark:text-white truncate">{info.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider mb-2">
               Quick Tools
             </div>

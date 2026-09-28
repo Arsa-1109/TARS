@@ -82,6 +82,56 @@ class TarsGraph:
                 # Rel table already exists
                 pass
 
+        # Seed initial ratified architecture decisions into Kùzu graph if empty
+        try:
+            res = self.conn.execute("MATCH (d:Decision) RETURN count(d)")
+            count = res.get_next()[0] if res.has_next() else 0
+            if count == 0:
+                initial_decisions = [
+                    (
+                        "DEC-14",
+                        "Zero Enterprise Customisations Prior to Q4",
+                        "STRATEGY",
+                        "Several enterprise leads requested custom branches and on-prem SAML connectors. With only 4 developers and 11 months runway, custom forks will create fatal maintenance overhead.",
+                        "Strict policy: No custom branches or client-specific engineering before Q4 2026. All clients must consume unified core self-serve platform APIs.",
+                        int(time.time()) - 10 * 86400,
+                        "ALL_TEAM",
+                    ),
+                    (
+                        "DEC-12",
+                        "Hexagonal Ports & Adapters Architecture for Core Domain",
+                        "ENGINEERING",
+                        "Prevent tight coupling between business logic and infrastructure drivers (database ORM, Whisper models, Tree-sitter binaries).",
+                        "Domain entities in src/core/ must never import from src/adapters/ or src/infrastructure/. All outbound side-effects must be mediated by abstract ports.",
+                        int(time.time()) - 24 * 86400,
+                        "ALL_TEAM",
+                    ),
+                    (
+                        "DEC-08",
+                        "100% Sovereign Local-First Privacy Model",
+                        "SECURITY",
+                        "Startups handle hyper-sensitive IP (cap tables, unredacted payroll, client NDAs, proprietary algorithms). Public cloud AI poses compliance and IP leakage hazards.",
+                        "Zero cloud GPU dependencies. All models (Qwen 8B, Whisper, BGE-small) run locally on startup host. External network calls blocked at socket level (0.00 KB egress).",
+                        int(time.time()) - 40 * 86400,
+                        "ALL_TEAM",
+                    ),
+                    (
+                        "DEC-05",
+                        "Legacy Cloud Hybrid Sync (Superseded)",
+                        "STRATEGY",
+                        "Initial exploration considered syncing encrypted metadata to AWS S3 for cross-office backups.",
+                        "Sync encrypted SQLite snapshots to private S3 bucket once daily.",
+                        int(time.time()) - 75 * 86400,
+                        "ALL_TEAM",
+                    ),
+                ]
+                for dec in initial_decisions:
+                    self.add_decision(*dec)
+                # Link supersedes edge
+                self.link_supersedes("DEC-08", "DEC-05")
+        except Exception as seed_err:
+            print(f"Warning: Decision seeding into Kùzu graph skipped: {seed_err}")
+
     def add_decision(self, decision_id: str, title: str, category: str, context: str, chosen_option: str, timestamp: Optional[int] = None, clearance: str = "ALL_TEAM") -> bool:
         """Adds or updates a Decision node in the graph."""
         ts = timestamp or int(time.time())
@@ -194,6 +244,11 @@ class TarsGraph:
             "http": ["transaction", "atomic", "database lock"],
             "stripe": ["transaction", "outbox", "sync dispatch"],
             "power_peg": ["pruned", "dormant", "legacy"],
+            "saml": ["zero enterprise customisations", "custom branches", "unified core"],
+            "custom branch": ["zero enterprise customisations", "unified core", "standard"],
+            "bespoke": ["zero enterprise customisations", "standard self-serve"],
+            "aws": ["zero cloud gpu", "sovereign local-first", "100% sovereign"],
+            "s3": ["zero cloud gpu", "sovereign local-first", "100% sovereign"],
         }
 
         for d in decisions:
@@ -206,7 +261,7 @@ class TarsGraph:
                                 "has_conflict": True,
                                 "severity": severity_threshold,
                                 "conflicting_decision_id": d["id"],
-                                "explanation": f"Proposal references '{key}' which contradicts historical Decision {d['id']} ('{d['title']}'): {d['chosen_option']}"
+                                "explanation": f"Proposal to introduce '{key}' directly contradicts historical Decision {d['id']} ('{d['title']}'): \"{d['chosen_option']}\""
                             }
 
         return {

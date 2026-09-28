@@ -41,13 +41,41 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
 
   // Staged Diff Tester state
   const [testScenario, setTestScenario] = useState<'INV-017' | 'INV-021' | 'INV-014' | 'INV-008'>('INV-017');
-  const [terminalLog, setTerminalLog] = useState<string[]>([
-    "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
-    "[tars-hook] Checking 4 staged files (285 additions, 42 deletions)...",
-    "[tars-hook] BREACH DETECTED: INV-017 (External HTTP calls inside database transactions)",
-    "[tars-hook] Violating AST node: CallExpression 'stripe_client.charges.create' at src/payments/service.py:84",
-    "[tars-hook] ERROR: Commit blocked in 38.4ms. Outbox pattern required."
-  ]);
+  const [terminalLog, setTerminalLog] = useState<string[]>([]);
+
+  useEffect(() => {
+    const scenarioLogs: Record<string, string[]> = {
+      'INV-017': [
+        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
+        '[tars-hook] Checking 4 staged files (285 additions, 42 deletions)...',
+        '[tars-hook] BREACH DETECTED: INV-017 (External HTTP calls inside database transactions)',
+        "[tars-hook] Violating AST node: CallExpression 'stripe_client.charges.create' at src/payments/service.py:84",
+        '[tars-hook] ERROR: Commit blocked in 38.4ms. Outbox pattern required.'
+      ],
+      'INV-021': [
+        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
+        '[tars-hook] Checking 2 staged files in src/storage/...',
+        '[tars-hook] BREACH DETECTED: INV-021 (Cloud S3 sync import in offline binary)',
+        "[tars-hook] Violating AST node: ImportDeclaration 'boto3.client(\"s3\")' in src/storage/sync.py:12",
+        '[tars-hook] ERROR: Commit blocked in 21.3ms. Local disk Tantivy storage required by sovereign NDA.'
+      ],
+      'INV-014': [
+        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
+        '[tars-hook] Checking 3 staged files in .tars/flags.yaml and config...',
+        '[tars-hook] Invariant check PASS: INV-014 (Dead feature flag resurrection)',
+        '[tars-hook] All 14 dormant feature flags confirmed purged.',
+        '[tars-hook] Pre-commit AST scan succeeded in 19.8ms.'
+      ],
+      'INV-008': [
+        '[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...',
+        '[tars-hook] Checking 1 staged file in src/auth/jwt.py...',
+        '[tars-hook] Invariant check PASS: INV-008 (Sensitive token logging prevention)',
+        '[tars-hook] Zero raw token identifiers found in logger calls.',
+        '[tars-hook] Pre-commit AST scan succeeded in 15.2ms.'
+      ]
+    };
+    setTerminalLog(scenarioLogs[testScenario] || scenarioLogs['INV-017']);
+  }, [testScenario]);
 
   useEffect(() => {
     api.getInvariants().then((data) => {
