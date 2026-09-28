@@ -12,6 +12,17 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# Python bytecode & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
 # Environment and secrets
 .env
 .env.local
@@ -30,6 +41,24 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
+# Databases, SQLite & WAL journals
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+
+# Local TARS runtime store & graph databases
+.tars/*
+!.tars/invariants.yaml
+!.tars/flags.yaml
+
+# Ambient Drop folder & runtime uploads
+drop/*
+!drop/.gitkeep
 
 # Runtime data & temp files
 .cache/
@@ -63,3 +92,4 @@ playwright-report/
 # Ignore PDF and binary document files
 *.pdf
 *.md
+
