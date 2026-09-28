@@ -57,7 +57,67 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     setMentorLoading(true);
 
     try {
-      const res = await api.search({ query: userMsg });
+      const lower = userMsg.toLowerCase();
+      // If user asks about their own role
+      if (
+        lower.includes('my role') ||
+        lower.includes('my primary role') ||
+        lower.includes('what is my role') ||
+        lower.includes('whats my role') ||
+        lower.includes('who am i') ||
+        lower.includes('my responsibilities')
+      ) {
+        const roleProfiles: Record<string, { roleTitle: string; responsibilities: string; cite: string }> = {
+          FOUNDER: {
+            roleTitle: 'Founder & Sovereign Admin (Executive Track)',
+            responsibilities:
+              'Your primary role is executive governance, company runway management, and architectural discipline. You enforce Decision #14 (banning custom enterprise branches to preserve runway) and guarantee 100% data sovereignty (zero cloud egress).',
+            cite: 'Founder Flight-Plan · Executive Track P.1',
+          },
+          ENGINEER: {
+            roleTitle: 'Lead Software & Systems Engineer (Engineering Track)',
+            responsibilities:
+              'Your primary role is architecting and building the sovereign offline platform adhering to our 4 killer invariants (such as INV-017 Transactional Outbox pattern, local cookie auth, and parameter validation), ensuring all AST pre-commit checks pass deterministically in <50ms.',
+            cite: 'Engineering Architecture Playbook · Section 2',
+          },
+          PRODUCT: {
+            roleTitle: 'Product & Customer Intelligence Lead (Product Track)',
+            responsibilities:
+              'Your primary role is compiling unstructured customer audio debriefs and call recordings into structured 4-part specs (pains, features, commitments), promoting deliverables to the Unified Action Hub, and ensuring commitments align with Decision #14.',
+            cite: 'Product Spec Flight-Plan · Section 1',
+          },
+          NEW_HIRE: {
+            roleTitle: 'New Hire Sovereign Fellow (Onboarding Track)',
+            responsibilities:
+              'Your primary role is completing your 14-day flight-plan checklist, leveraging the private Socratic Mentor to ramp up on company decisions and architecture without context decay, and shipping your first verified pull request.',
+            cite: 'Onboarding Flight-Plan Checklist Day 1-3',
+          },
+          SALES: {
+            roleTitle: 'Enterprise GTM & Sales Specialist (GTM Track)',
+            responsibilities:
+              'Your primary role is presenting our air-gapped data sovereignty proposition to enterprise buyers who forbid cloud AI tools, and ensuring client commitments do not create custom fork debt.',
+            cite: 'Enterprise GTM Playbook · Section 3',
+          },
+        };
+
+        const activeProfile = roleProfiles[userRole] || roleProfiles.ENGINEER;
+        setMentorMessages((prev) => [
+          ...prev,
+          {
+            sender: 'mentor',
+            text: `Your primary role is **${activeProfile.roleTitle}**.\n\n${activeProfile.responsibilities}\n\nYou are currently on **Day ${activeDay}: ${currentModule.title}**.`,
+            citation: activeProfile.cite,
+          },
+        ]);
+        setMentorLoading(false);
+        return;
+      }
+
+      const res = await api.search({
+        query: userMsg,
+        user_role: userRole,
+        clearance: userRole === 'FOUNDER' ? 'EXECUTIVE_ONLY' : 'ALL_TEAM',
+      });
       const reply = res.answer || 'All company operations are designed for deterministic execution.';
       const cite = res.citations && res.citations.length > 0
         ? `${res.citations[0].doc_title} (P.${res.citations[0].page_number})`

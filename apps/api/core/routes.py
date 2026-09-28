@@ -16,9 +16,12 @@ async def search_knowledge(req: SearchRequest):
     citations = await search_service.search(req.query)
     
     # Synthesize answer with local Ollama SLM
+    user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}'.\n" if req.user_role else ""
     prompt = (
         f"You are TARS, the autonomous startup second brain.\n"
         f"Answer the user's query clearly and concisely based on company context.\n"
+        f"{user_context}"
+        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
         f"Query: {req.query}\n"
     )
     if citations:

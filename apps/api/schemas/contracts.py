@@ -13,6 +13,8 @@ class SearchRequest(BaseModel):
     query: str
     department: Optional[str] = "ALL"
     clearance: str = "ALL_TEAM"
+    user_role: Optional[str] = None
+    user_name: Optional[str] = None
 
 class SearchCitation(BaseModel):
     doc_id: str
