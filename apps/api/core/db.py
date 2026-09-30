@@ -204,9 +204,6 @@ class LocalDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_clearance ON memories(clearance);")
         if "is_demo" not in mem_cols:
             cursor.execute("ALTER TABLE memories ADD COLUMN is_demo INTEGER DEFAULT 0")
-        if "clearance" not in mem_cols:
-            cursor.execute("ALTER TABLE memories ADD COLUMN clearance TEXT NOT NULL DEFAULT 'ALL_TEAM'")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_clearance ON memories(clearance)")
 
         # Think Tank Channels table (Workspace 4 Chat Persistence)
         cursor.execute('''
