@@ -454,7 +454,8 @@ async def reset_workspace(payload: WorkspaceResetRequest):
 # ============================================================
 
 class TeachMemoryRequest(BaseModel):
-    content: str
+    content: Optional[str] = None
+    fact: Optional[str] = None
     title: Optional[str] = None
     category: Optional[str] = "POLICY"
     clearance: str = "ALL_TEAM"
@@ -477,12 +478,17 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
     Persists to SQLite memories with clearance level, tags, and audit telemetry.
     Immediately accessible to future unified search and LLM context synthesis.
     """
-    if not req.content or not req.content.strip():
+    raw_content = (req.content or req.fact or "").strip()
+    if not raw_content:
         raise HTTPException(status_code=400, detail="Content cannot be empty")
     
     mem_id = f"MEM-TEACH-{uuid.uuid4().hex[:8].upper()}"
-    title = req.title or f"Taught Fact ({req.category or 'POLICY'})"
-    content = req.content.strip()
+    if req.title:
+        title = req.title
+    else:
+        words = raw_content.split()
+        title = " ".join(words[:6]) if len(words) >= 3 else f"Taught Fact ({req.category or 'POLICY'})"
+    content = raw_content
     source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
     now_ts = int(time.time())
     tags = f"teach,learned,{(req.category or 'policy').lower()}"
@@ -549,15 +555,19 @@ class ThinkTankMessageDTO(BaseModel):
 
 class ThinkTankMessageCreate(BaseModel):
     channel_id: str = "general"
-    sender: str = "You"
+    sender: Optional[str] = "You"
+    sender_name: Optional[str] = None
+    sender_id: Optional[str] = None
     sender_role: Optional[str] = "ENGINEER"
     sender_type: Optional[str] = "USER"
-    text: str
+    text: Optional[str] = None
+    content: Optional[str] = None
     provenance: Optional[str] = None
     is_ai: bool = False
 
 class ThinkTankMessageUpdate(BaseModel):
-    text: str
+    text: Optional[str] = None
+    content: Optional[str] = None
 
 @router.get("/thinktank/channels", response_model=List[ThinkTankChannelDTO])
 async def list_thinktank_channels():
@@ -620,9 +630,11 @@ async def list_thinktank_messages(channel_id: str = "general"):
 @router.post("/thinktank/messages", response_model=ThinkTankMessageDTO)
 async def create_thinktank_message(payload: ThinkTankMessageCreate):
     """Persists a new user prompt or assistant reply to Think Tank channel."""
-    if not payload.text or not payload.text.strip():
+    raw_text = (payload.text or payload.content or "").strip()
+    if not raw_text:
         raise HTTPException(status_code=400, detail="Message text cannot be empty")
     msg_id = f"m-{uuid.uuid4().hex[:8]}"
+    sender = payload.sender or payload.sender_name or payload.sender_id or "You"
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
@@ -632,10 +644,10 @@ async def create_thinktank_message(payload: ThinkTankMessageCreate):
     ''', (
         msg_id,
         payload.channel_id,
-        payload.sender,
+        sender,
         payload.sender_role or "ENGINEER",
         payload.sender_type or ("AI" if payload.is_ai else "USER"),
-        payload.text.strip(),
+        raw_text,
         payload.provenance,
         1 if payload.is_ai else 0
     ))
@@ -660,7 +672,8 @@ async def create_thinktank_message(payload: ThinkTankMessageCreate):
 @router.patch("/thinktank/messages/{message_id}", response_model=ThinkTankMessageDTO)
 async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpdate):
     """Edits an existing Think Tank message and marks it as edited."""
-    if not payload.text or not payload.text.strip():
+    raw_text = (payload.text or payload.content or "").strip()
+    if not raw_text:
         raise HTTPException(status_code=400, detail="Updated text cannot be empty")
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -668,7 +681,7 @@ async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpd
         UPDATE thinktank_messages
         SET text = ?, is_edited = 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND is_deleted = 0
-    ''', (payload.text.strip(), message_id))
+    ''', (raw_text, message_id))
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Message not found")
     conn.commit()

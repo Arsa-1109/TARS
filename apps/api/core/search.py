@@ -49,7 +49,11 @@ class UnifiedSearchService:
             if has_exec_clearance:
                 clearance_filter = "1=1"
             else:
-                clearance_filter = "(clearance != 'EXECUTIVE_ONLY' OR clearance IS NULL)"
+                clearance_filter = """
+                    (clearance NOT IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL') OR clearance IS NULL)
+                    AND id NOT IN (SELECT doc_id FROM documents WHERE clearance IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL'))
+                    AND (related_ids IS NULL OR related_ids NOT IN (SELECT doc_id FROM documents WHERE clearance IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL')))
+                """
 
             cursor.execute(f"""
                 SELECT id, title, content, source, clearance, timestamp 
@@ -65,6 +69,19 @@ class UnifiedSearchService:
                 title = row["title"] or ""
                 content = row["content"] or ""
                 ts = row["timestamp"] or 0
+                row_clearance = (row["clearance"] or "").upper()
+
+                title_lower = title.lower()
+                content_lower = content.lower()
+
+                # Layer 1 Security Guardrail: Never leak executive/confidential records to non-executives
+                if not has_exec_clearance:
+                    if row_clearance in ("EXECUTIVE_ONLY", "CONFIDENTIAL"):
+                        continue
+                    if any(t in title_lower for t in ("cap_table", "captable", "term_sheet", "equity_allocation", "founder_equity", "cap table", "term sheet", "runway")):
+                        continue
+                    if any(p in content_lower for p in ("founder equity", "cap table", "seed at $", "seed round", "$15m cap", "chief executive officer & co-founder")):
+                        continue
 
                 # Score based on exact word boundary regex matches
                 score = 0
@@ -76,9 +93,10 @@ class UnifiedSearchService:
 
                 if score > 0:
                     # Continuous learning & supersession boost:
-                    # Taught memories indicating updates ("switched from", "migrated", "updated to") take priority
+                    # Taught memories indicating updates ("switched from", "migrated", "updated to") take decisive priority
                     supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
-                    supersede_bonus = 6 if any(sk in content.lower() for sk in supersede_keywords) else 0
+                    is_supersede = any(sk in content.lower() for sk in supersede_keywords)
+                    supersede_bonus = 30 if is_supersede else (6 if (row["source"] and str(row["source"]).startswith("TEACH:")) else 0)
                     composite_score = score + supersede_bonus
 
                     snippet = self._extract_snippet(content, kw_patterns)
@@ -95,8 +113,8 @@ class UnifiedSearchService:
                 graph = TarsGraph()
                 decisions = graph.get_all_decisions()
                 for d in decisions:
-                    d_clearance = d.get("clearance", "ALL_TEAM")
-                    if not has_exec_clearance and d_clearance == "EXECUTIVE_ONLY":
+                    d_clearance = (d.get("clearance") or "ALL_TEAM").upper()
+                    if not has_exec_clearance and d_clearance in ("EXECUTIVE_ONLY", "CONFIDENTIAL"):
                         continue
                     
                     d_id = d.get("id", "")
@@ -128,17 +146,17 @@ class UnifiedSearchService:
 
             # 4. In-memory MarkItDown parsed cache (with clearance check)
             for fhash, doc in markitdown_parser.ingested_hashes.items():
-                doc_clearance = doc.get("clearance", "ALL_TEAM")
+                doc_clearance = str(doc.get("clearance") or "ALL_TEAM").upper()
                 title = doc.get("filename", "")
                 content = doc.get("content", "")
                 title_lower = title.lower()
                 content_lower = content.lower()
 
-                # Guardrail: term sheets, cap tables, and founder equity allocation are executive-only
+                # Guardrail: term sheets, cap tables, founder equity allocation, and confidential financials
                 is_exec_doc = (
-                    doc_clearance == "EXECUTIVE_ONLY" or
-                    any(t in title_lower for t in ("cap_table", "captable", "term_sheet", "equity_allocation", "founder_equity")) or
-                    ("founder equity" in content_lower and "cap" in content_lower) or
+                    doc_clearance in ("EXECUTIVE_ONLY", "CONFIDENTIAL") or
+                    any(t in title_lower for t in ("cap_table", "captable", "term_sheet", "equity_allocation", "founder_equity", "cap table", "term sheet", "runway")) or
+                    any(p in content_lower for p in ("founder equity", "cap table", "seed at $", "seed round", "$15m cap", "chief executive officer & co-founder")) or
                     "unredacted" in title_lower
                 )
                 if not has_exec_clearance and is_exec_doc:
