@@ -37,6 +37,7 @@ import {
   RefreshCw,
   Compass,
   FilePlus2,
+  ArrowRight,
 } from 'lucide-react';
 
 interface DecisionsWorkspaceProps {
@@ -97,6 +98,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [radarExpanded, setRadarExpanded] = useState(true);
   const [recFilterTab, setRecFilterTab] = useState<string>('ALL');
   const [radarNotice, setRadarNotice] = useState<string | null>(null);
+  const [selectedRec, setSelectedRec] = useState<StrategicRecommendation | null>(null);
 
   const fetchRecommendations = async () => {
     setLoadingRecs(true);
@@ -457,113 +459,38 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
                 {filteredRecommendations.map((rec) => {
                   const badgeStyle = recCategoryBadges[rec.category.toUpperCase()] || recCategoryBadges.STRATEGY;
-                  const isHigh = (rec.priority || '').toUpperCase() === 'HIGH';
 
                   return (
                     <div
                       key={rec.id}
-                      className="group flex flex-col justify-between rounded-[16px] border border-black/[0.07] dark:border-white/[0.07] bg-black/[0.015] dark:bg-white/[0.02] hover:bg-black/[0.03] dark:hover:bg-white/[0.04] p-4 transition-all duration-200 hover:shadow-md hover:border-black/[0.14] dark:hover:border-white/[0.14] space-y-3"
+                      onClick={() => setSelectedRec(rec)}
+                      className="group relative flex flex-col justify-between rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1E1E20] hover:bg-black/[0.02] dark:hover:bg-[#252528] p-4 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-[#0071E3]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-0.5 space-y-3"
                     >
                       <div className="space-y-2.5">
-                        {/* Top Meta Row */}
-                        <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={`text-[9.5px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
-                            >
-                              {rec.category}
-                            </span>
-                            <span
-                              className={`text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded-md ${
-                                isHigh
-                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}
-                            >
-                              {rec.priority}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDismissRec(rec.id, e)}
-                            className="text-[#8E8E93] hover:text-[#FF3B30] p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                            title="Dismiss suggestion"
+                        {/* Top Row: Category tag & View details hint */}
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span
+                            className={`text-[9.5px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
                           >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                            {rec.category}
+                          </span>
+                          <span className="text-[10px] font-mono text-[#8E8E93] group-hover:text-black dark:group-hover:text-white flex items-center gap-1 transition-colors">
+                            Details <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          </span>
                         </div>
 
-                        {/* Title */}
-                        <h4 className="text-[13px] font-bold text-black dark:text-white leading-snug">
+                        {/* Bold Heading */}
+                        <h4 className="text-[13.5px] font-bold text-black dark:text-white leading-snug line-clamp-2 min-h-[38px]">
                           {rec.title}
                         </h4>
-
-                        {/* Estimated Impact Pill */}
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] border border-emerald-500/20 px-2 py-0.5 rounded-md">
-                          <TrendingUp className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{rec.estimated_impact}</span>
-                        </div>
-
-                        {/* Rationale */}
-                        <p className="text-[11.5px] text-[#4A4A4F] dark:text-[#A1A1A6] leading-relaxed line-clamp-3">
-                          {rec.rationale}
-                        </p>
-
-                        {/* Actionable Steps */}
-                        {rec.actionable_steps && rec.actionable_steps.length > 0 && (
-                          <div className="space-y-1 pt-1">
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E8E93]">
-                              Action Vectors:
-                            </span>
-                            <ul className="space-y-1">
-                              {rec.actionable_steps.slice(0, 3).map((step, sIdx) => (
-                                <li
-                                  key={sIdx}
-                                  className="flex items-start gap-1.5 text-[11px] text-[#333] dark:text-[#C7C7CC] leading-tight"
-                                >
-                                  <span className="text-[#0071E3] dark:text-[#0A84FF] mt-0.5 font-bold">›</span>
-                                  <span>{step}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Supporting Citations */}
-                        {rec.supporting_citations && rec.supporting_citations.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1 pt-1">
-                            {rec.supporting_citations.map((cite, cIdx) => (
-                              <span
-                                key={cIdx}
-                                className="text-[9.5px] font-mono bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] px-1.5 py-0.5 rounded"
-                              >
-                                {cite}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </div>
 
-                      {/* Card Action Buttons */}
-                      <div className="pt-2 border-t border-black/[0.05] dark:border-white/[0.05] flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handlePromoteToDecision(rec)}
-                          className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 px-2 rounded-lg bg-black/[0.05] dark:bg-white/[0.07] text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
-                          title="Draft this recommendation as an Architectural Decision Record"
-                        >
-                          <FilePlus2 className="w-3 h-3" />
-                          <span>Draft ADR</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSimulateRec(rec)}
-                          className="flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 px-2.5 rounded-lg bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF] hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0A84FF] dark:hover:text-white transition-colors"
-                          title="Run counterfactual runway and delivery simulation on this scenario"
-                        >
-                          <Play className="w-3 h-3" />
-                          <span>Simulate</span>
-                        </button>
+                      {/* Impact in Green */}
+                      <div className="pt-1">
+                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.10] dark:bg-emerald-500/[0.15] border border-emerald-500/25 px-2.5 py-1.5 rounded-lg w-full">
+                          <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{rec.estimated_impact}</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1297,6 +1224,139 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
             edges will be removed from the graph store.
           </p>
         </div>
+      </Dialog>
+
+      {/* Strategic Growth Vector Detailed Summary Dialog */}
+      <Dialog
+        isOpen={Boolean(selectedRec)}
+        onClose={() => setSelectedRec(null)}
+        title={selectedRec?.title || 'Strategic Growth Vector'}
+        description="Autonomous optimization analysis grounded in sovereign company metrics and active ADRs."
+        width="max-w-2xl"
+        footer={
+          <div className="flex items-center justify-between w-full">
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Trash2 className="w-3.5 h-3.5 text-[#FF3B30]" />}
+              onClick={() => {
+                if (selectedRec) {
+                  handleDismissRec(selectedRec.id);
+                  setSelectedRec(null);
+                }
+              }}
+            >
+              Dismiss
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Play className="w-3.5 h-3.5" />}
+                onClick={() => {
+                  if (selectedRec) {
+                    handleSimulateRec(selectedRec);
+                    setSelectedRec(null);
+                  }
+                }}
+              >
+                Run What-If Simulation
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => {
+                  if (selectedRec) {
+                    handlePromoteToDecision(selectedRec);
+                    setSelectedRec(null);
+                  }
+                }}
+              >
+                Draft as ADR Proposal
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        {selectedRec && (
+          <div className="space-y-4 py-1">
+            {/* Meta & Impact Row */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.07]">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+                    (recCategoryBadges[selectedRec.category.toUpperCase()] || recCategoryBadges.STRATEGY).bg
+                  } ${
+                    (recCategoryBadges[selectedRec.category.toUpperCase()] || recCategoryBadges.STRATEGY).text
+                  } ${
+                    (recCategoryBadges[selectedRec.category.toUpperCase()] || recCategoryBadges.STRATEGY).border
+                  }`}
+                >
+                  {selectedRec.category}
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                  {selectedRec.priority} PRIORITY
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.12] dark:bg-emerald-500/[0.18] border border-emerald-500/30 px-3 py-1 rounded-lg">
+                <TrendingUp className="w-4 h-4 shrink-0" />
+                <span>{selectedRec.estimated_impact}</span>
+              </div>
+            </div>
+
+            {/* Strategic Rationale */}
+            <div className="space-y-1.5 p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-[#8E8E93] font-semibold block">
+                Strategic Rationale & Grounding:
+              </span>
+              <p className="text-[13px] text-[#3C3C43] dark:text-[#EBEBF5] leading-relaxed">
+                {selectedRec.rationale}
+              </p>
+            </div>
+
+            {/* Action Vectors Checklist */}
+            {selectedRec.actionable_steps && selectedRec.actionable_steps.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8E8E93] font-semibold block">
+                  Action Vectors & Execution Steps:
+                </span>
+                <div className="space-y-1.5">
+                  {selectedRec.actionable_steps.map((step, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2.5 p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <span className="text-[12.5px] text-[#2C2C2E] dark:text-[#D1D1D6] leading-snug">
+                        {step}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Supporting Citations */}
+            {selectedRec.supporting_citations && selectedRec.supporting_citations.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8E8E93] font-semibold block">
+                  Supporting Institutional Citations:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {selectedRec.supporting_citations.map((cite, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[11px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-[#48484A] dark:text-[#AEAEB2] px-2.5 py-1 rounded-md border border-black/[0.06] dark:border-white/[0.08]"
+                    >
+                      {cite}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Dialog>
     </div>
   );
