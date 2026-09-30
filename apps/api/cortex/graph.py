@@ -105,7 +105,7 @@ class EmbeddedGraphConn:
                 self.supersedes.append((new_id, old_id))
             return EmbeddedQueryResult([])
 
-        if "SET d.lifecycle_status = 'SUPERSEDED'" in q:
+        if "SET d.lifecycle_status = 'SUPERSEDED'" in q or "SET d.status = 'SUPERSEDED'" in q or params.get("status") == "SUPERSEDED" or params.get("lifecycle_status") == "SUPERSEDED":
             target_id = params.get("id")
             if target_id in self.decisions:
                 self.decisions[target_id]["status"] = "SUPERSEDED"
@@ -342,7 +342,9 @@ class TarsGraph:
             params = {"id": decision_id}
         else:
             query = "MATCH (d:Decision {id: $id}) SET d.status = 'SUPERSEDED' RETURN d.id"
-            params = {"id": decision_id}
+            params = {"id": decision_id, "status": "SUPERSEDED", "lifecycle_status": "SUPERSEDED"}
+            if superseded_by:
+                params["superseded_by"] = superseded_by
         try:
             res = self.conn.execute(query, params)
             if hard_purge:
