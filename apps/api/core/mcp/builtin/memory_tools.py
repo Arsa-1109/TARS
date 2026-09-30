@@ -10,16 +10,35 @@ async def handle_memory_create(args: dict) -> ExecutionResult:
     title = args.get("title")
     content = args.get("content")
     source = args.get("source", "mcp")
-    
+    clearance = args.get("clearance", "ALL_TEAM")
+    tags = args.get("tags", "mcp,fastmcp")
+    now_ts = int(time.time())
+
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO memories (id, record_type, title, content, source, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (mem_id, record_type, title, content, source, int(time.time())))
+        INSERT INTO memories (id, record_type, title, content, source, timestamp, clearance, tags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (mem_id, record_type, title, content, source, now_ts, clearance, tags))
     conn.commit()
-    
-    return ExecutionResult(success=True, data={"id": mem_id})
+
+    # Item 121: Synchronize ADR/decision memories to graph
+    if record_type in ("adr", "decision"):
+        try:
+            from apps.api.cortex.routes import graph_engine
+            graph_engine.add_decision(
+                decision_id=f"DEC-{mem_id[:8].upper()}",
+                title=title or "ADR Record",
+                category="ENGINEERING",
+                context=f"Recorded via MCP memory tool from {source}.",
+                chosen_option=content or "",
+                clearance=clearance,
+                status="ACTIVE",
+            )
+        except Exception:
+            pass
+
+    return ExecutionResult(success=True, data={"id": mem_id, "clearance": clearance, "record_type": record_type})
 
 async def handle_adr_create(args: dict) -> ExecutionResult:
     # Just an alias to create an ADR memory

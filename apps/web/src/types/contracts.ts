@@ -237,19 +237,58 @@ export interface MadrResponse {
 }
 
 
-// Unified Action Hub
+// Unified Action Hub (Item 139: DTO Parity)
+export type ActionItemStatus =
+  | 'DETECTED'
+  | 'PROPOSED'
+  | 'REVIEW_REQUIRED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'EXECUTING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'OPEN'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'PENDING';
+
 export interface ActionItemDTO {
   id: string;
   description: string;
   owner: string;
+  assignee?: string;
   title?: string;
   priority?: 'URGENT' | 'HIGH' | 'MEDIUM' | 'LOW';
   department?: string;
   deadline?: number | null;
-  status: 'OPEN' | 'IN_PROGRESS' | 'DONE';
-  source_type: 'CALL' | 'DECISION' | 'CHAT' | 'ARCHITECTURE';
+  status: ActionItemStatus;
+  source_type: 'CALL' | 'DECISION' | 'CHAT' | 'ARCHITECTURE' | 'CLIENT_CALL' | string;
   source_id: string;
-  source_offset: string;
+  source_offset?: string;
+  created_at?: number | string;
+  expires_at?: number | null;
+  policy_version?: string;
+  approval_scope?: string;
+  is_demo?: number;
+  organisation_id?: string;
+}
+
+export interface DocumentDTO {
+  doc_id: string;
+  filename: string;
+  file_hash: string;
+  department: string;
+  clearance: string;
+  format: string;
+  file_size_bytes: number;
+  page_count: number;
+  table_count: number;
+  character_count: number;
+  ingested_at: number | string;
+  is_demo?: number | boolean;
+  valid_from?: number;
+  valid_until?: number | null;
+  organisation_id?: string;
 }
 
 // Cursor MCP Config

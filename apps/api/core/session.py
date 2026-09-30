@@ -11,32 +11,70 @@ class SessionData(BaseModel):
     tars_user: str
     tars_role: str
     created_at: int
+    expires_at: Optional[int] = None
+    revoked_at: Optional[int] = None
+    user_id: Optional[str] = None
+    organisation_id: Optional[str] = None
 
 class SessionManager:
-    def create_session(self, session_id: str, tars_user: str, tars_role: str) -> SessionData:
+    DEFAULT_SESSION_TTL_SECONDS = 7 * 86400  # 7 days
+
+    def create_session(
+        self,
+        session_id: str,
+        tars_user: str,
+        tars_role: str,
+        expires_at: Optional[int] = None,
+        user_id: Optional[str] = None,
+        organisation_id: Optional[str] = None
+    ) -> SessionData:
         conn = db.get_connection()
         cursor = conn.cursor()
         created_at = int(time.time())
+        exp = expires_at or (created_at + self.DEFAULT_SESSION_TTL_SECONDS)
+        uid = user_id or tars_user
         cursor.execute('''
-            INSERT OR REPLACE INTO sessions (session_id, tars_user, tars_role, created_at)
-            VALUES (?, ?, ?, ?)
-        ''', (session_id, tars_user, tars_role, created_at))
+            INSERT OR REPLACE INTO sessions (session_id, tars_user, tars_role, created_at, expires_at, revoked_at, user_id, organisation_id)
+            VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+        ''', (session_id, tars_user, tars_role, created_at, exp, uid, organisation_id))
         conn.commit()
         return SessionData(
             session_id=session_id,
             tars_user=tars_user,
             tars_role=tars_role,
-            created_at=created_at
+            created_at=created_at,
+            expires_at=exp,
+            revoked_at=None,
+            user_id=uid,
+            organisation_id=organisation_id
         )
+
+    def revoke_session(self, session_id: str) -> bool:
+        """Revokes a session explicitly upon logout (Item 108)."""
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        now = int(time.time())
+        cursor.execute("UPDATE sessions SET revoked_at = ? WHERE session_id = ?", (now, session_id))
+        conn.commit()
+        return cursor.rowcount > 0
 
     def get_session(self, session_id: str) -> Optional[SessionData]:
         conn = db.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM sessions WHERE session_id = ?', (session_id,))
         row = cursor.fetchone()
-        if row:
-            return SessionData(**dict(row))
-        return None
+        if not row:
+            return None
+        row_dict = dict(row)
+        now = int(time.time())
+        # Check revocation
+        if row_dict.get("revoked_at") is not None:
+            return None
+        # Check expiration
+        exp = row_dict.get("expires_at")
+        if exp is not None and exp < now:
+            return None
+        return SessionData(**row_dict)
 
 class UserManager:
     """Manages persistent custom users and RBAC clearances within the Sovereign SQLite store."""

@@ -3,19 +3,39 @@
 TARS Central API Gateway
 Mounts track-specific sub-routers while preserving strict directory boundaries.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Authoritative startup and shutdown lifecycle for TARS (Item 73)."""
+    try:
+        from apps.api.core.db import db
+        db.initialize()
+    except Exception as e:
+        print(f"Notice: Database initialization during startup: {e}")
+    yield
+
+
 app = FastAPI(
-    title="TARS Sovereign Local API",
+    title="TARS API Gateway",
     description="Offline-first Knowledge, Architectural Cortex & Audio Intelligence Gateway",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
-# Allow local network & client connections
+# Secure CORS: explicitly restrict allowed origins to known local endpoints (Item 74)
+# Never pair wildcard origins with credentials
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

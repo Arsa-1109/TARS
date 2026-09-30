@@ -143,11 +143,11 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
           playPromise
             .then(() => setIsPlaying(true))
             .catch((err) => {
-              console.warn('Audio playback fallback (simulating playback):', err);
-              setIsPlaying(true);
+              console.warn('Audio playback unavailable:', err);
+              // Item 134: Honest failure - do not simulate playback if audio is missing
+              setIsPlaying(false);
+              alert('Audio recording file is unavailable or could not be loaded.');
             });
-        } else {
-          setIsPlaying(true);
         }
       }
     }

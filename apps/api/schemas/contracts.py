@@ -110,10 +110,16 @@ class ActionItemDTO(BaseModel):
     department: Optional[str] = "General"
     priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
     deadline: Optional[int] = None
-    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED
+    status: str = "OPEN"      # DETECTED, PROPOSED, REVIEW_REQUIRED, APPROVED, REJECTED, EXECUTING, COMPLETED, FAILED, OPEN, IN_PROGRESS, DONE
     source_type: str = "CALL" # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT, ARCHITECTURE
     source_id: str = ""
     source_offset: Optional[str] = None
+    created_at: Optional[int] = None
+    expires_at: Optional[int] = None
+    policy_version: Optional[str] = None
+    approval_scope: Optional[str] = None
+    is_demo: Optional[int] = 0
+    organisation_id: Optional[str] = "CMP-GENESIS-01"
 
 # ==========================================
 # CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE

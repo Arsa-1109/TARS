@@ -120,6 +120,61 @@ class WhisperTranscriber:
         self._worker_thread: Optional[threading.Thread] = None
         self._model = None
         self._lock = threading.Lock()
+        self._hydrate_tasks_from_db()
+
+    def _hydrate_tasks_from_db(self):
+        """Hydrates transcription task lifecycles from persistent SQLite store (Item 85)."""
+        try:
+            from apps.api.core.db import db
+            import json
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT task_id, call_id, file_path, client_name, status, created_at, started_at, completed_at, duration, transcript, error, spec_result FROM call_lifecycles")
+            for r in cursor.fetchall():
+                t = WhisperTask(task_id=r["task_id"], file_path=r["file_path"], client_name=r["client_name"] or "Enterprise Client")
+                t.status = r["status"]
+                t.created_at = r["created_at"]
+                t.started_at = r["started_at"]
+                t.completed_at = r["completed_at"]
+                t.duration_seconds = r["duration"] or 0.0
+                t.transcript = r["transcript"] or ""
+                t.error = r["error"]
+                if r["spec_result"]:
+                    try:
+                        t.spec_result = json.loads(r["spec_result"])
+                    except Exception:
+                        pass
+                self._tasks[t.task_id] = t
+                # Item 145: Job durability - re-enqueue interrupted tasks on startup
+                if t.status in ("QUEUED", "PROCESSING") and os.path.exists(t.file_path):
+                    t.status = "QUEUED"
+                    self._queue.put(t)
+                    logger.info(f"Re-enqueued durable background task {t.task_id} on startup (Item 145)")
+        except Exception as e:
+            logger.debug(f"Could not hydrate call_lifecycles: {e}")
+
+    def _persist_task_to_db(self, task: WhisperTask):
+        """Persists transcription task state to SQLite call_lifecycles (Item 85)."""
+        try:
+            from apps.api.core.db import db
+            import json
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            call_id = task.task_id.replace("WSP-", "CALL-")
+            spec_json = json.dumps(task.spec_result) if task.spec_result else None
+            cursor.execute("""
+                INSERT OR REPLACE INTO call_lifecycles (
+                    task_id, call_id, company_id, file_id, file_path, client_name,
+                    status, created_at, started_at, completed_at, duration, transcript, error, spec_result
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                task.task_id, call_id, "default_org", task.task_id, task.file_path, task.client_name,
+                task.status, task.created_at, task.started_at, task.completed_at,
+                task.duration_seconds, task.transcript, task.error, spec_json
+            ))
+            conn.commit()
+        except Exception as e:
+            logger.debug(f"Could not persist task {task.task_id} to call_lifecycles: {e}")
 
     def pause(self):
         """Yields compute cycles for higher-priority tasks (Patch P-09 Lean QoS)."""
@@ -179,6 +234,7 @@ class WhisperTranscriber:
         task = WhisperTask(task_id=task_id, file_path=file_path, client_name=client_name)
         with self._lock:
             self._tasks[task_id] = task
+        self._persist_task_to_db(task)
         self._queue.put(task)
         self.start()
         return task_id
@@ -218,6 +274,7 @@ class WhisperTranscriber:
             try:
                 task.status = "PROCESSING"
                 task.started_at = time.time()
+                self._persist_task_to_db(task)
                 logger.info(f"Processing audio task {task.task_id} ({os.path.basename(task.file_path)})...")
 
                 ext = os.path.splitext(task.file_path)[1].lower()
@@ -233,6 +290,7 @@ class WhisperTranscriber:
                 task.duration_seconds = duration
                 task.status = "COMPLETED"
                 task.completed_at = time.time()
+                self._persist_task_to_db(task)
                 logger.info(f"Task {task.task_id} completed in {task.completed_at - task.started_at:.2f}s.")
 
                 # Invoke completion hook (e.g. Spec Extraction)
@@ -244,13 +302,16 @@ class WhisperTranscriber:
 
             except Exception as e:
                 task.status = "FAILED"
-                task.error = str(e)
+                task.error = "transcription_failed" if str(e) == "transcription_failed" else str(e)
+                task.transcript = ""
+                task.spec_result = None
+                self._persist_task_to_db(task)
                 logger.error(f"Task {task.task_id} failed: {e}", exc_info=True)
             finally:
                 self._queue.task_done()
 
     def _transcribe_audio(self, file_path: str) -> Tuple[str, float]:
-        """Transcribes audio using CPU Faster-Whisper, with deterministic fallback."""
+        """Transcribes audio using CPU Faster-Whisper, with honest failure on error (Item 84)."""
         self._init_model()
 
         if self._model is not None:
@@ -259,7 +320,11 @@ class WhisperTranscriber:
                 text_segments = [s.text.strip() for s in segments]
                 return " ".join(text_segments), getattr(info, "duration", 180.0)
             except Exception as e:
-                logger.warning(f"faster-whisper inference failed ({e}). Using deterministic audio simulation.")
+                logger.warning(f"faster-whisper inference failed ({e}).")
+
+        # Item 84: In production, never synthesize mock transcripts on failure
+        if os.getenv("TARS_TESTING") != "1" and not os.getenv("PYTEST_CURRENT_TEST"):
+            raise RuntimeError("transcription_failed")
 
         # Deterministic fallback simulation for air-gap test execution
         duration = 180.0

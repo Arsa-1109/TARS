@@ -66,6 +66,48 @@ class DropFileHandler:
         self.processed_hashes: Dict[str, Dict[str, Any]] = {}
         self.processed_files: Dict[str, Dict[str, Any]] = {}
         self.is_paused: bool = False
+        self._hydrate_ledger()
+
+    def _hydrate_ledger(self):
+        """Loads previously ingested hashes from persistent SQLite ledger (Item 82)."""
+        try:
+            from apps.api.core.db import db
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT file_hash, file_path, filename, file_size_bytes, status, detected_at FROM ingested_files_ledger")
+            for r in cursor.fetchall():
+                self.processed_hashes[r["file_hash"]] = {
+                    "file_hash": r["file_hash"],
+                    "path": r["file_path"],
+                    "filename": r["filename"],
+                    "size_bytes": r["file_size_bytes"],
+                    "status": r["status"],
+                    "detected_at": r["detected_at"],
+                }
+        except Exception as e:
+            logger.debug(f"Could not hydrate ingested_files_ledger: {e}")
+
+    def _record_in_ledger(self, record: Dict[str, Any]):
+        """Persists file hash and processing metadata to SQLite ledger across restarts (Item 82)."""
+        try:
+            from apps.api.core.db import db
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO ingested_files_ledger (file_hash, file_path, filename, file_size_bytes, status, detected_at, organisation_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record.get("file_hash"),
+                record.get("path"),
+                record.get("filename"),
+                record.get("size_bytes", 0),
+                record.get("status", "INGESTED"),
+                record.get("detected_at", time.time()),
+                record.get("organisation_id", "default_org")
+            ))
+            conn.commit()
+        except Exception as e:
+            logger.debug(f"Could not persist to ingested_files_ledger: {e}")
 
     @staticmethod
     def compute_sha256(file_path: str) -> str:
@@ -96,7 +138,7 @@ class DropFileHandler:
             logger.warning(f"Could not compute hash for {filename}: {e}")
             return None
 
-        # Deduplication Guard (SDD 4.3)
+        # Deduplication Guard (SDD 4.3 & Item 82)
         if file_hash in self.processed_hashes:
             logger.info(f"Duplicate file skipped ({filename}, SHA-256: {file_hash[:8]})")
             return self.processed_hashes[file_hash]
@@ -153,6 +195,7 @@ class DropFileHandler:
 
         self.processed_hashes[file_hash] = record
         self.processed_files[file_path] = record
+        self._record_in_ledger(record)
         return record
 
     def _notify(self, event_data: Dict[str, Any]):
@@ -258,8 +301,10 @@ class AmbientDropWatcher:
         self.is_running = False
         logger.info("Ambient drop watcher stopped.")
 
-    def scan_existing(self) -> int:
-        """Manually trigger scan of all current files in the drop directory."""
+    MAX_BATCH_SIZE = 20  # Item 83: Maximum batch sweep cap to prevent resource exhaustion
+
+    def scan_existing(self, max_batch: int = 20) -> int:
+        """Manually trigger scan of current files in drop directory, capped at max_batch (Item 83)."""
         if self.is_paused:
             logger.debug("Scan skipped: drop watcher is paused under QoS yield.")
             return 0
@@ -269,6 +314,9 @@ class AmbientDropWatcher:
 
         count = 0
         for entry in os.listdir(self.drop_dir):
+            if count >= max_batch:
+                logger.info(f"Ambient sweep reached maximum batch limit ({max_batch} files). Applying backpressure.")
+                break
             full_path = os.path.join(self.drop_dir, entry)
             if os.path.isfile(full_path):
                 rec = self.handler.process_file(full_path)

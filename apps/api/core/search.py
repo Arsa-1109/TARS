@@ -16,7 +16,9 @@ class UnifiedSearchService:
         priority: int = Priority.INTERACTIVE,
         user_clearance: str = "ALL_TEAM",
         user_role: str = "ENGINEER",
-        clearance: Optional[str] = None
+        clearance: Optional[str] = None,
+        as_of_date: Optional[int] = None,
+        temporal_mode: str = "CURRENT",
     ) -> List[SearchCitation]:
         if clearance and (not user_clearance or user_clearance == "ALL_TEAM"):
             user_clearance = clearance
@@ -89,18 +91,26 @@ class UnifiedSearchService:
 
                 # Score based on exact word boundary regex matches
                 score = 0
+                matched_keywords = 0
                 for pattern in kw_patterns:
-                    title_matches = len(pattern.findall(title))
-                    score += title_matches * 6
-                    content_matches = len(pattern.findall(content))
-                    score += min(content_matches * 2, 8)
+                    t_matches = len(pattern.findall(title))
+                    c_matches = len(pattern.findall(content))
+                    if t_matches > 0 or c_matches > 0:
+                        matched_keywords += 1
+                    score += t_matches * 8
+                    score += min(c_matches * 2, 8)
 
                 if score > 0:
+                    coverage = matched_keywords / max(1, len(kw_patterns))
+                    score = int(score * (1.0 + coverage * 2.0))
+
                     # Continuous learning & supersession boost:
                     # Taught memories indicating updates ("switched from", "migrated", "updated to") take decisive priority
                     supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
                     is_supersede = any(sk in content.lower() for sk in supersede_keywords)
-                    supersede_bonus = 30 if is_supersede else (6 if (row["source"] and str(row["source"]).startswith("TEACH:")) else 0)
+                    supersede_bonus = (30 if is_supersede else 0) if coverage >= 0.5 else 0
+                    if row["source"] and str(row["source"]).startswith("TEACH:"):
+                        supersede_bonus += 6
                     composite_score = score + supersede_bonus
 
                     snippet = self._extract_snippet(content, kw_patterns)
@@ -129,15 +139,32 @@ class UnifiedSearchService:
                     d_ts = d.get("timestamp", 0)
 
                     dec_score = 0
+                    matched_keywords = 0
                     for pattern in kw_patterns:
-                        if pattern.search(d_title):
+                        t_m = bool(pattern.search(d_title))
+                        c_m = bool(pattern.search(d_chosen))
+                        x_m = bool(pattern.search(d_context))
+                        if t_m or c_m or x_m:
+                            matched_keywords += 1
+                        if t_m:
                             dec_score += 8  # Strong weight for direct decision matches
-                        if pattern.search(d_chosen):
+                        if c_m:
                             dec_score += 6
-                        if pattern.search(d_context):
+                        if x_m:
                             dec_score += 4
 
                     if dec_score > 0:
+                        coverage = matched_keywords / max(1, len(kw_patterns))
+                        dec_score = int(dec_score * (1.0 + coverage * 2.0))
+
+                        # Continuous learning & supersession boost for decisions (Item 115)
+                        supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
+                        is_supersede = any(sk in f"{d_chosen} {d_context} {d_title}".lower() for sk in supersede_keywords)
+                        supersede_bonus = (35 if is_supersede else 0) if coverage >= 0.5 else 0
+                        if d_status == "SUPERSEDED":
+                            supersede_bonus -= 20
+                        dec_score += supersede_bonus
+
                         snippet_body = f"[{d_status}] {d_chosen}. Context: {d_context}" if d_chosen else d_context
                         scored_results.append((dec_score, d_ts, SearchCitation(
                             doc_id=d_id,
@@ -179,24 +206,29 @@ class UnifiedSearchService:
                         snippet=self._extract_snippet(content, kw_patterns)
                     )))
 
-            # 5. Deduplicate and order by score descending, then recency timestamp descending
-            # (Allows newly taught facts to take precedence over older superseded facts)
+            # 5. Deduplicate and order by score descending, then recency timestamp descending (Item 115, Item 116)
+            # Allows newly taught facts to take precedence over older superseded facts
             scored_results.sort(key=lambda x: (x[0], x[1]), reverse=True)
 
             deduped: List[SearchCitation] = []
-            seen_ids = set()
-            title_counts: Dict[str, int] = {}
+            seen_chunk_keys = set()
+            seen_titles = set()
+            import hashlib
 
             for item in scored_results:
                 cit = item[2]
+                content_hash = hashlib.sha256((cit.snippet or "").strip().encode("utf-8")).hexdigest()[:16]
+                dedup_key = (cit.doc_id, cit.page_number, content_hash)
+                if dedup_key in seen_chunk_keys:
+                    continue
+                seen_chunk_keys.add(dedup_key)
+
+                # Deduplicate chunks from the same document title into 1 canonical citation (Item 116)
                 title_key = cit.doc_title.strip().lower()
-                if cit.doc_id in seen_ids:
+                if title_key in seen_titles:
                     continue
-                # Allow up to 3 complementary chunks from the same document
-                if title_counts.get(title_key, 0) >= 3:
-                    continue
-                seen_ids.add(cit.doc_id)
-                title_counts[title_key] = title_counts.get(title_key, 0) + 1
+                seen_titles.add(title_key)
+
                 deduped.append(cit)
                 if len(deduped) >= limit:
                     break

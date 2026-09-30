@@ -38,7 +38,13 @@ function _getActiveCompanyName(): string {
     const raw = localStorage.getItem('tars_session_storage');
     if (raw) {
       const parsed = JSON.parse(raw);
-      return parsed?.state?.profile?.company_name || '';
+      const name = parsed?.profile?.company_name || parsed?.state?.profile?.company_name;
+      if (name) return name;
+    }
+    const userRaw = localStorage.getItem('tars_current_user_profile');
+    if (userRaw) {
+      const parsed = JSON.parse(userRaw);
+      return parsed?.company_name || '';
     }
   } catch {}
   return '';

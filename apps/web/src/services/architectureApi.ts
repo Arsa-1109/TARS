@@ -36,45 +36,38 @@ class ArchitectureApiService {
   async checkStaged(): Promise<StagedRadarCheckResponse> {
     const start = performance.now();
     try {
-      const res = await fetch('/api/cortex/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: 'apps/api/core/routes.py', code: '' }),
-      });
+      const res = await fetch('/api/cortex/staged');
       const elapsed = Math.round((performance.now() - start) * 10) / 10;
 
       if (!res.ok) {
-        throw new Error(`Cortex check failed with status: ${res.status}`);
+        throw new Error(`Cortex staged check failed with status: ${res.status}`);
       }
 
       const data = await res.json();
-      const results: InvariantCheckResult[] = data.results || [];
-      const breaches = results.filter((r) => r.is_breached);
-
       return {
-        staged_files_count: results.length > 0 ? results.length : 1,
-        inspection_latency_ms: data.execution_time_ms || Math.max(12.4, elapsed),
-        breaches_found: breaches.length,
-        breach_details: breaches.map((b) => ({
+        staged_files_count: data.staged_files_count ?? 0,
+        inspection_latency_ms: data.inspection_latency_ms ?? elapsed,
+        breaches_found: data.breaches_found ?? 0,
+        breach_details: (data.breach_details || []).map((b: any) => ({
           rule_id: b.rule_id,
           rule_name: b.rule_name,
-          violating_file: b.violating_file || 'apps/api/core/routes.py',
+          violating_file: b.violating_file || '',
           line_number: b.line_number || 1,
           rationale: b.rationale,
           suggested_refactor: b.suggested_refactor,
           is_breached: true,
           violating_code: b.observed_code,
         })),
-        push_sentinel_active: true,
+        push_sentinel_active: data.push_sentinel_active ?? true,
       };
     } catch {
-      // Graceful fallback for air-gapped / client-only mode
+      // Item 131: Honest failure without synthetic fabrication
       return {
-        staged_files_count: 3,
-        inspection_latency_ms: 18.4,
+        staged_files_count: 0,
+        inspection_latency_ms: 0,
         breaches_found: 0,
         breach_details: [],
-        push_sentinel_active: true,
+        push_sentinel_active: false,
       };
     }
   }

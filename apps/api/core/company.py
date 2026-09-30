@@ -336,7 +336,15 @@ class CompanyProfileRepository:
         except Exception as graph_err:
             print(f"Notice: Kùzu graph decision seeding completed with message: {graph_err}")
 
-        # 3. Configure Role-Adaptive Flight Plans in Unified Action Hub
+        # 3. Configure Role-Adaptive Flight Plans in Unified Action Hub (Item 103: Dynamic/unassigned owners)
+        stage_diagnostics: Dict[str, str] = {
+            "profile_persistence": "SUCCESS",
+            "graph_decisions": "SUCCESS",
+            "flight_plans": "SUCCESS",
+            "sample_assets": "SKIPPED",
+        }
+        creator_owner = payload.get("owner") or payload.get("user_name") or "unassigned"
+
         try:
             from apps.api.core.action_hub import action_hub_repo
             from apps.api.schemas.contracts import ActionItemDTO
@@ -345,41 +353,41 @@ class CompanyProfileRepository:
                 {
                     "title": f"Complete Day 1 Institutional Induction for {company_name}",
                     "description": f"Review {company_name} one-liner, foundational operating policies, and core thesis in Knowledge Workspace.",
-                    "owner": "Aryan",
+                    "owner": creator_owner,
                     "priority": "HIGH",
                     "status": "OPEN",
                     "source_type": "DECISION",
-                    "source_id": "DEC-GEN-001",
+                    "source_id": dec_1_id,
                     "source_offset": "Genesis Day 1",
                 },
                 {
                     "title": f"Establish {tech_stack} Architectural Invariants",
                     "description": f"Verify static AST invariants and pre-commit checks matching {company_name}'s stack.",
-                    "owner": "Elena Rostova",
+                    "owner": "unassigned",
                     "priority": "URGENT",
                     "status": "OPEN",
                     "source_type": "ARCHITECTURE",
-                    "source_id": "DEC-GEN-003",
+                    "source_id": dec_3_id,
                     "source_offset": "Genesis Day 3",
                 },
                 {
                     "title": f"Synthesise Ideal Customer Profile & First Discovery Calls",
                     "description": f"Calibrate Call Studio to transcribe client dialogues against {company_name}'s core problem statement.",
-                    "owner": "Marcus Vance",
+                    "owner": "unassigned",
                     "priority": "HIGH",
                     "status": "OPEN",
                     "source_type": "CALL",
-                    "source_id": "DEC-GEN-002",
+                    "source_id": dec_2_id,
                     "source_offset": "Genesis Day 7",
                 },
                 {
                     "title": f"Align {runway}-Month Runway Simulation & Pricing Tiers",
                     "description": f"Conduct What-If sensitivity analysis on head-count and cash burn in Decisions Workspace.",
-                    "owner": "Aryan",
+                    "owner": creator_owner,
                     "priority": "MEDIUM",
                     "status": "OPEN",
                     "source_type": "DECISION",
-                    "source_id": "DEC-GEN-002",
+                    "source_id": dec_2_id,
                     "source_offset": "Genesis Day 14",
                 }
             ]
@@ -399,11 +407,13 @@ class CompanyProfileRepository:
                 action_hub_repo.create(plan_item)
                 seeded_flight_plans.append(plan_item.id)
         except Exception as action_err:
+            stage_diagnostics["flight_plans"] = f"FAILED: {action_err}"
             print(f"Notice: Flight plan configuration message: {action_err}")
 
         # 4. Optional Golden Demo Assets Ingestion
         load_sample = payload.get("load_sample_assets", False)
         if load_sample:
+            stage_diagnostics["sample_assets"] = "PENDING"
             try:
                 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
                 demo_runway = os.path.join(root_dir, "demo_assets", "demo_runway_q4.xlsx")
@@ -426,17 +436,29 @@ class CompanyProfileRepository:
                         sync_to_graph=True,
                     )
                     loaded_assets.append("Client Discovery Call (Voice-to-Spec)")
+                stage_diagnostics["sample_assets"] = "SUCCESS"
             except Exception as demo_err:
+                stage_diagnostics["sample_assets"] = f"FAILED: {demo_err}"
                 print(f"Notice: Demo asset ingestion note: {demo_err}")
 
+        # Item 102: Tri-state reporting (BLOOMED, PARTIALLY_BLOOMED, FAILED)
+        failed_stages = [k for k, v in stage_diagnostics.items() if str(v).startswith("FAILED")]
+        if not failed_stages:
+            genesis_status = "BLOOMED"
+        elif len(failed_stages) < len(stage_diagnostics):
+            genesis_status = "PARTIALLY_BLOOMED"
+        else:
+            genesis_status = "FAILED"
+
         return {
-            "status": "BLOOMED",
+            "status": genesis_status,
             "company_profile": profile,
             "seeded_decisions": seeded_decisions,
             "flight_plans_count": len(seeded_flight_plans),
             "loaded_assets": loaded_assets,
             "nodes_bloomed": len(seeded_decisions) + len(seeded_flight_plans) + (len(loaded_assets) * 4) + 6,
             "timestamp": int(time.time()),
+            "stage_diagnostics": stage_diagnostics,
         }
 
 

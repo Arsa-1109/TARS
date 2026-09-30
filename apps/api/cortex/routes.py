@@ -131,6 +131,61 @@ async def check_code_invariants(payload: Optional[CodeCheckRequest] = None):
     }
 
 
+@router.get("/invariants/capability")
+@router.get("/capability")
+async def get_ast_capability():
+    """Returns machine-readable degraded or operational capability state of Tree-sitter C-AST parser (Item 71)."""
+    return invariants_engine.get_capability_status()
+
+
+@router.get("/staged")
+async def get_staged_ast_check():
+    """
+    Item 131: Inspects actual git staged diff (git diff --cached) across repo root.
+    Evaluates AST invariants on staged files, returning honest count and breach details.
+    """
+    start_time = time.perf_counter()
+    from apps.api.core.mcp.builtin.git_tools import REPO_ROOT
+    workdir = REPO_ROOT if REPO_ROOT.exists() else Path.cwd()
+    staged_files = []
+    try:
+        import subprocess
+        res = subprocess.run(
+            ["git", "diff", "--cached", "--name-only"],
+            capture_output=True,
+            text=True,
+            shell=False,
+            cwd=str(workdir)
+        )
+        if res.returncode == 0 and res.stdout:
+            staged_files = [line.strip() for line in res.stdout.splitlines() if line.strip()]
+    except Exception:
+        pass
+
+    breaches = []
+    for fpath in staged_files:
+        if fpath.endswith((".py", ".ts", ".tsx", ".js")):
+            full_path = workdir / fpath
+            if full_path.exists() and full_path.is_file():
+                try:
+                    with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                        code = f.read()
+                    violations = invariants_engine.evaluate_code(str(fpath), code)
+                    breaches.extend(violations)
+                except Exception:
+                    pass
+
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 1)
+    return {
+        "staged_files_count": len(staged_files),
+        "files": staged_files,
+        "inspection_latency_ms": elapsed_ms,
+        "breaches_found": len(breaches),
+        "breach_details": breaches,
+        "push_sentinel_active": True,
+    }
+
+
 @router.get("/invariants")
 async def get_active_invariants():
     """Returns all registered declarative invariants with dynamic file scopes, code diffs, and suggested refactors."""
@@ -225,12 +280,12 @@ async def get_decisions(
     return [
         DecisionItem(
             id=d["id"],
-            title=d["title"],
-            category=d.get("category", "ENGINEERING"),
-            context=d.get("context", ""),
-            chosen_option=d.get("chosen_option", ""),
-            timestamp=d.get("timestamp", int(time.time())),
-            clearance=d.get("clearance", "ALL_TEAM"),
+            title=d.get("title") or "Untitled Decision",
+            category=d.get("category") or "ENGINEERING",
+            context=d.get("context") or "",
+            chosen_option=d.get("chosen_option") or "",
+            timestamp=int(d.get("timestamp") or time.time()),
+            clearance=d.get("clearance") or "ALL_TEAM",
             lifecycle_status=d.get("lifecycle_status") or d.get("status") or "ACTIVE",
         )
         for d in decisions
@@ -271,12 +326,12 @@ async def get_decision_by_id(decision_id: str):
         if d["id"] == decision_id:
             return DecisionItem(
                 id=d["id"],
-                title=d["title"],
-                category=d.get("category", "ENGINEERING"),
-                context=d.get("context", ""),
-                chosen_option=d.get("chosen_option", ""),
-                timestamp=d.get("timestamp", int(time.time())),
-                clearance=d.get("clearance", "ALL_TEAM"),
+                title=d.get("title") or "Untitled Decision",
+                category=d.get("category") or "ENGINEERING",
+                context=d.get("context") or "",
+                chosen_option=d.get("chosen_option") or "",
+                timestamp=int(d.get("timestamp") or time.time()),
+                clearance=d.get("clearance") or "ALL_TEAM",
                 lifecycle_status=d.get("lifecycle_status") or d.get("status") or "ACTIVE",
             )
     raise HTTPException(status_code=404, detail="Decision not found")
@@ -627,9 +682,11 @@ async def cortex_status():
     """Returns the operational status of the Cortex engine."""
     invariants = graph_engine.get_all_invariants()
     decisions = graph_engine.get_all_decisions()
+    cap = invariants_engine.get_capability_status()
     return {
-        "status": "ONLINE",
+        "status": "ONLINE" if cap.get("available") else "DEGRADED",
         "engine": "Tree-sitter C-AST + Kùzu Graph + FastMCP Bridge",
+        "capability": cap,
         "active_invariants_count": len(invariants),
         "decisions_count": len(decisions),
         "egress": "0.00 KB (100% Air-Gapped)",

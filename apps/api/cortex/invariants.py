@@ -31,6 +31,10 @@ class InvariantsEngine:
         self.pruned_flags = self._load_pruned_flags()
         self._sync_invariants_to_graph()
 
+    def get_capability_status(self) -> Dict[str, Any]:
+        """Returns degraded or operational status for C-AST parsing engines."""
+        return self.ast_parser.get_capability_status()
+
     def _load_invariants(self) -> List[Dict[str, Any]]:
         """Loads declarative invariant definitions from .tars/invariants.yaml."""
         if not self.invariants_file.exists():

@@ -174,27 +174,11 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
       }
       const radar = await architectureApi.checkStaged();
       setStagedRadar(radar);
-    } catch {
-      setInvariants((prev) =>
-        prev.map((inv) =>
-          inv.rule_id === selectedRule.rule_id
-            ? {
-                ...inv,
-                is_breached: false,
-                observed_code: inv.refactored_code || inv.observed_code,
-              }
-            : inv
-        )
-      );
-      setSelectedRule((prev) =>
-        prev
-          ? {
-              ...prev,
-              is_breached: false,
-              observed_code: prev.refactored_code || prev.observed_code,
-            }
-          : null
-      );
+    } catch (err: any) {
+      console.error("Refactor application failed on backend:", err);
+      // Item 132: Honest failure - preserve breach state and alert user
+      setRefactorApplied(false);
+      alert(`Refactor application failed: ${err?.message || "Backend error"}. The breach remains unresolved.`);
     }
   };
 

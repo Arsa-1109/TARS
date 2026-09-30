@@ -124,8 +124,8 @@ class VoiceToSpecExtractor:
                     kuzu_sync.sync_action_item(
                         item_id=action_id,
                         description=commitment,
-                        owner="Sales / Product Lead",
-                        status="OPEN",
+                        owner="unassigned",
+                        status="REVIEW_REQUIRED",
                         source_type="CLIENT_CALL",
                         source_id=call_id,
                         timestamp_offset=offset,
@@ -135,10 +135,10 @@ class VoiceToSpecExtractor:
                         id=action_id,
                         title=f"Commitment: {response.client_name}",
                         description=commitment,
-                        owner="Sales / Product Lead",
+                        owner="unassigned",
                         department="Product",
                         priority="HIGH",
-                        status="OPEN",
+                        status="REVIEW_REQUIRED",
                         source_type="CLIENT_CALL",
                         source_id=call_id,
                         source_offset=offset,
@@ -263,5 +263,10 @@ class VoiceToSpecExtractor:
         }
 
 
-# Global singleton instance
+# Canonical VoiceToSpecEngine service (Item 88)
+VoiceToSpecEngine = VoiceToSpecExtractor
+
+# Global singleton instances
 spec_extractor = VoiceToSpecExtractor()
+voice_to_spec_engine = spec_extractor
+

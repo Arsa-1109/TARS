@@ -75,6 +75,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     '[TARS-AUDIT] All inference and vector lookups confined to local RAM/VRAM.'
   ]);
 
+  // Reset domain preservation state (Item 144)
+  const [resetPreserveUsers, setResetPreserveUsers] = useState<boolean>(true);
+  const [resetPreserveCompany, setResetPreserveCompany] = useState<boolean>(true);
+
   if (!isOpen) return null;
 
   const handleGenesisSubmit = async () => {
@@ -160,8 +164,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     try {
       const res = await api.resetWorkspace({
         reset_type: type,
-        preserve_users: true,
-        preserve_company_profile: type === 'DEMO_ONLY',
+        preserve_users: resetPreserveUsers,
+        preserve_company_profile: resetPreserveCompany,
       });
       setResetSuccess(
         type === 'DEMO_ONLY'
@@ -640,6 +644,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   <span>{resetSuccess}</span>
                 </div>
               )}
+              {/* Domain Preservation Policy Checkboxes (Item 144) */}
+              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.03] space-y-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6E6E73] dark:text-[#8E8E93]">
+                  Reset Policy & Data Preservation (Item 144)
+                </span>
+                <div className="flex flex-col sm:flex-row gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs text-black dark:text-white cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={resetPreserveUsers}
+                      onChange={(e) => setResetPreserveUsers(e.target.checked)}
+                      className="rounded border-gray-300 text-[#0071E3] focus:ring-[#0071E3]"
+                    />
+                    <span>Preserve registered user accounts</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-black dark:text-white cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={resetPreserveCompany}
+                      onChange={(e) => setResetPreserveCompany(e.target.checked)}
+                      className="rounded border-gray-300 text-[#0071E3] focus:ring-[#0071E3]"
+                    />
+                    <span>Preserve company profile & thesis</span>
+                  </label>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
