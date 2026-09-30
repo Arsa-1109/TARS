@@ -48,6 +48,7 @@ export interface TeachMemoryResponse {
   clearance?: string;
   timestamp: number | string;
   message?: string;
+  decision_id?: string;
 }
 
 export type TeachResponse = TeachMemoryResponse;

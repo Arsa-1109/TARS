@@ -191,8 +191,8 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           });
           setMessages((prev) => [...prev, userMsg]);
 
-          // Call backend /teach endpoint to persist institutional memory
-          await chatApi.teachTars({
+          // Call backend /teach endpoint to persist institutional memory and ratify decision in Workspace 5
+          const teachRes = await chatApi.teachTars({
             content: fact,
             title: `Fact: ${fact.slice(0, 36)}...`,
             category: 'POLICY',
@@ -201,14 +201,14 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
             user_role: activeRole
           });
 
-          // Send confirmation assistant message
+          // Send confirmation assistant message with ratified Decision ID
           const aiReply = await chatApi.sendMessage({
             channel_id: activeChannelId,
             sender: 'TARS (@TARS)',
             sender_role: 'ASSISTANT',
             sender_type: 'AI',
-            text: `Institutional memory successfully updated: "${fact}" recorded and indexed. Accessible in future searches.`,
-            provenance: 'TARS Continuous Memory Engine',
+            text: teachRes?.message || `Institutional memory successfully updated: "${fact}" recorded and ratified as Decision [${teachRes?.decision_id || 'DEC'}] in Workspace 5 Strategic Decision Registry. Accessible in future searches.`,
+            provenance: 'TARS Continuous Memory & Cortex Engine',
             is_ai: true
           });
           setMessages((prev) => [...prev, aiReply]);
@@ -398,7 +398,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 Type <code className="text-black dark:text-white font-mono font-semibold">@TARS</code> to query historical context.
               </div>
               <div>
-                Type <code className="text-[#0071E3] dark:text-[#0A84FF] font-mono font-semibold">/teach &lt;fact&gt;</code> to record new policy directly.
+                Type <code className="text-[#0071E3] dark:text-[#0A84FF] font-mono font-semibold">/teach &lt;decision&gt;</code> to ratify decisions directly into Workspace 5.
               </div>
             </div>
           </Surface>
@@ -588,7 +588,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Discuss topic, @TARS for context, or '/teach Our payment provider is Stripe'..."
+                placeholder="Discuss topic, @TARS for context, or '/teach <policy or decision>'..."
                 disabled={isSending}
                 className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all disabled:opacity-50"
               />

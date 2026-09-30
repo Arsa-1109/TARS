@@ -559,20 +559,22 @@ class TeachMemoryResponse(BaseModel):
     clearance: Optional[str] = "ALL_TEAM"
     timestamp: Union[int, str]
     message: Optional[str] = None
+    decision_id: Optional[str] = None
 
 @router.post("/teach", response_model=TeachMemoryResponse)
 async def teach_institutional_memory(req: TeachMemoryRequest):
     """
     Directly teaches TARS institutional knowledge (e.g. '/teach Our payment provider is Stripe').
     Persists to SQLite memories with clearance level, tags, and audit telemetry.
-    Immediately accessible to future unified search and LLM context synthesis.
+    Instantiates a durable Decision node in Kùzu graph, synthesizes MADR, and broadcasts SSE
+    so the policy immediately appears in Workspace 5 Strategic Decision Registry.
     """
     raw_content = (req.content or req.fact or "").strip()
     if not raw_content:
         raise HTTPException(status_code=400, detail="Content cannot be empty")
     
     mem_id = f"MEM-TEACH-{uuid.uuid4().hex[:8].upper()}"
-    if req.title:
+    if req.title and not req.title.startswith("Fact: "):
         title = req.title
     else:
         words = raw_content.split()
@@ -582,6 +584,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
     now_ts = int(time.time())
     tags = f"teach,learned,{(req.category or 'policy').lower()}"
 
+    # 1. Persist to SQLite institutional memory table
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
@@ -605,13 +608,86 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
     ))
     conn.commit()
 
+    # 2. Automatically instantiate a durable Decision in Workspace 5 (Kùzu Graph & MADR)
+    decision_id = f"DEC-{uuid.uuid4().hex[:6].upper()}"
+    decision_title = title
+    try:
+        from apps.api.cortex.routes import graph_engine, madr_writer
+        try:
+            from apps.api.ingestion.routes import sse_manager
+        except Exception:
+            sse_manager = None
+
+        cleaned_text = raw_content.strip().rstrip(".")
+        if len(cleaned_text) > 75:
+            w = cleaned_text.split()
+            decision_title = " ".join(w[:8])
+            if not decision_title.endswith("."):
+                decision_title += "..."
+        else:
+            decision_title = cleaned_text[0].upper() + cleaned_text[1:] if cleaned_text else "Strategic Decision"
+
+        # Determine appropriate category
+        low = raw_content.lower()
+        if any(k in low for k in ["auth", "api", "database", "postgres", "outbox", "http", "service", "code", "schema", "ast", "refactor"]):
+            category = "ENGINEERING"
+        elif any(k in low for k in ["security", "saml", "sso", "rbac", "encryption", "compliance", "soc2", "permission"]):
+            category = "SECURITY"
+        elif any(k in low for k in ["pricing", "cost", "billing", "burn", "runway"]):
+            category = "STRATEGY"
+        elif any(k in low for k in ["product", "feature", "client", "ui", "ux"]):
+            category = "PRODUCT"
+        else:
+            category = "STRATEGY"
+
+        dec_context = f"Recorded via Collaborative Think Tank /teach by {req.user_name or 'Team Member'} ({req.user_role or 'ENGINEER'})."
+
+        # Add to Kùzu Graph Engine
+        graph_engine.add_decision(
+            decision_id=decision_id,
+            title=decision_title,
+            category=category,
+            context=dec_context,
+            chosen_option=raw_content,
+            clearance=req.clearance or "ALL_TEAM",
+            status="ACTIVE",
+        )
+
+        # Synthesize Markdown Architecture Decision Record (MADR)
+        try:
+            madr_writer.generate_madr(
+                rule_id=decision_id,
+                rule_name=decision_title,
+                violating_file="docs/architecture",
+                rationale=dec_context,
+                suggested_refactor=raw_content,
+            )
+        except Exception as madr_err:
+            logger.debug(f"MADR writing note for {decision_id}: {madr_err}")
+
+        # Broadcast real-time SSE mutation event so Workspace 5 ledger updates immediately
+        if sse_manager:
+            sse_manager.publish("DECISION_MUTATION", {
+                "action": "CREATE",
+                "id": decision_id,
+                "title": decision_title,
+                "lifecycle_status": "ACTIVE",
+            })
+    except Exception as dec_err:
+        logger.warning(f"Notice: Failed to register decision node for /teach: {dec_err}")
+
+    confirmation_message = (
+        f"Institutional memory successfully updated: \"{raw_content}\" recorded and ratified as Decision [{decision_id}] in Workspace 5 Strategic Decision Registry. Accessible in future searches."
+    )
+
     return TeachMemoryResponse(
         memory_id=mem_id,
         status="LEARNED",
-        title=title,
+        title=decision_title,
         clearance=req.clearance or "ALL_TEAM",
         timestamp=now_ts,
-        message=f"Institutional memory successfully updated: '{title}' recorded."
+        message=confirmation_message,
+        decision_id=decision_id
     )
 
 
