@@ -40,9 +40,9 @@ export function Starfield() {
     const col = new Float32Array(COUNT * 3);
     const size = new Float32Array(COUNT);
     const seed = new Float32Array(COUNT);
-    const warm = new THREE.Color('#FFE6C4');
-    const cool = new THREE.Color('#CFE0FF');
-    const white = new THREE.Color('#F4F6FB');
+    const white = new THREE.Color('#FFFFFF');
+    const lightGrey = new THREE.Color('#CCCCCC');
+    const darkGrey = new THREE.Color('#666666');
     const c = new THREE.Color();
     for (let i = 0; i < COUNT; i++) {
       const u = Math.random() * 2 - 1;
@@ -51,7 +51,7 @@ export function Starfield() {
       const s = Math.sqrt(1 - u * u);
       pos.set([r * s * Math.cos(th), r * u, r * s * Math.sin(th)], i * 3);
       const pick = Math.random();
-      c.copy(pick < 0.2 ? warm : pick < 0.45 ? cool : white);
+      c.copy(pick < 0.25 ? darkGrey : pick < 0.6 ? lightGrey : white);
       col.set([c.r, c.g, c.b], i * 3);
       size[i] = 0.5 + Math.pow(Math.random(), 9) * 4.5;
       seed[i] = Math.random();

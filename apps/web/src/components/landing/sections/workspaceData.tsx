@@ -11,14 +11,14 @@ export type Workspace = {
   preview: React.ReactNode;
 };
 
-const Chip = ({ children, tone = 'mute' }: { children: React.ReactNode; tone?: 'mute' | 'amber' | 'red' }) => (
+const Chip = ({ children, tone = 'mute' }: { children: React.ReactNode; tone?: 'mute' | 'highlight' | 'contrast' }) => (
   <span
     className={`tl-mono text-[10px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full border ${
-      tone === 'amber'
-        ? 'border-[#F2C689]/40 text-[#F2C689]'
-        : tone === 'red'
-        ? 'border-[#FF8A7A]/40 text-[#FF8A7A]'
-        : 'border-white/15 text-[#8C92A4]'
+      tone === 'highlight'
+        ? 'border-white/40 text-white'
+        : tone === 'contrast'
+        ? 'border-white/60 bg-white/10 text-white'
+        : 'border-white/15 text-[#888888]'
     }`}
   >
     {children}
@@ -41,15 +41,15 @@ export const WORKSPACES: Workspace[] = [
     preview: (
       <div className="space-y-3">
         <Row>
-          <div className="tl-mono text-[10px] text-[#8C92A4] mb-1.5">QUERY</div>
-          <div className="text-[14px] text-[#ECEEF4]">What is our policy on enterprise customisations?</div>
+          <div className="tl-mono text-[10px] text-[#888888] mb-1.5">QUERY</div>
+          <div className="text-[14px] text-white">What is our policy on enterprise customisations?</div>
         </Row>
         <Row>
           <div className="flex items-center justify-between mb-2">
-            <span className="tl-mono text-[11px] text-[#ECEEF4]">[1] ADR-014-no-custom-branches.md · p.2</span>
-            <Chip tone="amber">98.4% grounded</Chip>
+            <span className="tl-mono text-[11px] text-white">[1] ADR-014-no-custom-branches.md · p.2</span>
+            <Chip tone="highlight">98.4% grounded</Chip>
           </div>
-          <p className="tl-serif text-lg leading-snug text-[#D9DCE5]">“Zero enterprise customisations before Q4 2026. All clients consume public multi-tenant APIs.”</p>
+          <p className="tl-serif text-lg leading-snug text-[#CCCCCC]">“Zero enterprise customisations before Q4 2026. All clients consume public multi-tenant APIs.”</p>
         </Row>
       </div>
     ),
@@ -66,20 +66,20 @@ export const WORKSPACES: Workspace[] = [
       <div className="space-y-3">
         <Row>
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-[13px] text-[#ECEEF4]">
-              <span className="h-2 w-2 rounded-full bg-[#FF8A7A] animate-pulse" /> Acme Corp — enterprise call
+            <span className="flex items-center gap-2 text-[13px] text-white">
+              <span className="h-2 w-2 rounded-full bg-white animate-pulse" /> Acme Corp — enterprise call
             </span>
-            <span className="tl-mono text-[10px] text-[#8C92A4]">03:42 · diarized</span>
+            <span className="tl-mono text-[10px] text-[#888888]">03:42 · diarized</span>
           </div>
           <div className="mt-4 flex items-end gap-[3px] h-10">
             {Array.from({ length: 48 }).map((_, i) => (
-              <span key={i} className="flex-1 rounded-full bg-[#F2C689]/70" style={{ height: `${18 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.4)) * 82}%` }} />
+              <span key={i} className="flex-1 rounded-full bg-white/70" style={{ height: `${18 + Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.4)) * 82}%` }} />
             ))}
           </div>
         </Row>
         <div className="grid grid-cols-2 gap-3">
-          <Row><div className="text-[12px] text-[#ECEEF4] mb-1">Constraint</div><p className="text-[12px] text-[#8C92A4]">On-prem execution, zero cloud telemetry.</p></Row>
-          <Row><div className="text-[12px] text-[#F2C689] mb-1">Commitment</div><p className="text-[12px] text-[#D9DCE5]">Deliver AST diff benchmark by Friday.</p></Row>
+          <Row><div className="text-[12px] text-white mb-1">Constraint</div><p className="text-[12px] text-[#888888]">On-prem execution, zero cloud telemetry.</p></Row>
+          <Row><div className="text-[12px] text-white mb-1">Commitment</div><p className="text-[12px] text-[#CCCCCC]">Deliver AST diff benchmark by Friday.</p></Row>
         </div>
       </div>
     ),
@@ -102,9 +102,9 @@ export const WORKSPACES: Workspace[] = [
         ].map(([t, done], i) => (
           <Row key={i}>
             <div className="flex items-center gap-3 text-[13px]">
-              <span className={`h-4 w-4 rounded-full border ${done ? 'bg-[#F2C689] border-[#F2C689]' : 'border-white/25'}`} />
-              <span className={done ? 'text-[#8C92A4] line-through decoration-white/20' : 'text-[#ECEEF4]'}>{t as string}</span>
-              <span className="ml-auto tl-mono text-[10px] text-[#8C92A4]">Day {i + 1}</span>
+              <span className={`h-4 w-4 rounded-full border ${done ? 'bg-white border-white' : 'border-white/25'}`} />
+              <span className={done ? 'text-[#888888] line-through decoration-white/20' : 'text-white'}>{t as string}</span>
+              <span className="ml-auto tl-mono text-[10px] text-[#888888]">Day {i + 1}</span>
             </div>
           </Row>
         ))}
@@ -121,9 +121,9 @@ export const WORKSPACES: Workspace[] = [
     metrics: [['Threads', 'Live'], ['Promotion', 'To registry'], ['Lineage', 'Preserved']],
     preview: (
       <div className="space-y-3">
-        <Row><div className="text-[11px] text-[#8C92A4] mb-1">Elena · CTO</div><p className="text-[13px] text-[#ECEEF4]">Should we pause SAML until self-serve ships?</p></Row>
-        <Row><div className="text-[11px] text-[#F2C689] mb-1">TARS</div><p className="text-[13px] text-[#D9DCE5]">Decision #14 already defers it. Three calls this month cite it as non-blocking.</p></Row>
-        <div className="flex justify-end"><Chip tone="amber">Promoted → Decision #22</Chip></div>
+        <Row><div className="text-[11px] text-[#888888] mb-1">Elena · CTO</div><p className="text-[13px] text-white">Should we pause SAML until self-serve ships?</p></Row>
+        <Row><div className="text-[11px] text-white mb-1">TARS</div><p className="text-[13px] text-[#CCCCCC]">Decision #14 already defers it. Three calls this month cite it as non-blocking.</p></Row>
+        <div className="flex justify-end"><Chip tone="highlight">Promoted → Decision #22</Chip></div>
       </div>
     ),
   },
@@ -137,15 +137,15 @@ export const WORKSPACES: Workspace[] = [
     metrics: [['Ledger', 'Git hashes'], ['Conflicts', 'Real-time'], ['Runway', 'Simulated']],
     preview: (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-[#FF8A7A]/30 bg-[#FF8A7A]/[0.06] p-4">
-          <div className="flex items-center gap-2 mb-2"><Chip tone="red">Contradiction</Chip><span className="tl-mono text-[10px] text-[#8C92A4]">vs Decision #14</span></div>
-          <p className="text-[13px] text-[#D9DCE5]">Proposed $80k custom SAML branch conflicts with the no-fork policy.</p>
+        <div className="rounded-2xl border border-white/20 bg-white/[0.04] p-4">
+          <div className="flex items-center gap-2 mb-2"><Chip tone="contrast">Contradiction</Chip><span className="tl-mono text-[10px] text-[#888888]">vs Decision #14</span></div>
+          <p className="text-[13px] text-[#CCCCCC]">Proposed $80k custom SAML branch conflicts with the no-fork policy.</p>
         </div>
         <Row>
           <div className="flex items-end justify-between">
-            <div><div className="tl-mono text-[10px] text-[#8C92A4]">RUNWAY IMPACT</div><div className="tl-serif text-4xl text-[#ECEEF4]">−1.8 mo</div></div>
+            <div><div className="tl-mono text-[10px] text-[#888888]">RUNWAY IMPACT</div><div className="tl-serif text-4xl text-white">−1.8 mo</div></div>
             <div className="flex items-end gap-1 h-12">
-              {[90, 84, 78, 70, 58, 44].map((h, i) => (<span key={i} className="w-3 rounded-sm bg-[#F2C689]/60" style={{ height: `${h}%` }} />))}
+              {[90, 84, 78, 70, 58, 44].map((h, i) => (<span key={i} className="w-3 rounded-sm bg-white/60" style={{ height: `${h}%` }} />))}
             </div>
           </div>
         </Row>
@@ -162,11 +162,11 @@ export const WORKSPACES: Workspace[] = [
     metrics: [['Parser', 'Tree-sitter'], ['Check', '38.4 ms'], ['ADRs', 'Living']],
     preview: (
       <div className="rounded-2xl border border-white/[0.08] bg-black/40 p-4 tl-mono text-[11.5px] leading-relaxed">
-        <div className="text-[#8C92A4]">$ git commit -m "billing: charge on checkout"</div>
-        <div className="text-[#8C92A4]">tars ▸ parsing 14 files · 38.4 ms</div>
-        <div className="text-[#FF8A7A] mt-2">✕ BLOCKED  INV-017  HTTP call inside DB transaction</div>
-        <div className="text-[#8C92A4] pl-4">app/services/billing.py:22</div>
-        <div className="text-[#F2C689] pl-4">→ apply Transactional Outbox (ADR-017)</div>
+        <div className="text-[#888888]">$ git commit -m "billing: charge on checkout"</div>
+        <div className="text-[#888888]">tars ▸ parsing 14 files · 38.4 ms</div>
+        <div className="text-white mt-2">✕ BLOCKED  INV-017  HTTP call inside DB transaction</div>
+        <div className="text-[#888888] pl-4">app/services/billing.py:22</div>
+        <div className="text-white/90 pl-4">→ apply Transactional Outbox (ADR-017)</div>
       </div>
     ),
   },

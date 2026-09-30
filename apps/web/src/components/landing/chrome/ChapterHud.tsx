@@ -31,14 +31,14 @@ export function ChapterHud({ chapter, ready }: { chapter: number; ready: boolean
               </span>
               <span
                 className={`block h-px transition-[width,background-color] duration-700 ${
-                  i === chapter ? 'w-8 bg-[var(--tl-amber)]' : 'w-3 bg-white/25 group-hover:bg-white/60'
+                  i === chapter ? 'w-8 bg-white' : 'w-3 bg-white/25 group-hover:bg-white/60'
                 }`}
               />
             </button>
           ))}
         </div>
         <div className="relative h-40 w-px bg-white/10 overflow-hidden">
-          <motion.div className="absolute inset-0 origin-top bg-[var(--tl-amber)]/70" style={{ scaleY }} />
+          <motion.div className="absolute inset-0 origin-top bg-white/70" style={{ scaleY }} />
         </div>
       </div>
       <div className="fixed left-8 bottom-7 z-40 tl-mono text-[10px] uppercase tracking-[0.3em] text-[var(--tl-mute)]" data-testid="chapter-indicator">

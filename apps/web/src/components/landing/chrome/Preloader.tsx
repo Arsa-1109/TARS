@@ -24,7 +24,7 @@ export function Preloader({ onDone }: { onDone: () => void }) {
       {open && (
         <motion.div
           data-testid="landing-preloader"
-          className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-[#05060A]"
+          className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-[#050505]"
           exit={{ clipPath: 'inset(0 0 100% 0)' }}
           initial={{ clipPath: 'inset(0 0 0% 0)' }}
           transition={{ duration: 1.1, ease: EASE }}
@@ -33,19 +33,19 @@ export function Preloader({ onDone }: { onDone: () => void }) {
             {[0, 1, 2, 3].map((i) => (
               <motion.span
                 key={i}
-                className="block w-[9px] bg-[#ECEEF4] rounded-[1px]"
+                className="block w-[9px] bg-white rounded-[1px]"
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: [0, 64, 56 + (i % 2) * 8], opacity: 1 }}
                 transition={{ duration: 1.1, delay: 0.1 + i * 0.12, ease: EASE }}
               />
             ))}
           </div>
-          <div className="tl-mono text-[11px] tracking-[0.5em] text-[#8C92A4] uppercase">Waking TARS</div>
-          <div className="tl-serif text-6xl text-[#ECEEF4] mt-4 tabular-nums" data-testid="preloader-counter">
+          <div className="tl-mono text-[11px] tracking-[0.5em] text-[#888888] uppercase">Waking TARS</div>
+          <div className="tl-serif text-6xl text-white mt-4 tabular-nums" data-testid="preloader-counter">
             {String(count).padStart(3, '0')}
           </div>
           <div className="mt-8 h-px w-48 bg-white/10 overflow-hidden">
-            <div className="h-full bg-[#F2C689]" style={{ width: `${count}%` }} />
+            <div className="h-full bg-white" style={{ width: `${count}%` }} />
           </div>
         </motion.div>
       )}
