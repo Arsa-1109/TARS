@@ -8,6 +8,7 @@ import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
 import { DecisionItem, SearchCitation } from '../../types/contracts';
 import { chatApi, ThinkTankChannelDTO, ThinkTankMessageDTO } from '../../services/chatApi';
+import { realtimeBus } from '../../services/realtime';
 import {
   MessageSquare,
   Send,
@@ -121,6 +122,15 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     if (activeChannelId) {
       refreshMessages(activeChannelId);
     }
+    const unsub = realtimeBus.subscribe((evt) => {
+      if (evt.event === 'THINKTANK_MESSAGE') {
+        if (activeChannelId) {
+          refreshMessages(activeChannelId);
+        }
+        refreshChannels();
+      }
+    });
+    return unsub;
   }, [activeChannelId]);
 
   // Auto-scroll whenever messages change

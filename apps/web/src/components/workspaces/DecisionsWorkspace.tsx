@@ -13,6 +13,7 @@ import {
   SimulationScenarioResponse,
 } from '../../types/contracts';
 import { decisionsApi } from '../../services/decisionsApi';
+import { realtimeBus } from '../../services/realtime';
 import {
   Scale,
   Play,
@@ -93,6 +94,12 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   useEffect(() => {
     fetchDecisions();
+    const unsub = realtimeBus.subscribe((evt) => {
+      if (evt.event === 'DECISION_MUTATION') {
+        fetchDecisions();
+      }
+    });
+    return unsub;
   }, [activeDecisionId]);
 
   const runContradictionCheck = async () => {

@@ -4,6 +4,7 @@ import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { VoiceToSpecResponse } from '../../types/contracts';
 import { ingestionApi } from '../../services/ingestionApi';
+import { realtimeBus } from '../../services/realtime';
 import { EmptyState } from '../primitives/EmptyState';
 import {
   Phone,
@@ -56,18 +57,36 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   // AbortController guarded call loading (Bug 3)
   useEffect(() => {
     const controller = new AbortController();
-    ingestionApi.getCalls(controller.signal).then((data) => {
-      setCalls(data);
-      if (data.length > 0) {
-        const found = data.find((c) => c.call_id === activeCallId) || data[0];
-        setSelectedCall(found);
-      } else {
-        setSelectedCall(null);
-        setIsPlaying(false);
-        setPlaybackSeconds(0);
+    const loadCalls = () => {
+      ingestionApi.getCalls(controller.signal).then((data) => {
+        setCalls(data);
+        if (data.length > 0) {
+          const found = data.find((c) => c.call_id === activeCallId) || data[0];
+          setSelectedCall(found);
+        } else {
+          setSelectedCall(null);
+          setIsPlaying(false);
+          setPlaybackSeconds(0);
+        }
+      });
+    };
+
+    loadCalls();
+
+    const unsub = realtimeBus.subscribe((evt) => {
+      if (
+        evt.event === 'TRANSCRIPTION_COMPLETED' ||
+        evt.event === 'CALL_DELETED' ||
+        evt.event === 'DROP_EVENT'
+      ) {
+        loadCalls();
       }
     });
-    return () => controller.abort();
+
+    return () => {
+      controller.abort();
+      unsub();
+    };
   }, [activeCallId]);
 
   // Sync default task deletion selection when selectedCall changes

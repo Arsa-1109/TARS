@@ -30,6 +30,11 @@ from .invariants import InvariantsEngine
 from .graph import TarsGraph
 from .madr_writer import MadrWriter
 
+try:
+    from apps.api.ingestion.routes import sse_manager
+except Exception:
+    sse_manager = None
+
 router = APIRouter(prefix="/api/cortex", tags=["Cortex"])
 mcp_router = APIRouter(prefix="/api/mcp", tags=["MCP Bridge"])
 
@@ -220,6 +225,14 @@ async def create_decision(payload: AddDecisionRequest, background_tasks: Backgro
         chosen_option=payload.chosen_option or "",
     )
 
+    if sse_manager:
+        sse_manager.publish("DECISION_MUTATION", {
+            "action": "CREATE",
+            "id": decision_id,
+            "title": payload.title,
+            "lifecycle_status": "ACTIVE",
+        })
+
     return DecisionItem(
         id=decision_id,
         title=payload.title,
@@ -257,6 +270,13 @@ async def patch_decision(decision_id: str, payload: DecisionPatchRequest):
             raise HTTPException(status_code=500, detail=f"Failed to update decision '{decision_id}'")
 
     updated = graph_engine.get_decision(decision_id)
+    if sse_manager:
+        sse_manager.publish("DECISION_MUTATION", {
+            "action": "PATCH",
+            "id": decision_id,
+            "lifecycle_status": updated.get("lifecycle_status") or updated.get("status", "ACTIVE"),
+        })
+
     return DecisionItem(
         id=updated["id"],
         title=updated["title"],
@@ -281,6 +301,14 @@ async def delete_decision(decision_id: str, hard_purge: bool = False, superseded
     success = graph_engine.delete_decision(decision_id, hard_purge=hard_purge, superseded_by=superseded_by)
     if not success and not hard_purge:
         raise HTTPException(status_code=500, detail=f"Failed to process deletion for decision '{decision_id}'")
+
+    if sse_manager:
+        sse_manager.publish("DECISION_MUTATION", {
+            "action": "DELETE" if hard_purge else "SUPERSEDE",
+            "id": decision_id,
+            "hard_purge": hard_purge,
+            "superseded_by": superseded_by,
+        })
 
     return {
         "status": "DELETED" if hard_purge else "SUPERSEDED",

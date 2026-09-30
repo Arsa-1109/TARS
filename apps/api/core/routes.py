@@ -35,6 +35,11 @@ from apps.api.core.search import search_service
 from apps.api.core.company import company_repo
 from apps.api.core.db import db
 
+try:
+    from apps.api.ingestion.routes import sse_manager
+except Exception:
+    sse_manager = None
+
 router = APIRouter()
 
 
@@ -227,7 +232,10 @@ async def search_knowledge(req: SearchRequest):
 # --- Action Hub Routes ---
 @router.post("/action_hub", response_model=ActionItemDTO)
 async def create_action_item(item: ActionItemDTO):
-    return action_hub_repo.create(item)
+    created = action_hub_repo.create(item)
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "CREATE", "id": getattr(created, "id", None)})
+    return created
 
 @router.get("/action_hub/{item_id}", response_model=ActionItemDTO)
 async def get_action_item(item_id: str):
@@ -245,6 +253,8 @@ async def update_action_item(item_id: str, updates: Dict[str, Any]):
     item = action_hub_repo.update(item_id, updates)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "UPDATE", "id": item_id})
     return item
 
 @router.delete("/action_hub/{item_id}")
@@ -252,6 +262,8 @@ async def delete_action_item(item_id: str):
     success = action_hub_repo.delete(item_id)
     if not success:
         raise HTTPException(status_code=404, detail="Item not found")
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "DELETE", "id": item_id})
     return {"status": "deleted"}
 
 # --- Session Routes ---
@@ -744,7 +756,7 @@ async def create_thinktank_message(payload: ThinkTankMessageCreate):
 
     cursor.execute("SELECT id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, created_at, updated_at FROM thinktank_messages WHERE id = ?", (msg_id,))
     r = cursor.fetchone()
-    return ThinkTankMessageDTO(
+    dto = ThinkTankMessageDTO(
         id=r["id"],
         channel_id=r["channel_id"],
         sender=r["sender"],
@@ -761,6 +773,9 @@ async def create_thinktank_message(payload: ThinkTankMessageCreate):
         created_at=str(r["created_at"]),
         updated_at=str(r["updated_at"])
     )
+    if sse_manager:
+        sse_manager.publish("THINKTANK_MESSAGE", {"action": "CREATE", "channel_id": payload.channel_id, "message_id": msg_id})
+    return dto
 
 @router.patch("/thinktank/messages/{message_id}", response_model=ThinkTankMessageDTO)
 async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpdate):
@@ -781,7 +796,7 @@ async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpd
 
     cursor.execute("SELECT id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, created_at, updated_at FROM thinktank_messages WHERE id = ?", (message_id,))
     r = cursor.fetchone()
-    return ThinkTankMessageDTO(
+    dto = ThinkTankMessageDTO(
         id=r["id"],
         channel_id=r["channel_id"],
         sender=r["sender"],
@@ -798,6 +813,9 @@ async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpd
         created_at=str(r["created_at"]),
         updated_at=str(r["updated_at"])
     )
+    if sse_manager:
+        sse_manager.publish("THINKTANK_MESSAGE", {"action": "UPDATE", "message_id": message_id, "channel_id": r["channel_id"]})
+    return dto
 
 @router.delete("/thinktank/messages/{message_id}")
 async def delete_thinktank_message(message_id: str):
@@ -808,6 +826,8 @@ async def delete_thinktank_message(message_id: str):
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Message not found")
     conn.commit()
+    if sse_manager:
+        sse_manager.publish("THINKTANK_MESSAGE", {"action": "DELETE", "message_id": message_id})
     return {"status": "DELETED", "id": message_id, "message_id": message_id}
 
 @router.delete("/thinktank/channels/{channel_id}/messages")
@@ -819,6 +839,8 @@ async def clear_thinktank_channel_messages(channel_id: str):
     count = cursor.fetchone()[0]
     cursor.execute("UPDATE thinktank_messages SET is_deleted = 1 WHERE channel_id = ?", (channel_id,))
     conn.commit()
+    if sse_manager:
+        sse_manager.publish("THINKTANK_MESSAGE", {"action": "CLEAR", "channel_id": channel_id})
     return {"status": "cleared", "channel_id": channel_id, "cleared_count": count}
 
 

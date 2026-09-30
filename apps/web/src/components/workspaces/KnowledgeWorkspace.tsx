@@ -12,6 +12,7 @@ import { SearchCitation, UserRole, ChatSessionDTO, ChatMessageDTO, ChatAttachmen
 import { knowledgeChatApi } from '../../services/knowledgeChatApi';
 import { ingestionApi } from '../../services/ingestionApi';
 import { useSessionStore } from '../../state/useSessionStore';
+import { realtimeBus } from '../../services/realtime';
 import {
   Search,
   FileText,
@@ -246,6 +247,17 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
   useEffect(() => {
     fetchLakeDocuments();
+    const unsub = realtimeBus.subscribe((evt) => {
+      if (
+        evt.event === 'DOCUMENT_UPLOADED' ||
+        evt.event === 'DOCUMENT_PROCESSED' ||
+        evt.event === 'DROP_EVENT' ||
+        evt.event === 'CALL_DELETED'
+      ) {
+        fetchLakeDocuments();
+      }
+    });
+    return unsub;
   }, [uploadSuccess]);
 
   // Fetch Chats for current user
