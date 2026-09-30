@@ -380,7 +380,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                 <span className="text-[14px] font-semibold tracking-tight text-black dark:text-white">
                   TARS Genesis Onboarding
                 </span>
-                <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#0071E3] dark:text-[#0A84FF] font-medium border border-[#0071E3]/20">
+                <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-[4px] bg-black/5 dark:bg-white/10 text-neutral-800 dark:text-neutral-200 font-medium border border-black/10 dark:border-white/15">
                   Air-Gapped
                 </span>
               </div>
@@ -392,19 +392,19 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
 
           <div className="flex items-center gap-3">
             {/* Step Indicators */}
-            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08]">
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-black/4 dark:bg-white/6 border border-black/8 dark:border-white/10">
               {[1, 2, 3, 4, 5].map((step) => {
                 const isActive = currentStep === step;
                 const isPassed = currentStep > step;
                 return (
                   <div key={step} className="flex items-center">
                     <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all ${
+                      className={`w-5 h-5 rounded-[4px] flex items-center justify-center text-[10px] font-bold transition-all ${
                         isActive
-                          ? 'bg-black text-white dark:bg-white dark:text-black scale-110 shadow-sm'
+                          ? 'bg-black text-white dark:bg-white dark:text-black scale-105 shadow-xs'
                           : isPassed
-                          ? 'bg-[#34C759]/20 text-[#34C759]'
-                          : 'text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.04]'
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : 'text-neutral-400 bg-black/4 dark:bg-white/4'
                       }`}
                     >
                       {isPassed ? <CheckCircle2 className="w-3.5 h-3.5" /> : step}
@@ -412,7 +412,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                     {step < 5 && (
                       <div
                         className={`w-3 h-0.5 mx-0.5 rounded-full transition-colors ${
-                          isPassed ? 'bg-[#34C759]' : 'bg-black/[0.1] dark:bg-white/[0.1]'
+                          isPassed ? 'bg-emerald-500' : 'bg-black/10 dark:bg-white/10'
                         }`}
                       />
                     )}
@@ -424,7 +424,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
             {currentStep !== 5 && (
               <button
                 onClick={onClose}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-all"
+                className="w-7 h-7 rounded-[4px] flex items-center justify-center text-neutral-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/8 transition-all"
                 title="Close Wizard"
               >
                 <X className="w-4 h-4" />
@@ -439,7 +439,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
           {currentStep === 1 && (
             <div className="space-y-6 animate-apple-in">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF]">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
                   <Building2 className="w-4 h-4" />
                   <span>Step 1 of 5 · Startup Identity & Capital</span>
                 </div>
@@ -463,7 +463,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       placeholder="e.g. AetherFlow AI"
-                      className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
+                      className="w-full h-9 px-3 rounded-[7px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-xs"
                       autoFocus
                     />
                   </div>
@@ -480,7 +480,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       value={website}
                       onChange={(e) => setWebsite(e.target.value)}
                       placeholder="https://aetherflow.ai"
-                      className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
+                      className="w-full h-9 px-3 rounded-[7px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -594,7 +594,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
           {currentStep === 2 && (
             <div className="space-y-6 animate-apple-in">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF]">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">
                   <Target className="w-4 h-4" />
                   <span>Step 2 of 5 · Core Mission & Problem Space</span>
                 </div>
@@ -617,7 +617,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                   value={oneLiner}
                   onChange={(e) => setOneLiner(e.target.value)}
                   placeholder="e.g. Autonomous self-healing streaming pipelines for distributed data architectures."
-                  className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
+                  className="w-full h-9 px-3 rounded-[7px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-xs"
                   autoFocus
                 />
               </div>
@@ -632,7 +632,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                   value={coreThesis}
                   onChange={(e) => setCoreThesis(e.target.value)}
                   placeholder="Describe the specific customer pain and why existing market solutions fail..."
-                  className="w-full p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-sm"
+                  className="w-full p-2.5 rounded-[7px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-xs"
                 />
               </div>
 
@@ -646,7 +646,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                   value={icp}
                   onChange={(e) => setIcp(e.target.value)}
                   placeholder="e.g. Head of Data & Infrastructure at growth-stage SaaS scaleups"
-                  className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
+                  className="w-full h-9 px-3 rounded-[7px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 focus:outline-none text-xs sm:text-sm text-black dark:text-white transition-all shadow-xs"
                 />
               </div>
 
@@ -658,11 +658,11 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                 </label>
                 
                 {/* Active Stack Tags */}
-                <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-[12px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.08] dark:border-white/[0.12]">
+                <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 rounded-[7px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/8 dark:border-white/10">
                   {selectedTechStack.map((tech) => (
                     <span
                       key={tech}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-xs font-medium bg-black dark:bg-white text-white dark:text-black shadow-xs"
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] text-xs font-medium bg-black dark:bg-white text-white dark:text-black shadow-xs"
                     >
                       {tech}
                       <button
@@ -686,7 +686,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       key={preset}
                       type="button"
                       onClick={() => handleAddTech(preset)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[11px] font-medium bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.12] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[11px] font-medium bg-white dark:bg-[#18191D] border border-black/8 dark:border-white/10 text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white"
                     >
                       <Plus className="w-2.5 h-2.5" />
                       {preset}
@@ -707,12 +707,12 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       }
                     }}
                     placeholder="Add custom library or framework..."
-                    className="flex-1 h-8 px-2.5 rounded-[8px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.14] text-xs text-black dark:text-white focus:outline-none focus:border-[#0071E3]"
+                    className="flex-1 h-8 px-2.5 rounded-[6px] bg-white dark:bg-[#18191D] border border-black/10 dark:border-white/12 text-xs text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                   />
                   <button
                     type="button"
                     onClick={() => handleAddTech(customTechInput)}
-                    className="px-3 h-8 rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] text-xs font-medium hover:bg-black/[0.1] dark:hover:bg-white/[0.14]"
+                    className="px-3 h-8 rounded-[6px] bg-black/5 dark:bg-white/10 text-xs font-medium hover:bg-black/10 dark:hover:bg-white/15 text-black dark:text-white"
                   >
                     Add
                   </button>
@@ -725,8 +725,8 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
           {currentStep === 3 && (
             <div className="space-y-6 animate-apple-in">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF]">
-                  <Scale className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
+                  <Scale className="w-4 h-4 text-neutral-500" />
                   <span>Step 3 of 5 · Foundational Operating Rules & Tone</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black dark:text-white mt-1">
@@ -915,14 +915,14 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                     value={newAcronymTerm}
                     onChange={(e) => setNewAcronymTerm(e.target.value)}
                     placeholder="TERM"
-                    className="w-24 h-8 px-2.5 rounded-[8px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.14] text-xs font-mono font-bold uppercase text-black dark:text-white focus:outline-none focus:border-[#0071E3]"
+                    className="w-24 h-8 px-2.5 rounded-[8px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.14] text-xs font-mono font-bold uppercase text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/30 dark:focus:ring-white/30"
                   />
                   <input
                     type="text"
                     value={newAcronymDef}
                     onChange={(e) => setNewAcronymDef(e.target.value)}
                     placeholder="Meaning / definition in your organisation..."
-                    className="flex-1 h-8 px-2.5 rounded-[8px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.14] text-xs text-black dark:text-white focus:outline-none focus:border-[#0071E3]"
+                    className="flex-1 h-8 px-2.5 rounded-[8px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.14] text-xs text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/30 dark:focus:ring-white/30"
                   />
                   <button
                     type="button"
@@ -940,8 +940,8 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
           {currentStep === 4 && (
             <div className="space-y-6 animate-apple-in">
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF]">
-                  <UploadCloud className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black dark:text-white">
+                  <UploadCloud className="w-4 h-4 text-neutral-500" />
                   <span>Step 4 of 5 · Seed Document & Knowledge Ingestion</span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black dark:text-white mt-1">
@@ -961,11 +961,11 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleFileDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative border-2 border-dashed rounded-[20px] p-8 text-center cursor-pointer transition-all ${
+                className={`relative border-2 border-dashed rounded-[16px] p-8 text-center cursor-pointer transition-all ${
                   dragOver
-                    ? 'border-[#0071E3] bg-[#0071E3]/[0.05]'
+                    ? 'border-black dark:border-white bg-black/[0.04] dark:bg-white/[0.04]'
                     : uploadedFile
-                    ? 'border-[#34C759] bg-[#34C759]/[0.03]'
+                    ? 'border-emerald-500/60 bg-emerald-500/[0.04]'
                     : 'border-black/[0.12] dark:border-white/[0.16] hover:border-black/[0.24] dark:hover:border-white/[0.28] bg-white/40 dark:bg-white/[0.01]'
                 }`}
               >
@@ -979,7 +979,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
 
                 <div className="flex flex-col items-center justify-center gap-2">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-transform ${
-                    uploadedFile ? 'bg-[#34C759]/10 text-[#34C759]' : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93]'
+                    uploadedFile ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93]'
                   }`}>
                     {uploadedFile ? <CheckCircle2 className="w-6 h-6" /> : <UploadCloud className="w-6 h-6" />}
                   </div>
@@ -989,7 +989,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       <div className="text-sm font-semibold text-black dark:text-white">
                         {uploadedFile.name}
                       </div>
-                      <div className="text-xs text-[#34C759] font-medium mt-0.5">
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
                         {uploadStatus || 'Ready for sovereign processing'}
                       </div>
                       <div className="text-[11px] text-[#8E8E93] mt-1">
@@ -1013,7 +1013,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
               </div>
 
               {/* Sample Golden Demo Assets Checkbox */}
-              <div className="p-4 rounded-[16px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08] flex items-start gap-3">
+              <div className="p-4 rounded-[12px] bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08] flex items-start gap-3">
                 <input
                   type="checkbox"
                   id="sampleAssetsCheckbox"
@@ -1024,7 +1024,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                 <label htmlFor="sampleAssetsCheckbox" className="text-xs cursor-pointer select-none">
                   <div className="font-semibold text-black dark:text-white flex items-center gap-1.5">
                     <span>Load sample golden demo assets</span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF]">
+                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-black/10 dark:bg-white/10 text-neutral-800 dark:text-neutral-200">
                       Test Mode
                     </span>
                   </div>

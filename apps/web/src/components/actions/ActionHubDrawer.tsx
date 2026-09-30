@@ -117,7 +117,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           <Button
             variant="secondary"
             size="sm"
-            icon={copiedStandup ? <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3.5 h-3.5" />}
+            icon={copiedStandup ? <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             onClick={handleCopyStandup}
           >
             {copiedStandup ? 'Copied!' : 'Copy Standup'}
@@ -162,8 +162,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
 
       {/* Add Task Quick Form */}
       {addModalOpen && (
-        <div className="p-4 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
-          <div className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+        <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
+          <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
             New Action Item
           </div>
           <input
@@ -171,21 +171,21 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
             placeholder="Short Title (optional)..."
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-3.5 py-2 text-[13px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
+            className="w-full px-3 py-1.5 text-[13px] rounded-[6px] border border-black/10 dark:border-white/12 bg-white dark:bg-[#18191D] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all"
           />
           <textarea
             rows={2}
             placeholder="Describe the action..."
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            className="w-full px-3.5 py-2 text-[13px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all"
+            className="w-full px-3 py-1.5 text-[13px] rounded-[6px] border border-black/10 dark:border-white/12 bg-white dark:bg-[#18191D] text-black dark:text-white placeholder-[#8E8E93] focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all"
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <select
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
-                className="px-2.5 py-1.5 text-[12px] rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
+                className="px-2.5 py-1.5 text-[12px] rounded-[6px] border border-black/10 dark:border-white/12 bg-white dark:bg-[#18191D] text-black dark:text-white focus:outline-none"
               >
                 <option value="Alex Vance">Alex Vance (CEO)</option>
                 <option value="Dr. Elena Rostova">Dr. Elena Rostova (CTO)</option>
@@ -236,7 +236,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
         <div className="space-y-2">
           {filteredItems.length === 0 ? (
             <EmptyState
-              icon={<CheckCircle2 className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />}
+              icon={<CheckCircle2 className="w-5 h-5 text-neutral-500 dark:text-neutral-400" />}
               title="No tasks in this view"
               description="All commitments and action items in this category are up to date."
             />
@@ -258,8 +258,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
       {layout === 'kanban' && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Column: OPEN */}
-          <div className="p-3 rounded-[14px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider pb-1.5 border-b border-black/[0.08] dark:border-white/[0.08]">
+          <div className="p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider pb-1.5 border-b border-black/10 dark:border-white/10">
               <span>Open</span>
               <span className="font-mono">{openCount}</span>
             </div>
@@ -268,7 +268,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] space-y-2"
+                  className="p-3 rounded-[6px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2"
                 >
                   <p className="text-[12px] font-medium text-black dark:text-white leading-snug">
                     {item.description}
@@ -277,7 +277,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                     <span className="text-[#6E6E73] dark:text-[#8E8E93]">{item.owner}</span>
                     <button
                       onClick={() => onStatusChange(item.id, 'IN_PROGRESS')}
-                      className="text-[#0071E3] dark:text-[#0A84FF] text-[10px] font-bold uppercase hover:opacity-70"
+                      className="text-black dark:text-white text-[10px] font-bold uppercase hover:opacity-70 transition-opacity"
                     >
                       Start →
                     </button>
@@ -287,8 +287,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           </div>
 
           {/* Column: IN PROGRESS */}
-          <div className="p-3 rounded-[14px] border border-[#0071E3]/[0.20] dark:border-[#0A84FF]/[0.24] bg-[#0071E3]/[0.03] dark:bg-[#0A84FF]/[0.05] space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider pb-1.5 border-b border-[#0071E3]/[0.15] dark:border-[#0A84FF]/[0.20]">
+          <div className="p-3 rounded-[8px] border border-black/15 dark:border-white/15 bg-black/[0.03] dark:bg-white/[0.04] space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-black dark:text-white uppercase tracking-wider pb-1.5 border-b border-black/10 dark:border-white/10">
               <span>In Progress</span>
               <span className="font-mono">{inProgressCount}</span>
             </div>
@@ -297,7 +297,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#141416] space-y-2 shadow-xs"
+                  className="p-3 rounded-[6px] border border-black/10 dark:border-white/12 bg-white dark:bg-[#18191D] space-y-2 shadow-2xs"
                 >
                   <p className="text-[12px] font-medium text-black dark:text-white leading-snug">
                     {item.description}
@@ -306,7 +306,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                     <span className="text-[#6E6E73] dark:text-[#8E8E93]">{item.owner}</span>
                     <button
                       onClick={() => onStatusChange(item.id, 'DONE')}
-                      className="text-[#0071E3] dark:text-[#0A84FF] text-[10px] font-bold uppercase hover:opacity-70"
+                      className="text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase hover:opacity-70 transition-opacity"
                     >
                       Complete →
                     </button>
@@ -316,8 +316,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           </div>
 
           {/* Column: DONE */}
-          <div className="p-3 rounded-[14px] border border-[#0A84FF]/[0.18] dark:border-[#0A84FF]/[0.18] bg-[#0A84FF]/[0.03] dark:bg-[#0A84FF]/[0.04] space-y-2.5">
-            <div className="flex items-center justify-between text-[11px] font-semibold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider pb-1.5 border-b border-[#0A84FF]/[0.15] dark:border-[#0A84FF]/[0.15]">
+          <div className="p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider pb-1.5 border-b border-black/10 dark:border-white/10">
               <span>Done</span>
               <span className="font-mono">{doneCount}</span>
             </div>
@@ -326,14 +326,14 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-[12px] border border-black/[0.07] dark:border-white/[0.07] bg-white/60 dark:bg-[#1C1C1E]/60 space-y-2 opacity-70"
+                  className="p-3 rounded-[6px] border border-black/[0.07] dark:border-white/[0.07] bg-white/60 dark:bg-[#18191D]/60 space-y-2 opacity-70"
                 >
                   <p className="text-[12px] font-medium text-[#6E6E73] dark:text-[#8E8E93] leading-snug line-through">
                     {item.description}
                   </p>
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-black/[0.06] dark:border-white/[0.06]">
                     <span className="text-[#8E8E93]">{item.owner}</span>
-                    <span className="text-[#0071E3] dark:text-[#0A84FF] text-[11px] font-bold">✓</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">✓</span>
                   </div>
                 </div>
               ))}

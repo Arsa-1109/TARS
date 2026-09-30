@@ -101,28 +101,28 @@ export const TopBar: React.FC<TopBarProps> = ({
   const roleLabel = profile.role === 'FOUNDER' ? 'Founder & CEO' : `${profile.role} · ${profile.department}`;
 
   return (
-    <header className="sticky top-0 z-30 h-[52px] flex items-center justify-between px-5 shrink-0 select-none transition-colors bg-white/80 dark:bg-black/80 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.08]">
+    <header className="sticky top-0 z-30 h-12 flex items-center justify-between px-4 sm:px-6 shrink-0 select-none transition-colors bg-white/90 dark:bg-[#090A0D]/90 backdrop-blur-md border-b border-black/[0.08] dark:border-white/[0.08]">
 
       {/* Leading: Clean Brand */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={onGoToLanding}
-          className="flex items-center gap-2.5 group focus:outline-none"
+          className="flex items-center gap-2 group focus:outline-none"
           title="Return to Overview"
         >
           <img
             src="/tars-logo.jpg"
             alt="TARS Logo"
-            className="w-7 h-7 rounded-[8px] object-cover shadow-sm transition-transform active:scale-95 border border-black/10 dark:border-white/10"
+            className="w-6 h-6 rounded-[6px] object-cover shadow-2xs transition-transform active:scale-95 border border-black/10 dark:border-white/10"
           />
-          <span className="font-semibold text-[14px] tracking-tight text-black dark:text-white">
+          <span className="font-bold text-[13px] tracking-tight text-black dark:text-white uppercase font-mono">
             TARS
           </span>
         </button>
 
         {companyName && (
-          <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-black/[0.1] dark:border-white/[0.1]">
-            <span className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] max-w-[130px] truncate" title={companyName}>
+          <div className="hidden sm:flex items-center gap-1.5 pl-2.5 border-l border-black/[0.08] dark:border-white/[0.08]">
+            <span className="text-[11px] font-medium text-[#6E6E73] dark:text-[#8E8E93] max-w-[140px] truncate" title={companyName}>
               {companyName}
             </span>
           </div>
@@ -131,10 +131,10 @@ export const TopBar: React.FC<TopBarProps> = ({
         {onOpenGenesis && (
           <button
             onClick={onOpenGenesis}
-            className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-semibold text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/10 hover:bg-[#0071E3]/15 transition-colors border border-[#0071E3]/20"
+            className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-mono uppercase tracking-wider font-semibold text-black dark:text-white bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors border border-black/[0.08] dark:border-white/[0.10]"
             title="Launch Genesis Onboarding Wizard"
           >
-            <Sparkles className="w-2.5 h-2.5" />
+            <Sparkles className="w-2.5 h-2.5 text-neutral-500 dark:text-neutral-400" />
             <span>Genesis</span>
           </button>
         )}
@@ -218,12 +218,12 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* Profile dropdown panel */}
           {profileOpen && (
             <div className="absolute right-0 top-full mt-1.5 w-60 z-50 animate-apple-in">
-              <div className="rounded-[18px] overflow-hidden border border-black/[0.10] dark:border-white/[0.14] bg-white dark:bg-[#1C1C1E] shadow-[0_16px_44px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_44px_rgba(0,0,0,0.72)]">
+              <div className="rounded-[12px] overflow-hidden border border-black/[0.09] dark:border-white/[0.12] bg-white dark:bg-[#121316] shadow-xl">
 
                 {/* User card */}
-                <div className="p-3.5 border-b border-black/[0.07] dark:border-white/[0.07]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center text-sm font-bold shrink-0">
+                <div className="p-3 border-b border-black/[0.07] dark:border-white/[0.07]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-black dark:bg-white text-white dark:text-black flex items-center justify-center text-xs font-bold shrink-0">
                       {profile.name.charAt(0)}
                     </div>
                     <div className="min-w-0">
@@ -235,31 +235,30 @@ export const TopBar: React.FC<TopBarProps> = ({
                       </div>
                     </div>
                   </div>
-                  <div className="mt-2.5 flex items-center justify-between px-1 text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                  <div className="mt-2 flex items-center justify-between px-0.5 text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
                     <span>Clearance</span>
-                    <span className="font-medium text-[#3C3C43] dark:text-[#EBEBF5]">
-                      {profile.clearance === 'EXECUTIVE_ONLY' ? 'Executive (Level 3)' : 'Team (Level 2)'}
+                    <span className="font-mono text-[10px] font-semibold text-black dark:text-white px-1.5 py-0.5 rounded bg-black/[0.05] dark:bg-white/[0.08] border border-black/[0.06] dark:border-white/[0.08]">
+                      {profile.clearance === 'EXECUTIVE_ONLY' ? 'L3 · EXECUTIVE' : 'L2 · TEAM'}
                     </span>
                   </div>
                 </div>
 
-
                 {/* Menu items */}
-                <div className="p-1.5 space-y-0.5">
+                <div className="p-1 space-y-0.5">
                   {onOpenGenesis && (
                     <button
                       onClick={() => { onOpenGenesis(); setProfileOpen(false); }}
-                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors group"
+                      className="w-full text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-[8px] hover:bg-black/[0.04] dark:hover:bg-white/[0.07] transition-colors group"
                     >
-                      <div className="w-7 h-7 rounded-[8px] bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center shrink-0">
-                        <Sparkles className="w-3.5 h-3.5" />
+                      <div className="w-6 h-6 rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white flex items-center justify-center shrink-0">
+                        <Sparkles className="w-3 h-3 text-neutral-500 dark:text-neutral-400" />
                       </div>
                       <div>
                         <div className="text-[12px] font-medium text-black dark:text-white flex items-center gap-1.5">
                           <span>Genesis Wizard</span>
-                          <span className="text-[9px] font-mono px-1 rounded bg-[#0071E3]/15 text-[#0071E3] dark:text-[#0A84FF]">Setup</span>
+                          <span className="text-[9px] font-mono px-1 rounded bg-black/[0.06] dark:bg-white/[0.1] text-black dark:text-white">Setup</span>
                         </div>
-                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">Company identity & seed</div>
+                        <div className="text-[10px] text-[#6E6E73] dark:text-[#8E8E93]">Company identity & seed</div>
                       </div>
                     </button>
                   )}

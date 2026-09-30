@@ -231,9 +231,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 1: GENESIS COLD-START INTERVIEW */}
           {activeTab === 'genesis' && (
             <div className="space-y-5">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                  <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
                     Genesis Onboarding · Publication-Grade Flow
                   </div>
                   {onOpenGenesis && (
@@ -265,8 +265,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 <div className="md:col-span-7 space-y-3">
                   {!genesisComplete ? (
                     <div className="space-y-3">
-                      <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-1 text-xs">
-                        <span className="font-semibold text-[#0071E3] dark:text-[#0A84FF] text-[11px]">
+                      <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-1 text-xs">
+                        <span className="font-semibold text-neutral-600 dark:text-neutral-400 text-xs">
                           TARS Question #{genesisStep} of 3
                         </span>
                         <p className="text-black dark:text-white font-semibold text-sm">
@@ -283,7 +283,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         value={genesisAnswer}
                         onChange={(e) => setGenesisAnswer(e.target.value)}
                         placeholder="Type founder answer or dictate over local audio..."
-                        className="w-full p-3.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20"
+                        className="w-full p-3 text-xs sm:text-sm rounded-[8px] border border-black/10 dark:border-white/12 bg-white dark:bg-[#18191D] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                       />
 
                       <Button
@@ -297,8 +297,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                       </Button>
                     </div>
                   ) : (
-                    <div className="p-4 rounded-[14px] border border-[#0A84FF]/[0.25] bg-[#0A84FF]/[0.08] space-y-2 text-xs">
-                      <div className="flex items-center gap-1.5 text-[#0071E3] dark:text-[#0A84FF] font-bold text-[13px]">
+                    <div className="p-3.5 rounded-[8px] border border-emerald-500/30 bg-emerald-500/[0.05] space-y-2 text-xs">
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-[13px]">
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Genesis Interview Completed!</span>
                       </div>
@@ -322,36 +322,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
 
                 {/* Right: Live Knowledge Graph Blooming SVG Canvas */}
                 <div className="md:col-span-5 space-y-2">
-                  <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider flex items-center justify-between">
+                  <div className="text-xs font-semibold text-[#8E8E93] uppercase tracking-wider flex items-center justify-between">
                     <span>Live Graph Blooming</span>
-                    <span className="font-mono text-[#0071E3] dark:text-[#0A84FF] font-bold">{bloomingNodesCount} Entities</span>
+                    <span className="font-mono text-black dark:text-white font-bold">{bloomingNodesCount} Entities</span>
                   </div>
 
-                  <div className="h-56 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/40 flex items-center justify-center p-2 relative overflow-hidden">
+                  <div className="h-56 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] flex items-center justify-center p-2 relative overflow-hidden">
                     <svg className="w-full h-full" viewBox="0 0 240 180">
                       {/* Blooming animated SVG nodes */}
-                      <circle cx="120" cy="90" r="14" fill="#0071E3" className="animate-pulse" />
-                      <text x="120" y="94" textAnchor="middle" fill="#FFFFFF" fontSize="8" fontWeight="bold">
+                      <circle cx="120" cy="90" r="14" fill="#000000" className="dark:fill-white animate-pulse" />
+                      <text x="120" y="94" textAnchor="middle" fill="currentColor" className="text-white dark:text-black" fontSize="8" fontWeight="bold">
                         TARS
                       </text>
 
                       {/* Blooming satellite nodes */}
                       <line x1="120" y1="90" x2="60" y2="40" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                      <circle cx="60" cy="40" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#0071E3" />
+                      <circle cx="60" cy="40" r="10" fill="currentColor" className="text-white dark:text-[#18191D]" stroke="currentColor" />
                       <text x="60" y="43" textAnchor="middle" fill="currentColor" className="text-black dark:text-white" fontSize="6.5">Thesis</text>
 
                       <line x1="120" y1="90" x2="180" y2="40" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                      <circle cx="180" cy="40" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#0071E3" />
+                      <circle cx="180" cy="40" r="10" fill="currentColor" className="text-white dark:text-[#18191D]" stroke="currentColor" />
                       <text x="180" y="43" textAnchor="middle" fill="currentColor" className="text-black dark:text-white" fontSize="6.5">Pricing</text>
 
                       <line x1="120" y1="90" x2="60" y2="140" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                      <circle cx="60" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#FF9F0A" />
+                      <circle cx="60" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#18191D]" stroke="currentColor" />
                       <text x="60" y="143" textAnchor="middle" fill="currentColor" className="text-black dark:text-white" fontSize="6.5">Invariants</text>
 
                       {bloomingNodesCount > 4 && (
                         <>
                           <line x1="120" y1="90" x2="180" y2="140" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1.5" />
-                          <circle cx="180" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#2C2C2E]" stroke="#0A84FF" />
+                          <circle cx="180" cy="140" r="10" fill="currentColor" className="text-white dark:text-[#18191D]" stroke="currentColor" />
                           <text x="180" y="143" textAnchor="middle" fill="currentColor" className="text-black dark:text-white" fontSize="6.5">ADRs</text>
 
                           <line x1="60" y1="40" x2="30" y2="80" stroke="rgba(142, 142, 147, 0.4)" strokeWidth="1" strokeDasharray="2 2" />
@@ -368,8 +368,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 2: RESOURCE GOVERNOR */}
           {activeTab === 'governor' && (
             <div className="space-y-5 text-xs">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-1">
-                <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] space-y-1">
+                <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
                   Host Resource Governor
                 </div>
                 <p className="text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
@@ -377,11 +377,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-2">
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2">
                   <div className="flex justify-between items-center font-semibold text-black dark:text-white">
                     <span>RAM Memory Allocation Ceiling</span>
-                    <span className="font-mono text-[#0071E3] dark:text-[#0A84FF] font-bold">{ramLimit} GB</span>
+                    <span className="font-mono text-black dark:text-white font-bold">{ramLimit} GB</span>
                   </div>
                   <input
                     type="range"
@@ -399,10 +399,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   </div>
                 </div>
 
-                <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-2">
+                <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2">
                   <div className="flex justify-between items-center font-semibold text-black dark:text-white">
                     <span>VRAM Compute Allocation (Ollama Qwen 8B)</span>
-                    <span className="font-mono text-[#0071E3] dark:text-[#0A84FF] font-bold">{vramLimit} GB</span>
+                    <span className="font-mono text-black dark:text-white font-bold">{vramLimit} GB</span>
                   </div>
                   <input
                     type="range"
@@ -420,10 +420,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   </div>
                 </div>
 
-                <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-2">
+                <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2">
                   <div className="flex justify-between items-center font-semibold text-black dark:text-white">
                     <span>Continuous Batching Concurrency Slots (np)</span>
-                    <span className="font-mono text-[#0071E3] dark:text-[#0A84FF] font-bold">{threadSlots} Slots</span>
+                    <span className="font-mono text-black dark:text-white font-bold">{threadSlots} Slots</span>
                   </div>
                   <input
                     type="range"
@@ -444,15 +444,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 3: AIR-GAP SOVEREIGN PROOF */}
           {activeTab === 'airgap' && (
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-[14px] border border-[#0A84FF]/[0.25] bg-[#0A84FF]/[0.08] space-y-2">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
+                    <Shield className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />
                     <span className="text-sm font-bold text-black dark:text-white">
                       100% Sovereign Air-Gap Guarantee
                     </span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full font-mono text-[11px] bg-[#0071E3] text-white font-bold">
+                  <span className="px-2.5 py-0.5 rounded-[6px] font-mono text-[11px] bg-black dark:bg-white text-white dark:text-black font-bold">
                     E_net = 0.00 KB
                   </span>
                 </div>
@@ -461,7 +461,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 </p>
               </div>
 
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-black dark:text-white">
                     Stage Airplane-Mode Live Verification
@@ -477,7 +477,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                   </Button>
                 </div>
 
-                <div className="p-4 rounded-[12px] bg-black text-[#0A84FF] font-mono text-xs space-y-1.5 overflow-x-auto select-text">
+                <div className="p-3.5 rounded-[6px] bg-[#090A0D] border border-white/10 text-neutral-300 font-mono text-xs space-y-1.5 overflow-x-auto select-text">
                   {auditLogs.map((log, idx) => (
                     <div
                       key={idx}
@@ -485,10 +485,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         log.startsWith('✓')
                           ? 'text-white font-bold pt-1 border-t border-white/10 mt-1'
                           : log.includes('BLOCKED')
-                          ? 'text-[#34C759]'
-                          : log.includes('latency') || log.includes('Direct')
-                          ? 'text-[#64D2FF]'
-                          : 'text-[#0A84FF]'
+                          ? 'text-emerald-400'
+                          : 'text-neutral-300'
                       }
                     >
                       {log}
@@ -502,8 +500,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 4: ACRONYM DICTIONARY */}
           {activeTab === 'acronyms' && (
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-1">
-                <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] space-y-1">
+                <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
                   Company Vocabulary & Acronym Dictionary
                 </div>
                 <p className="text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
@@ -512,20 +510,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               </div>
 
               {/* Add New Term */}
-              <div className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <input
                   type="text"
                   placeholder="Acronym (e.g. SAML)"
                   value={newTerm}
                   onChange={(e) => setNewTerm(e.target.value)}
-                  className="sm:w-32 px-3 py-2 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white text-xs"
+                  className="sm:w-32 px-3 py-1.5 rounded-[6px] border border-black/10 dark:border-white/12 bg-black/[0.02] dark:bg-[#121316] text-black dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                 />
                 <input
                   type="text"
                   placeholder="Definition & domain context"
                   value={newDef}
                   onChange={(e) => setNewDef(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white text-xs"
+                  className="flex-1 px-3 py-1.5 rounded-[6px] border border-black/10 dark:border-white/12 bg-black/[0.02] dark:bg-[#121316] text-black dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                 />
                 <Button variant="primary" size="sm" onClick={handleAddAcronym}>
                   Add Term
@@ -537,15 +535,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 {acronyms.map((ac, idx) => (
                   <div
                     key={idx}
-                    className="p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] flex items-start justify-between gap-3"
+                    className="p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] flex items-start justify-between gap-3"
                   >
                     <div>
-                      <span className="font-mono font-bold text-[#0071E3] dark:text-[#0A84FF] mr-2">{ac.term}</span>
-                      <span className="text-black dark:text-white font-medium">{ac.definition}</span>
+                      <span className="font-mono font-bold text-black dark:text-white mr-2">{ac.term}</span>
+                      <span className="text-[#3C3C43] dark:text-[#D1D1D8] font-medium">{ac.definition}</span>
                     </div>
                     <button
                       onClick={() => setAcronyms((prev) => prev.filter((_, i) => i !== idx))}
-                      className="text-[#8E8E93] hover:text-[#C0392B] dark:hover:text-[#FF453A]"
+                      className="text-[#8E8E93] hover:text-red-500 transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -558,7 +556,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 5: TAXONOMY & TONE */}
           {activeTab === 'taxonomy' && (
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-2">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2">
                 <span className="font-bold text-black dark:text-white block">
                   Industry Startup Taxonomy
                 </span>
@@ -567,10 +565,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     <button
                       key={t}
                       onClick={() => setTaxonomy(t)}
-                      className={`p-3 rounded-[12px] border text-center transition-all ${
+                      className={`p-2.5 rounded-[7px] border text-center transition-all ${
                         taxonomy === t
-                          ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-bold shadow-xs'
-                          : 'border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 text-[#3C3C43] dark:text-[#EBEBF5]'
+                          ? 'border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-bold shadow-2xs'
+                          : 'border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] text-[#3C3C43] dark:text-[#EBEBF5]'
                       }`}
                     >
                       {t}
@@ -579,7 +577,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                 </div>
               </div>
 
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-2">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-2">
                 <span className="font-bold text-black dark:text-white block">
                   Role-Based AI Persona Tone Switcher
                 </span>
@@ -601,10 +599,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     <div
                       key={t.name}
                       onClick={() => setTone(t.name as any)}
-                      className={`p-3.5 rounded-[12px] border cursor-pointer transition-all ${
+                      className={`p-3 rounded-[8px] border cursor-pointer transition-all ${
                         tone === t.name
-                          ? 'border-black/[0.25] dark:border-white/[0.30] bg-[#F5F5F7] dark:bg-[#2C2C2E] font-medium text-black dark:text-white'
-                          : 'border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
+                          ? 'border-black dark:border-white bg-black/[0.04] dark:bg-white/[0.08] font-medium text-black dark:text-white'
+                          : 'border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
                       }`}
                     >
                       <div className="font-bold text-black dark:text-white">{t.name}</div>
@@ -619,10 +617,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
           {/* TAB 6: SOVEREIGN WORKSPACE DATA ISOLATION */}
           {activeTab === 'data' && (
             <div className="space-y-5 animate-fade-in">
-              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
+              <div className="p-3.5 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] space-y-2">
                 <div className="flex items-center gap-2">
-                  <Database className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
-                  <span className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                  <Database className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />
+                  <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider">
                     Sovereign Data Management & Mock Decoupling
                   </span>
                 </div>
@@ -635,17 +633,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               </div>
 
               {resetSuccess && (
-                <div className="p-4 rounded-[14px] border border-[#34C759]/30 bg-[#34C759]/10 text-[#34C759] text-xs font-semibold flex items-start gap-2.5">
+                <div className="p-3.5 rounded-[8px] border border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{resetSuccess}</span>
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                <div className="p-4 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-3 flex flex-col justify-between shadow-2xs">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <Trash2 className="w-4 h-4 text-[#FF9500]" />
+                      <Trash2 className="w-4 h-4 text-amber-500" />
                       <h5 className="text-[13px] font-bold text-black dark:text-white">Purge Sample Demo Data</h5>
                     </div>
                     <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
@@ -657,16 +655,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     size="sm"
                     loading={resetLoading}
                     onClick={() => handleReset('DEMO_ONLY')}
-                    className="w-full text-[#FF9500] hover:text-[#FF9500] border-[#FF9500]/30"
+                    className="w-full text-amber-600 dark:text-amber-400 hover:text-amber-500 border-amber-500/30"
                   >
                     Clear Sample Data Only
                   </Button>
                 </div>
 
-                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                <div className="p-4 rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] space-y-3 flex flex-col justify-between shadow-2xs">
                   <div>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <RefreshCw className="w-4 h-4 text-[#FF3B30]" />
+                      <RefreshCw className="w-4 h-4 text-red-500" />
                       <h5 className="text-[13px] font-bold text-black dark:text-white">Pristine Workspace Reset</h5>
                     </div>
                     <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
@@ -678,7 +676,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                     size="sm"
                     loading={resetLoading}
                     onClick={() => handleReset('ALL')}
-                    className="w-full text-[#FF3B30] hover:text-[#FF3B30] border-[#FF3B30]/30"
+                    className="w-full text-red-600 dark:text-red-400 hover:text-red-500 border-red-500/30"
                   >
                     Reset to Clean Slate
                   </Button>

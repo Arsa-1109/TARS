@@ -181,8 +181,8 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
     if (content.trim().startsWith('%PDF')) {
       return (
         <div className="space-y-6">
-          <div className="p-4 rounded-[14px] bg-[#0071E3]/[0.08] dark:bg-[#2997FF]/[0.10] border border-[#0071E3]/[0.20] dark:border-[#2997FF]/[0.25] text-xs">
-            <div className="flex items-center gap-2 font-semibold text-[#0071E3] dark:text-[#2997FF] mb-1">
+          <div className="p-3.5 rounded-[8px] bg-black/[0.02] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 text-xs">
+            <div className="flex items-center gap-2 font-semibold text-neutral-800 dark:text-neutral-200 mb-1">
               <BookOpen className="w-4 h-4" />
               <span>Inbuilt Native PDF Stream Active</span>
             </div>
@@ -191,7 +191,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
             </p>
           </div>
 
-          <div className="rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.03] p-4 font-mono text-[12px] text-[#6E6E73] dark:text-[#8E8E98] space-y-1">
+          <div className="rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] p-3.5 font-mono text-[12px] text-[#6E6E73] dark:text-[#8E8E98] space-y-1">
             <div className="text-black dark:text-white font-semibold mb-2">Ingestion Header & Digest:</div>
             <div>File: {docTitle}</div>
             <div>Format: PDF 1.4 Encapsulation</div>
@@ -239,7 +239,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
           if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             return (
               <div key={idx} className="flex items-start gap-2 pl-2">
-                <span className="text-[#0071E3] dark:text-[#2997FF]">•</span>
+                <span className="text-black dark:text-white">•</span>
                 <span>{trimmed.replace(/^[-*]\s+/, '')}</span>
               </div>
             );
@@ -266,17 +266,17 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
 
       {/* Reader Modal Window */}
       <div
-        className="relative w-full max-w-4xl h-[88vh] rounded-[24px] overflow-hidden bg-white dark:bg-[#141519] border border-black/[0.12] dark:border-white/[0.14] shadow-[0_32px_96px_rgba(0,0,0,0.32)] dark:shadow-[0_32px_96px_rgba(0,0,0,0.85)] z-10 flex flex-col animate-apple-in"
+        className="relative w-full max-w-4xl h-[88vh] rounded-[14px] overflow-hidden bg-white dark:bg-[#121316] border border-black/10 dark:border-white/12 shadow-[0_24px_72px_rgba(0,0,0,0.24)] dark:shadow-[0_24px_72px_rgba(0,0,0,0.85)] z-10 flex flex-col animate-apple-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Specular top highlight */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 dark:via-white/20 to-transparent pointer-events-none z-20" />
 
         {/* Unified macOS Header Toolbar */}
-        <div className="px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/95 dark:bg-[#1A1B22]/95 backdrop-blur-md flex items-center justify-between shrink-0 select-none">
+        <div className="px-5 py-2.5 border-b border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] flex items-center justify-between shrink-0 select-none">
           {/* Document Identity */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-[10px] bg-black/[0.06] dark:bg-white/[0.10] flex items-center justify-center text-[#0071E3] dark:text-[#2997FF] shrink-0">
+            <div className="w-8 h-8 rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-black dark:text-white shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
             <div className="min-w-0">
@@ -286,11 +286,11 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
               <div className="flex items-center gap-2 text-[11px] text-[#6E6E73] dark:text-[#8E8E98] mt-0.5">
                 <span className="font-medium text-[#3C3C43] dark:text-[#D1D1D8]">{department}</span>
                 <span>•</span>
-                <span className="px-1.5 py-0.5 rounded-[4px] bg-black/[0.05] dark:bg-white/[0.08] font-mono text-[10px] font-semibold text-black dark:text-white">
+                <span className="px-1.5 py-0.2 rounded-[4px] bg-black/[0.05] dark:bg-white/[0.08] font-mono text-[10px] font-semibold text-black dark:text-white">
                   {clearance}
                 </span>
                 <span>•</span>
-                <span className="text-[#0071E3] dark:text-[#2997FF] flex items-center gap-1">
+                <span className="text-neutral-600 dark:text-neutral-400 flex items-center gap-1">
                   <Shield className="w-3 h-3" />
                   Local Vault
                 </span>
@@ -302,10 +302,10 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
           <div className="flex items-center gap-2 shrink-0 ml-4">
             {/* View Mode Toggle if PDF */}
             {isPdf && (
-              <div className="flex items-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] p-0.5 border border-black/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08] p-0.5 border border-black/[0.06] dark:border-white/[0.08]">
                 <button
                   onClick={() => setViewMode('pdf')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] text-[11px] font-medium transition-all ${
                     viewMode === 'pdf'
                       ? 'bg-white dark:bg-[#252631] text-black dark:text-white shadow-2xs'
                       : 'text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white'
@@ -317,7 +317,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                 </button>
                 <button
                   onClick={() => setViewMode('text')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] text-[11px] font-medium transition-all ${
                     viewMode === 'text'
                       ? 'bg-white dark:bg-[#252631] text-black dark:text-white shadow-2xs'
                       : 'text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white'
@@ -332,10 +332,10 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
 
             {/* Zoom Controls (Text Mode) */}
             {viewMode === 'text' && (
-              <div className="hidden sm:flex items-center rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] border border-black/[0.06] dark:border-white/[0.08] p-0.5">
+              <div className="hidden sm:flex items-center rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08] border border-black/[0.06] dark:border-white/[0.08] p-0.5">
                 <button
                   onClick={() => setZoom((prev) => Math.max(75, prev - 15))}
-                  className="p-1 rounded-[6px] text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.10] transition-colors"
+                  className="p-1 rounded-[5px] text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.10] transition-colors"
                   title="Zoom Out"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
@@ -345,7 +345,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                 </span>
                 <button
                   onClick={() => setZoom((prev) => Math.min(150, prev + 15))}
-                  className="p-1 rounded-[6px] text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.10] transition-colors"
+                  className="p-1 rounded-[5px] text-[#6E6E73] dark:text-[#8E8E98] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.10] transition-colors"
                   title="Zoom In"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
@@ -356,16 +356,16 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
             {/* Copy Button */}
             <button
               onClick={handleCopyText}
-              className="h-7 px-2.5 rounded-[8px] text-[11px] font-medium border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1E2028] text-[#3C3C43] dark:text-[#D1D1D8] hover:text-black dark:hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
+              className="h-7 px-2.5 rounded-[6px] text-[11px] font-medium border border-black/10 dark:border-white/10 bg-white dark:bg-[#1E2028] text-[#3C3C43] dark:text-[#D1D1D8] hover:text-black dark:hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
             >
-              {copied ? <Check className="w-3 h-3 text-[#0071E3] dark:text-[#2997FF]" /> : <Copy className="w-3 h-3" />}
+              {copied ? <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3 h-3" />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
 
             {/* Download Button */}
             <button
               onClick={handleDownload}
-              className="h-7 px-2.5 rounded-[8px] text-[11px] font-medium border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1E2028] text-[#3C3C43] dark:text-[#D1D1D8] hover:text-black dark:hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
+              className="h-7 px-2.5 rounded-[6px] text-[11px] font-medium border border-black/10 dark:border-white/10 bg-white dark:bg-[#1E2028] text-[#3C3C43] dark:text-[#D1D1D8] hover:text-black dark:hover:text-white transition-all flex items-center gap-1.5 shadow-2xs"
               title="Download local copy"
             >
               <Download className="w-3 h-3" />
@@ -384,20 +384,20 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
         </div>
 
         {/* Reader Canvas Area */}
-        <div className="flex-1 overflow-hidden bg-[#EAEAF0] dark:bg-[#08080B] flex flex-col relative">
+        <div className="flex-1 overflow-hidden bg-black/[0.03] dark:bg-[#090A0D] flex flex-col relative">
           {viewMode === 'pdf' ? (
             /* Inbuilt Native PDF Canvas Viewer */
             <div className="w-full h-full flex flex-col p-2 sm:p-4">
               {pdfLoading ? (
-                <div className="w-full h-full rounded-[14px] border border-black/[0.10] dark:border-white/[0.10] bg-white dark:bg-[#141519] flex flex-col items-center justify-center gap-3">
-                  <div className="w-7 h-7 rounded-full border-2 border-[#0071E3] dark:border-[#2997FF] border-t-transparent animate-spin" />
+                <div className="w-full h-full rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#141519] flex flex-col items-center justify-center gap-3">
+                  <div className="w-7 h-7 rounded-full border-2 border-black dark:border-white border-t-transparent animate-spin" />
                   <span className="text-xs font-medium text-[#6E6E73] dark:text-[#8E8E98]">
                     Preparing document canvas...
                   </span>
                 </div>
               ) : pdfError || !pdfBlobUrl ? (
-                <div className="w-full h-full rounded-[14px] border border-black/[0.10] dark:border-white/[0.10] bg-white dark:bg-[#141519] flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
-                  <div className="w-12 h-12 rounded-2xl bg-[#0071E3]/10 dark:bg-[#2997FF]/15 text-[#0071E3] dark:text-[#2997FF] flex items-center justify-center mb-4">
+                <div className="w-full h-full rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#141519] flex flex-col items-center justify-center p-8 text-center max-w-lg mx-auto">
+                  <div className="w-12 h-12 rounded-[10px] bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white flex items-center justify-center mb-4">
                     <FileText className="w-6 h-6" />
                   </div>
                   <h4 className="text-sm font-semibold text-black dark:text-white mb-1.5">
@@ -420,7 +420,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                 <iframe
                   src={`${pdfBlobUrl}#toolbar=1&navpanes=0&view=FitH`}
                   title={docTitle}
-                  className="w-full h-full rounded-[14px] border border-black/[0.10] dark:border-white/[0.10] bg-white shadow-sm"
+                  className="w-full h-full rounded-[8px] border border-black/10 dark:border-white/10 bg-white shadow-2xs"
                 />
               )}
             </div>
@@ -428,13 +428,13 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
             /* Formatted Document / Text Canvas */
             <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center items-start">
               <div
-                className="w-full max-w-2xl bg-white dark:bg-[#121317] rounded-[16px] border border-black/[0.08] dark:border-white/[0.10] shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.60)] p-8 sm:p-12 transition-all select-text text-black dark:text-[#F5F5F7]"
+                className="w-full max-w-2xl bg-white dark:bg-[#121317] rounded-[10px] border border-black/10 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.60)] p-8 sm:p-12 transition-all select-text text-black dark:text-[#F5F5F7]"
                 style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
               >
                 {/* Document Header Page Badge */}
                 <div className="flex items-center justify-between pb-6 mb-6 border-b border-black/[0.08] dark:border-white/[0.08] text-[11px] text-[#8E8E98]">
                   <div className="flex items-center gap-2 font-mono">
-                    <span className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#2997FF]" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     <span>CONFIDENTIAL INTERNAL DOCUMENT</span>
                   </div>
                   <div className="font-mono tabular-nums">

@@ -216,9 +216,9 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
                 'w-[88px] h-[88px] rounded-full flex items-center justify-center transition-all duration-300',
                 'focus:outline-none disabled:opacity-60',
                 recording
-                  ? 'bg-[#FF3B30] text-white shadow-[0_0_0_0_rgba(255,59,48,0.4)] animate-recording-pulse'
+                  ? 'bg-red-600 text-white shadow-[0_0_0_0_rgba(220,38,38,0.4)] animate-recording-pulse'
                   : done
-                    ? 'bg-[#0071E3] dark:bg-[#0A84FF] text-white hover:scale-[1.04]'
+                    ? 'bg-black dark:bg-white text-white dark:text-black hover:scale-[1.04]'
                     : 'bg-black dark:bg-white text-white dark:text-black hover:scale-[1.04] active:scale-[0.96]',
                 'shadow-[0_8px_24px_rgba(0,0,0,0.22)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.60)]',
               ].join(' ')}
@@ -227,7 +227,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
               {transcribing ? (
                 <Spinner size="md" />
               ) : done ? (
-                <CheckCircle2 className="w-9 h-9 animate-success-bounce" />
+                <CheckCircle2 className="w-9 h-9 animate-success-bounce text-emerald-500 dark:text-emerald-400" />
               ) : recording ? (
                 <Square className="w-8 h-8 fill-current" />
               ) : (
@@ -236,14 +236,14 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
             </button>
 
             {/* Timer */}
-            <div className={`font-mono text-[32px] font-bold tabular-nums tracking-wider leading-none ${recording ? 'text-[#FF3B30]' : 'text-black dark:text-white'}`}>
+            <div className={`font-mono text-[32px] font-bold tabular-nums tracking-wider leading-none ${recording ? 'text-red-600 dark:text-red-400' : 'text-black dark:text-white'}`}>
               {fmt(seconds)}
             </div>
 
             {/* Status label */}
             <div className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] text-center min-h-[20px]">
               {done ? (
-                <span className="text-[#0071E3] dark:text-[#0A84FF] font-medium flex items-center gap-1.5 justify-center">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1.5 justify-center">
                   <CheckCircle2 className="w-4 h-4" />
                   Transcribed by Local Whisper
                 </span>
@@ -265,7 +265,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
                 {Array.from({ length: 18 }).map((_, i) => (
                   <span
                     key={i}
-                    className="wave-bar w-[3px] rounded-full bg-[#FF3B30] origin-bottom"
+                    className="wave-bar w-[3px] rounded-full bg-red-600 origin-bottom"
                     style={{ height: `${Math.random() * 60 + 20}%`, animationDelay: `${(i % 5) * 0.1}s` }}
                   />
                 ))}
@@ -274,8 +274,8 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
 
             {/* Real transcript preview */}
             {done && transcript && (
-              <div className="w-full p-3.5 rounded-[14px] border border-[#0A84FF]/25 bg-[#0A84FF]/[0.08] text-left space-y-1 animate-fade-in">
-                <div className="text-[10px] font-mono uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF] font-bold">
+              <div className="w-full p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.04] text-left space-y-1 animate-fade-in">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-black dark:text-white font-bold">
                   Whisper Transcript
                 </div>
                 <p className="text-[12px] text-[#3C3C43] dark:text-[#EBEBF5] italic leading-relaxed">
@@ -288,12 +288,12 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
           {/* Footer */}
           <div className="px-5 pb-5 flex items-center justify-between text-[11px] text-[#8E8E93] font-mono">
             <div className="flex items-center gap-1.5">
-              <Shield className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
+              <Shield className="w-3 h-3 text-neutral-500 dark:text-neutral-400" />
               <span>Air-Gapped · Local Whisper</span>
             </div>
             <button
               onClick={onClose}
-              className="px-3 py-1.5 rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-[#3C3C43] dark:text-[#EBEBF5] transition-colors font-sans font-medium"
+              className="px-3 py-1.5 rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.09] dark:hover:bg-white/[0.12] text-[#3C3C43] dark:text-[#EBEBF5] transition-colors font-sans font-medium"
             >
               Close
             </button>

@@ -110,8 +110,8 @@ const FormattedAnswer: React.FC<{ content: string }> = ({ content }) => {
       if (listType !== 'ul') flushList(idx);
       listType = 'ul';
       currentList.push(
-        <li key={idx} className="flex items-start gap-2.5 text-[14px] sm:text-[14.5px] text-[#3A3A3C] dark:text-[#D1D1D6] leading-relaxed pl-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] dark:bg-[#0A84FF] shrink-0 mt-2" />
+        <li key={idx} className="flex items-start gap-2 text-[13px] text-[#2C2C2E] dark:text-[#D4D4D8] leading-relaxed pl-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 dark:bg-neutral-500 shrink-0 mt-2" />
           <div className="flex-1">{renderInline(bulletMatch[1])}</div>
         </li>
       );
@@ -733,10 +733,10 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
         eyebrow="Workspace 1"
         title="Company Knowledge"
         description="Search company documents, contracts, and decisions with verifiable citations."
-        className="pb-3 mb-0 shrink-0"
+        className="pb-2.5 mb-0 shrink-0"
         actions={
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono uppercase px-2 py-1 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] font-medium hidden sm:inline-block">
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-[5px] bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white border border-black/[0.08] dark:border-white/[0.10] font-medium hidden sm:inline-block">
               {clearance}
             </span>
             <SegmentedControl
@@ -770,8 +770,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* Upload Toast (For Document Lake view or subtle feedback) */}
       {uploadSuccess && (
-        <div className="p-2.5 px-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
-          <Check className="w-3.5 h-3.5 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" />
+        <div className="p-2 px-3 rounded-[8px] border border-[#15803D]/25 bg-[#15803D]/[0.08] dark:border-[#34D399]/25 dark:bg-[#34D399]/[0.10] text-[#15803D] dark:text-[#34D399] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
+          <Check className="w-3.5 h-3.5 shrink-0" />
           <span className="flex-1 font-medium truncate">{uploadSuccess}</span>
           <button onClick={() => setUploadSuccess(null)} className="text-[10px] font-medium opacity-60 hover:opacity-100 transition-opacity">
             Dismiss
@@ -780,7 +780,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
       )}
 
       {uploadError && (
-        <div className="p-2.5 px-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] bg-[#FF3B30]/[0.08] text-[#C0392B] dark:text-[#FF453A] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
+        <div className="p-2 px-3 rounded-[8px] border border-[#B91C1C]/25 bg-[#B91C1C]/[0.08] dark:border-[#F87171]/25 dark:bg-[#F87171]/[0.10] text-[#B91C1C] dark:text-[#F87171] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
           <span className="flex-1 font-medium truncate">{uploadError}</span>
           <button onClick={() => setUploadError(null)} className="text-[10px] font-medium opacity-60 hover:opacity-100 transition-opacity">
             Dismiss
@@ -790,22 +790,22 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 1: PERSISTENT COMPANY KNOWLEDGE CHATBOT */}
       {activeView === 'chat' && (
-        <div className="flex-1 min-h-0 rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 min-h-0 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121316] shadow-2xs flex flex-col md:flex-row overflow-hidden">
 
           {/* LEFT SIDEBAR: CONVERSATION LIST */}
-          <div className="w-full md:w-72 lg:w-80 shrink-0 border-b md:border-b-0 md:border-r border-black/[0.07] dark:border-white/[0.07] flex flex-col h-full overflow-hidden bg-black/[0.015] dark:bg-white/[0.01]">
+          <div className="w-full md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-black/[0.08] dark:border-white/[0.08] flex flex-col h-full overflow-hidden bg-black/[0.015] dark:bg-white/[0.01]">
             {/* Top Action Bar */}
-            <div className="p-3.5 border-b border-black/[0.07] dark:border-white/[0.07] space-y-2.5">
+            <div className="p-2.5 border-b border-black/[0.08] dark:border-white/[0.08] space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-semibold text-[#6E6E73] dark:text-[#8E8E93]">
                   Recent Chats
                 </span>
                 <Button
                   variant="primary"
-                  size="sm"
-                  icon={<Plus className="w-3.5 h-3.5" />}
+                  size="xs"
+                  icon={<Plus className="w-3 h-3" />}
                   onClick={handleCreateNewChat}
-                  className="rounded-full shadow-xs text-xs px-3"
+                  className="shadow-2xs text-[11px]"
                 >
                   New Chat
                 </Button>
@@ -813,13 +813,13 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
               {/* Chat Quick Filter */}
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3 pointer-events-none" />
+                <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-2.5 pointer-events-none" />
                 <input
                   type="text"
                   value={chatSearch}
                   onChange={(e) => setChatSearch(e.target.value)}
                   placeholder="Filter conversations..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-[10px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.04] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10"
+                  className="w-full pl-7 pr-2.5 py-1 text-xs rounded-[6px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-1 focus:ring-black/15 dark:focus:ring-white/20"
                 />
               </div>
             </div>
@@ -850,16 +850,16 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                           setMenuOpenChatId(null);
                         }
                       }}
-                      className={`group relative flex items-center justify-between p-2.5 rounded-[12px] text-xs cursor-pointer transition-all duration-150 ${
+                      className={`group relative flex items-center justify-between p-2 rounded-[8px] text-xs cursor-pointer transition-all duration-150 ${
                         isActive
                           ? 'bg-black/[0.06] dark:bg-white/[0.08] text-black dark:text-white font-medium border border-black/[0.08] dark:border-white/[0.10]'
                           : 'text-[#505054] dark:text-[#A1A1A6] hover:bg-black/[0.03] dark:hover:bg-white/[0.04] hover:text-black dark:hover:text-white border border-transparent'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-1">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 pr-1">
                         <MessageSquare
                           className={`w-3.5 h-3.5 shrink-0 ${
-                            isActive ? 'text-[#0071E3] dark:text-[#0A84FF]' : 'text-[#8E8E93]'
+                            isActive ? 'text-black dark:text-white' : 'text-[#8E8E93]'
                           }`}
                         />
                         {isEditing ? (
@@ -873,7 +873,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                               if (e.key === 'Escape') setEditingChatId(null);
                             }}
                             onBlur={() => handleSaveRename(c.id)}
-                            className="w-full text-xs bg-white dark:bg-[#2C2C2E] border border-[#0071E3] rounded px-1.5 py-0.5 text-black dark:text-white focus:outline-none"
+                            className="w-full text-xs bg-white dark:bg-[#18191D] border border-black/30 dark:border-white/30 rounded px-1.5 py-0.5 text-black dark:text-white focus:outline-none"
                             onClick={(e) => e.stopPropagation()}
                           />
                         ) : (
@@ -889,18 +889,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                           <button
                             type="button"
                             onClick={() => setMenuOpenChatId(menuOpenChatId === c.id ? null : c.id)}
-                            className="p-1 rounded-md text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            className="p-1 rounded text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                             title="Chat Options"
                           >
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
 
                           {menuOpenChatId === c.id && (
-                            <div className="absolute right-0 top-6 z-30 w-36 py-1 bg-white dark:bg-[#2C2C2E] rounded-[10px] shadow-lg border border-black/[0.1] dark:border-white/[0.12] text-xs animate-slide-up">
+                            <div className="absolute right-0 top-6 z-30 w-36 py-1 bg-white dark:bg-[#18191D] rounded-[8px] shadow-lg border border-black/[0.1] dark:border-white/[0.12] text-xs animate-slide-up">
                               <button
                                 type="button"
                                 onClick={(e) => handleStartRename(c, e)}
-                                className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-black dark:text-white"
+                                className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-black dark:text-white"
                               >
                                 <Edit2 className="w-3.5 h-3.5 text-[#8E8E93]" />
                                 <span>Rename</span>
@@ -913,9 +913,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                   setChatToDelete(c);
                                   setDeleteDialogOpen(true);
                                 }}
-                                className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-[#FF3B30]/[0.10] text-[#FF3B30]"
+                                className="w-full text-left px-2.5 py-1.5 flex items-center gap-2 hover:bg-[#B91C1C]/[0.10] text-[#B91C1C] dark:text-[#F87171]"
                               >
-                                <Trash2 className="w-3.5 h-3.5 text-[#FF3B30]" />
+                                <Trash2 className="w-3.5 h-3.5 text-[#B91C1C] dark:text-[#F87171]" />
                                 <span>Delete</span>
                               </button>
                             </div>
@@ -929,17 +929,17 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             </div>
 
             {/* Sidebar Footer with Document Lake Quick Switch */}
-            <div className="p-3 border-t border-black/[0.07] dark:border-white/[0.07] bg-black/[0.01] dark:bg-white/[0.01] space-y-2">
+            <div className="p-2.5 border-t border-black/[0.08] dark:border-white/[0.08] bg-black/[0.01] dark:bg-white/[0.01] space-y-1.5">
               <button
                 type="button"
                 onClick={() => setActiveView('lake')}
-                className="w-full py-2 px-3 rounded-[10px] text-xs font-medium text-black dark:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors flex items-center justify-between border border-black/[0.06] dark:border-white/[0.08]"
+                className="w-full py-1.5 px-2.5 rounded-[7px] text-xs font-medium text-black dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors flex items-center justify-between border border-black/[0.06] dark:border-white/[0.08]"
               >
                 <span className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <Layers className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-400" />
                   <span>Document Lake</span>
                 </span>
-                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded-[4px] bg-black/[0.05] dark:bg-white/[0.08]">
                   {lakeDocuments.length}
                 </span>
               </button>
@@ -950,14 +950,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           </div>
 
           {/* MAIN CHAT AREA */}
-          <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#1C1C1E] overflow-hidden">
+          <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#121316] overflow-hidden">
             {/* Main Chat Top Header */}
-            <div className="h-14 px-5 border-b border-black/[0.07] dark:border-white/[0.07] flex items-center justify-between shrink-0">
+            <div className="h-11 px-4 border-b border-black/[0.08] dark:border-white/[0.08] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="font-semibold text-sm text-black dark:text-white truncate">
+                <span className="font-semibold text-xs sm:text-[13px] text-black dark:text-white truncate">
                   {activeChat ? activeChat.title : 'New conversation'}
                 </span>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] shrink-0 font-medium">
+                <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded-[4px] bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white border border-black/[0.06] dark:border-white/[0.08] shrink-0 font-medium">
                   {clearance}
                 </span>
               </div>
@@ -1004,13 +1004,13 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   <Skeleton className="h-20 w-5/6 rounded-[16px]" />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-5 max-w-lg mx-auto">
-                  <div className="w-14 h-14 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center text-black dark:text-white shadow-xs">
-                    <Sparkles className="w-7 h-7 text-[#0071E3] dark:text-[#0A84FF]" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 max-w-lg mx-auto">
+                  <div className="w-12 h-12 rounded-[12px] bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center text-black dark:text-white shadow-2xs">
+                    <Sparkles className="w-6 h-6 text-black dark:text-white" />
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-bold text-black dark:text-white">
-                      TARS knows your company.
+                  <div className="space-y-1.5">
+                    <h3 className="text-base font-semibold text-black dark:text-white">
+                      TARS Company Knowledge
                     </h3>
                     <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
                       Ask about decisions, contracts, customers, architecture, policies, or internal knowledge.
@@ -1019,7 +1019,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
                   {/* Suggested Query Chips */}
                   <div className="w-full space-y-2 pt-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93]">
+                    <div className="text-[10px] font-mono uppercase tracking-wider font-semibold text-[#8E8E93]">
                       Suggested questions:
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
@@ -1028,7 +1028,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                           key={i}
                           type="button"
                           onClick={() => handleSendMessage(sq)}
-                          className="p-3 text-xs rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all text-black dark:text-white group flex items-center justify-between"
+                          className="p-2.5 text-xs rounded-[8px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-all text-black dark:text-white group flex items-center justify-between"
                         >
                           <span className="line-clamp-2 pr-2">"{sq}"</span>
                           <ArrowRight className="w-3.5 h-3.5 text-[#8E8E93] group-hover:translate-x-0.5 transition-transform shrink-0" />
@@ -1038,7 +1038,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6 max-w-3xl mx-auto">
+                <div className="space-y-4 max-w-3xl mx-auto">
                   {messages.map((m) => {
                     const isUser = m.role === 'user';
                     const hasCitations = m.citations && m.citations.length > 0;
@@ -1046,21 +1046,15 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                     return (
                       <div
                         key={m.id}
-                        className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-2`}
+                        className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1.5`}
                       >
                         {/* If message has an attachment, render dedicated Sovereign Attachment Card */}
                         {m.attachment ? (
-                          <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-[16px] border border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-[#252528] p-3.5 shadow-sm space-y-2.5 transition-all">
+                          <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-[10px] border border-black/[0.09] dark:border-white/[0.12] bg-white dark:bg-[#18191D] p-3 shadow-2xs space-y-2 transition-all">
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${
-                                  m.attachment.format === 'PDF'
-                                    ? 'bg-[#FF3B30]/10 text-[#FF3B30]'
-                                    : m.attachment.format === 'CSV' || m.attachment.format === 'XLSX'
-                                    ? 'bg-[#34C759]/10 text-[#34C759]'
-                                    : 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]'
-                                }`}>
-                                  <FileText className="w-5 h-5" />
+                                <div className="w-8 h-8 rounded-[7px] bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white border border-black/[0.06] dark:border-white/[0.08] flex items-center justify-center shrink-0">
+                                  <FileText className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="text-xs font-semibold text-black dark:text-white truncate" title={m.attachment.file_name}>
@@ -1077,7 +1071,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                       </>
                                     ) : null}
                                     <span>•</span>
-                                    <span className="font-mono text-[10px] uppercase text-[#0071E3] dark:text-[#0A84FF]">{m.attachment.format || 'DOC'}</span>
+                                    <span className="font-mono text-[10px] uppercase text-black dark:text-white">{m.attachment.format || 'DOC'}</span>
                                   </div>
                                 </div>
                               </div>
@@ -1085,21 +1079,21 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                               {/* Status Badge */}
                               <div className="shrink-0">
                                 {m.attachment.status === 'uploading' && (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]">
-                                    <Spinner size="sm" />
+                                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white border border-black/[0.08] dark:border-white/[0.10]">
+                                    <Spinner size="xs" />
                                     <span>Uploading {m.attachment.progress || 0}%</span>
                                   </span>
                                 )}
                                 {m.attachment.status === 'indexed' && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#34C759]/10 text-[#248A3D] dark:text-[#30D158]">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-mono font-medium bg-[#15803D]/10 text-[#15803D] dark:text-[#34D399] border border-[#15803D]/20">
                                     <Check className="w-3 h-3" />
-                                    <span>Indexed and ready</span>
+                                    <span>Indexed</span>
                                   </span>
                                 )}
                                 {m.attachment.status === 'error' && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FF3B30]/10 text-[#FF3B30]">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-mono font-medium bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#F87171] border border-[#B91C1C]/20">
                                     <AlertTriangle className="w-3 h-3" />
-                                    <span>Upload failed</span>
+                                    <span>Failed</span>
                                   </span>
                                 )}
                               </div>
@@ -1107,9 +1101,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
                             {/* Uploading Progress Bar */}
                             {m.attachment.status === 'uploading' && (
-                              <div className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+                              <div className="w-full h-1 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
                                 <div
-                                  className="h-full rounded-full bg-[#0071E3] dark:bg-[#0A84FF] transition-all duration-150 ease-out"
+                                  className="h-full rounded-full bg-black dark:bg-white transition-all duration-150 ease-out"
                                   style={{ width: `${Math.max(8, m.attachment.progress || 0)}%` }}
                                 />
                               </div>
@@ -1121,19 +1115,19 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => handleAskAboutDoc(m.attachment!.file_name)}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.12] text-[#0071E3] dark:text-[#0A84FF] hover:bg-[#0071E3]/[0.15] transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-medium bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors border border-black/[0.08] dark:border-white/[0.10]"
                                 >
-                                  <Sparkles className="w-3 h-3" />
+                                  <Sparkles className="w-3 h-3 text-neutral-500 dark:text-neutral-400" />
                                   <span>Ask TARS about this document</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleOpenReaderForAttachment(m.attachment!)}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-black/[0.04] dark:bg-white/[0.06] text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[11px] font-medium bg-black/[0.03] dark:bg-white/[0.05] text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors"
                                 >
                                   <Eye className="w-3 h-3" />
-                                  <span>View in Document Reader</span>
+                                  <span>View in Reader</span>
                                 </button>
                               </div>
                             )}
@@ -1141,13 +1135,13 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                             {/* Error Actions */}
                             {m.attachment.status === 'error' && (
                               <div className="flex items-center justify-between pt-1 border-t border-black/[0.05] dark:border-white/[0.06] text-xs">
-                                <span className="text-[11px] text-[#FF3B30] truncate mr-2">
+                                <span className="text-[11px] text-[#B91C1C] dark:text-[#F87171] truncate mr-2">
                                   {m.attachment.error_message || 'Ingestion failed.'}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleRetryUpload(m.id)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#FF3B30]/10 text-[#FF3B30] hover:bg-[#FF3B30]/20 transition-colors shrink-0"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[5px] text-[10px] font-medium bg-[#B91C1C]/10 text-[#B91C1C] dark:text-[#F87171] hover:bg-[#B91C1C]/20 transition-colors shrink-0"
                                 >
                                   <RotateCcw className="w-3 h-3" />
                                   <span>Retry</span>
@@ -1162,29 +1156,29 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                         ) : (
                           /* Bubble */
                           <div
-                            className={`relative max-w-[88%] sm:max-w-[80%] rounded-[18px] p-4 text-[14px] leading-relaxed shadow-xs transition-all ${
+                            className={`relative max-w-[88%] sm:max-w-[80%] rounded-[10px] p-3 text-[13px] leading-relaxed shadow-2xs transition-all ${
                               isUser
-                                ? 'bg-[#0071E3] text-white rounded-br-[4px]'
-                                : 'bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.07] dark:border-white/[0.08] text-black dark:text-white rounded-tl-[4px]'
+                                ? 'bg-black text-white dark:bg-white dark:text-black rounded-br-[2px]'
+                                : 'bg-black/[0.025] dark:bg-[#18191D] border border-black/[0.08] dark:border-white/[0.08] text-black dark:text-white rounded-tl-[2px]'
                             }`}
                           >
                             {!isUser && (
-                              <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] pb-2 mb-3 text-xs">
-                                <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                                  <span className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]" />
+                              <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] pb-1.5 mb-2 text-xs">
+                                <span className="font-semibold text-xs text-black dark:text-white flex items-center gap-1.5 font-mono uppercase tracking-wider">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 dark:bg-neutral-500" />
                                   TARS
                                 </span>
                                 <div className="flex items-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() => handleCopyMessage(m.id, m.content)}
-                                    className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+                                    className="text-[10px] font-mono text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
                                     title="Copy response"
                                   >
                                     {copiedMessageId === m.id ? (
                                       <>
-                                        <Check className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
-                                        <span className="text-[#0071E3] dark:text-[#0A84FF]">Copied</span>
+                                        <Check className="w-3 h-3 text-black dark:text-white" />
+                                        <span>Copied</span>
                                       </>
                                     ) : (
                                       <>
@@ -1204,8 +1198,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                             )}
 
                             <div
-                              className={`text-[10px] mt-2 font-mono ${
-                                isUser ? 'text-white/70 text-right' : 'text-[#8E8E93] text-left'
+                              className={`text-[9px] mt-1.5 font-mono ${
+                                isUser ? 'text-white/60 dark:text-black/60 text-right' : 'text-[#8E8E93] text-left'
                               }`}
                             >
                               {m.created_at || 'Just now'}
@@ -1215,10 +1209,10 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
                         {/* Citation Cards (Under Assistant Reply) */}
                         {!isUser && hasCitations && (
-                          <div className="w-full max-w-[88%] sm:max-w-[80%] pt-1 pl-1 space-y-2">
-                            <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-[#6E6E73] dark:text-[#8E8E93]">
+                          <div className="w-full max-w-[88%] sm:max-w-[80%] pt-0.5 pl-0.5 space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[#6E6E73] dark:text-[#8E8E93]">
                               <span>Sources ({m.citations!.length})</span>
-                              <span className="text-[10px] font-normal lowercase">click to inspect excerpt</span>
+                              <span className="text-[9px] lowercase font-sans">click to inspect excerpt</span>
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1226,7 +1220,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                 <div
                                   key={cIdx}
                                   onClick={() => onOpenCitation(c)}
-                                  className="p-3 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#252528] hover:border-[#0071E3]/[0.4] dark:hover:border-[#0A84FF]/[0.4] cursor-pointer transition-all group flex flex-col justify-between shadow-xs"
+                                  className="p-2.5 rounded-[8px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#18191D] hover:border-black/30 dark:hover:border-white/30 cursor-pointer transition-all group flex flex-col justify-between shadow-2xs"
                                 >
                                   <div>
                                     <div className="flex items-center justify-between text-xs font-semibold text-black dark:text-white">
@@ -1239,7 +1233,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                                       "{c.snippet}"
                                     </p>
                                   </div>
-                                  <div className="mt-2 pt-1 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between text-[10px] text-[#0071E3] dark:text-[#0A84FF] font-medium">
+                                  <div className="mt-2 pt-1 border-t border-black/[0.05] dark:border-white/[0.06] flex items-center justify-between text-[10px] text-black dark:text-white font-medium">
                                     <span>View Source</span>
                                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
                                   </div>
@@ -1255,12 +1249,12 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   {/* Active Assistant Thinking / Generating Indicator */}
                   {sending && (
                     <div className="flex items-start gap-2.5 animate-pulse">
-                      <div className="max-w-[75%] rounded-[18px] rounded-tl-[4px] p-4 bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.07] dark:border-white/[0.08] space-y-2">
+                      <div className="max-w-[75%] rounded-[10px] rounded-tl-[2px] p-3 bg-black/[0.025] dark:bg-[#18191D] border border-black/[0.08] dark:border-white/[0.08] space-y-1.5">
                         <div className="flex items-center gap-2 text-xs font-semibold text-black dark:text-white">
-                          <Spinner size="sm" />
-                          <span>TARS is searching company memory and synthesizing response...</span>
+                          <Spinner size="xs" />
+                          <span>TARS is synthesizing response...</span>
                         </div>
-                        <Skeleton className="h-3 w-48" />
+                        <Skeleton className="h-2.5 w-40" />
                       </div>
                     </div>
                   )}
@@ -1271,20 +1265,20 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             </div>
 
             {/* BOTTOM STICKY COMPOSER */}
-            <div className="p-3 sm:p-4 border-t border-black/[0.07] dark:border-white/[0.07] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur shrink-0">
+            <div className="p-2.5 sm:p-3 border-t border-black/[0.08] dark:border-white/[0.08] bg-white/95 dark:bg-[#121316]/95 backdrop-blur shrink-0">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
-                className="max-w-3xl mx-auto space-y-2"
+                className="max-w-3xl mx-auto space-y-1.5"
               >
-                <div className="relative flex items-center rounded-[20px] border border-black/[0.12] dark:border-white/[0.14] bg-[#F5F5F7] dark:bg-[#2C2C2E] shadow-xs focus-within:ring-2 focus-within:ring-[#0071E3]/20 focus-within:border-[#0071E3] transition-all">
+                <div className="relative flex items-center rounded-[8px] border border-black/[0.12] dark:border-white/[0.14] bg-white dark:bg-[#18191D] shadow-2xs focus-within:ring-2 focus-within:ring-black/15 dark:focus-within:ring-white/20 focus-within:border-black dark:focus-within:border-white transition-all">
                   {/* Attachment Icon Button */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-3 text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+                    className="p-2.5 text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
                     title="Attach or upload document"
                   >
                     <Paperclip className="w-4 h-4" />
@@ -1296,26 +1290,26 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     placeholder="Ask TARS about company decisions, policies, contracts..."
-                    className="w-full py-3.5 pr-14 bg-transparent text-[14px] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
+                    className="w-full py-2.5 pr-12 bg-transparent text-[13px] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
                     disabled={sending}
                   />
 
                   {/* Send Button */}
-                  <div className="absolute right-2">
+                  <div className="absolute right-1.5">
                     <button
                       type="submit"
                       disabled={!inputMessage.trim() || sending}
-                      className="w-8 h-8 rounded-full bg-black text-white dark:bg-white dark:text-black flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-xs"
+                      className="w-7 h-7 rounded-[6px] bg-black text-white dark:bg-white dark:text-black flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-all shadow-2xs"
                       title="Send message (Enter)"
                     >
-                      <ArrowRight className="w-4 h-4" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-[#8E8E93] px-2">
-                  <span>Press <kbd className="font-mono bg-black/[0.05] dark:bg-white/[0.08] px-1 py-0.5 rounded text-[10px]">Enter</kbd> to send</span>
-                  <span className="font-mono text-[10px]">Grounded in Sovereign Graph & Vector Store</span>
+                <div className="flex items-center justify-between text-[10px] text-[#8E8E93] px-1 font-mono">
+                  <span>Enter to send</span>
+                  <span>Sovereign Graph & Vector Store</span>
                 </div>
               </form>
             </div>
@@ -1325,11 +1319,11 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 2: DOCUMENT LAKE BROWSER */}
       {activeView === 'lake' && (
-        <div className="flex-1 min-h-0 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-4 sm:p-6 space-y-5 shadow-sm overflow-y-auto">
+        <div className="flex-1 min-h-0 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#121316] p-4 sm:p-5 space-y-4 shadow-2xs overflow-y-auto">
           {/* Header & Stats Ribbon */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/[0.08] dark:border-white/[0.08] pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
+              <h3 className="text-sm sm:text-base font-semibold text-black dark:text-white">
                 Company Document Lake & Ingestion Repository
               </h3>
               <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] mt-0.5">
@@ -1352,7 +1346,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           </div>
 
           {/* Department Filter Pills with Count Badges */}
-          <div className="flex flex-wrap items-center gap-1.5 pb-2">
+          <div className="flex flex-wrap items-center gap-1.5 pb-1">
             {lakeDepartmentTabs.map((dept) => {
               const count = departmentCounts[dept] || 0;
               const isSelected = lakeDepartment === dept;
@@ -1361,18 +1355,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   key={dept}
                   type="button"
                   onClick={() => setLakeDepartment(dept)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                  className={`px-2.5 py-1 rounded-[6px] text-xs font-medium transition-all flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
+                      ? 'bg-black text-white dark:bg-white dark:text-black shadow-2xs'
                       : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'
                   }`}
                 >
                   <span>{dept}</span>
                   <span
-                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-[4px] ${
                       isSelected
                         ? 'bg-white/20 dark:bg-black/20 text-white dark:text-black'
-                        : 'bg-black/[0.08] dark:bg-white/[0.10] text-[#6E6E73] dark:text-[#8E8E93]'
+                        : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93]'
                     }`}
                   >
                     {count}
@@ -1385,13 +1379,13 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           {/* Quick Filter Search Input */}
           <div className="flex items-center justify-between gap-3">
             <div className="relative flex-1 max-w-sm">
-              <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-2.5 pointer-events-none" />
               <input
                 type="text"
                 value={lakeSearch}
                 onChange={(e) => setLakeSearch(e.target.value)}
                 placeholder="Filter documents in lake..."
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
+                className="w-full pl-7 pr-2.5 py-1 text-xs rounded-[6px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
               />
             </div>
             <div className="text-xs text-[#8E8E93] font-mono">
@@ -1412,19 +1406,19 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             />
           ) : (
             <div className="space-y-3">
-              <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] max-h-[560px] overflow-y-auto">
+              <div className="overflow-x-auto rounded-[8px] border border-black/[0.08] dark:border-white/[0.08] max-h-[560px] overflow-y-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-[#F5F5F7]/95 dark:bg-[#2C2C2E]/95 backdrop-blur z-10 border-b border-black/[0.08] dark:border-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px]">
+                  <thead className="sticky top-0 bg-[#F3F3F5]/95 dark:bg-[#18191D]/95 backdrop-blur z-10 border-b border-black/[0.08] dark:border-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93] font-mono uppercase tracking-wider text-[10px]">
                     <tr>
-                      <th className="py-3 px-4">Document Title</th>
-                      <th className="py-3 px-4">Department</th>
-                      <th className="py-3 px-4">Type</th>
-                      <th className="py-3 px-4">Clearance</th>
-                      <th className="py-3 px-4">Tables / Chunks</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-2.5 px-3.5">Document Title</th>
+                      <th className="py-2.5 px-3.5">Department</th>
+                      <th className="py-2.5 px-3.5">Type</th>
+                      <th className="py-2.5 px-3.5">Clearance</th>
+                      <th className="py-2.5 px-3.5">Tables / Chunks</th>
+                      <th className="py-2.5 px-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
+                  <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#121316]">
                     {paginatedDocs.map((doc, idx) => {
                       const title = doc.filename || doc.title || `Document #${idx + 1}`;
                       const dept = doc.department || 'GENERAL';
@@ -1436,7 +1430,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                       return (
                         <tr
                           key={doc.doc_id || doc.id || idx}
-                          className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                          className="hover:bg-black/[0.025] dark:hover:bg-white/[0.035] transition-colors cursor-pointer group"
                           onClick={() =>
                             setReaderModal({
                               open: true,
@@ -1449,22 +1443,22 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                             })
                           }
                         >
-                          <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                          <td className="py-2.5 px-3.5 font-medium text-black dark:text-white flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
                             <span className="truncate max-w-xs">{title}</span>
                           </td>
-                          <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
-                          <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{docType}</td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
+                          <td className="py-2.5 px-3.5 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
+                          <td className="py-2.5 px-3.5 text-[#6E6E73] dark:text-[#8E8E93] font-mono text-[11px]">{docType}</td>
+                          <td className="py-2.5 px-3.5">
+                            <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white border border-black/[0.06] dark:border-white/[0.08]">
                               {clr}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-[#8E8E93] font-mono">
+                          <td className="py-2.5 px-3.5 text-[#8E8E93] font-mono text-[11px]">
                             {doc.table_count || 0} tables • {doc.chunk_count || 1} chunks
                           </td>
-                          <td className="py-3 px-4 text-right">
-                            <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
+                          <td className="py-2.5 px-3.5 text-right">
+                            <Button variant="ghost" size="xs" icon={<Eye className="w-3 h-3" />}>
                               Read
                             </Button>
                           </td>
@@ -1536,10 +1530,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="destructive"
               size="sm"
               onClick={handleConfirmDeleteChat}
-              className="bg-[#FF3B30] hover:bg-[#D70015] text-white border-transparent"
             >
               Delete
             </Button>
@@ -1559,10 +1552,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="destructive"
               size="sm"
               onClick={handleConfirmClearChat}
-              className="bg-[#FF3B30] hover:bg-[#D70015] text-white border-transparent"
             >
               Clear Messages
             </Button>

@@ -309,7 +309,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       <PageHeader
         eyebrow="Onboarding"
         title={`${companyName} Onboarding Hub`}
@@ -318,7 +318,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           <Button
             variant="primary"
             size="sm"
-            icon={<Sparkles className="w-4 h-4" />}
+            icon={<Sparkles className="w-3.5 h-3.5" />}
             onClick={() => setMentorDrawerOpen(true)}
           >
             Ask Mentor
@@ -327,56 +327,56 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       />
 
       {/* Progress Overview Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-5 flex items-center gap-4 shadow-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 flex items-center gap-3.5 shadow-xs">
           <div className="relative shrink-0">
-            <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90">
-              <circle cx="30" cy="30" r={radius} fill="none" strokeWidth="3.5" stroke="currentColor" className="text-black/[0.06] dark:text-white/[0.08]" />
+            <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
+              <circle cx="26" cy="26" r={radius} fill="none" strokeWidth="3" stroke="currentColor" className="text-black/10 dark:text-white/10" />
               <circle
-                cx="30" cy="30" r={radius}
-                fill="none" strokeWidth="3.5"
-                stroke="#0071E3"
+                cx="26" cy="26" r={radius}
+                fill="none" strokeWidth="3"
+                stroke="currentColor"
                 strokeLinecap="round"
                 strokeDasharray={circ}
                 strokeDashoffset={strokeOffset}
-                style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16,1,0.3,1)' }}
+                className="text-black dark:text-white transition-all duration-500"
               />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-black dark:text-white tabular-nums">
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-black dark:text-white tabular-nums">
               {progressPct}%
             </span>
           </div>
           <div>
-            <div className="text-[13px] font-semibold text-black dark:text-white">Overall Progress</div>
-            <div className="text-[12px] text-[#8E8E93] mt-0.5">{completedCount} of {totalTasks} done</div>
+            <div className="text-xs font-semibold text-black dark:text-white">Overall Progress</div>
+            <div className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5">{completedCount} of {totalTasks} done</div>
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-5 flex items-center gap-4 shadow-sm">
-          <div className="w-11 h-11 rounded-[14px] bg-[#0071E3]/[0.10] dark:bg-[#0A84FF]/[0.12] flex items-center justify-center shrink-0">
-            <Compass className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
+        <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 flex items-center gap-3.5 shadow-xs">
+          <div className="w-10 h-10 rounded-[8px] bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0">
+            <Compass className="w-4.5 h-4.5 text-black dark:text-white" />
           </div>
           <div>
-            <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">Current Phase</div>
-            <div className="text-[13px] font-semibold text-black dark:text-white mt-0.5">Day {activeDay} — {currentModule.title}</div>
+            <div className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Current Phase</div>
+            <div className="text-xs font-semibold text-black dark:text-white mt-0.5">Day {activeDay} — {currentModule.title}</div>
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-5 flex items-center gap-4 shadow-sm">
-          <div className="w-11 h-11 rounded-[14px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5 text-black dark:text-white" />
+        <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 flex items-center gap-3.5 shadow-xs">
+          <div className="w-10 h-10 rounded-[8px] bg-black/5 dark:bg-white/10 flex items-center justify-center shrink-0">
+            <Clock className="w-4.5 h-4.5 text-black dark:text-white" />
           </div>
           <div>
-            <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">Your Role</div>
-            <div className="text-[13px] font-semibold text-black dark:text-white mt-0.5">{userRole.replace('_', ' ')}</div>
+            <div className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Your Role</div>
+            <div className="text-xs font-semibold text-black dark:text-white mt-0.5">{userRole.replace('_', ' ')}</div>
           </div>
         </div>
       </div>
 
       {/* Day Stepper */}
-      <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 shadow-sm">
-        <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider mb-3">Flight-Plan Timeline</div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+      <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-3.5 shadow-xs">
+        <div className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-2.5">Flight-Plan Timeline</div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {data.modules.map((mod) => {
             const isSelected = mod.day === activeDay;
             const isPast = mod.day < activeDay;
@@ -384,25 +384,25 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
               <button
                 key={mod.day}
                 onClick={() => setActiveDay(mod.day)}
-                className={`p-3.5 rounded-[14px] border text-left transition-all duration-200 ${
+                className={`p-3 rounded-[7px] border text-left transition-all ${
                   isSelected
-                    ? 'border-[#0071E3]/30 dark:border-[#0A84FF]/30 bg-[#0071E3]/[0.06] dark:bg-[#0A84FF]/[0.08] ring-1 ring-[#0071E3]/20 shadow-sm'
+                    ? 'border-black dark:border-white bg-black/[0.04] dark:bg-white/[0.08] shadow-xs'
                     : isPast
-                    ? 'border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60'
-                    : 'border-black/[0.06] dark:border-white/[0.06] bg-[#F5F5F7]/50 dark:bg-[#2C2C2E]/30'
+                    ? 'border-black/8 dark:border-white/8 bg-neutral-50 dark:bg-[#18191D]'
+                    : 'border-black/5 dark:border-white/5 bg-neutral-50/50 dark:bg-[#18191D]/50'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[11px] font-mono font-semibold text-[#8E8E93]">DAY {mod.day}</span>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-mono font-semibold text-neutral-400">DAY {mod.day}</span>
                   {isPast ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#0A84FF]" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   ) : isSelected ? (
-                    <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white" />
                   ) : (
-                    <Circle className="w-3 h-3 text-[#8E8E93]" />
+                    <Circle className="w-3 h-3 text-neutral-400" />
                   )}
                 </div>
-                <div className={`text-xs font-semibold truncate ${isSelected ? 'text-[#0071E3] dark:text-[#0A84FF]' : 'text-black dark:text-white'}`}>
+                <div className={`text-xs truncate ${isSelected ? 'text-black dark:text-white font-semibold' : 'text-neutral-700 dark:text-neutral-300 font-medium'}`}>
                   {mod.title}
                 </div>
               </button>
@@ -412,46 +412,46 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        <div className="lg:col-span-8 space-y-4">
-          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-5 sm:p-6 space-y-5 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <div className="lg:col-span-8 space-y-3">
+          <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 sm:p-5 space-y-4 shadow-xs">
             <div>
-              <div className="flex items-center gap-2 text-[11px] font-mono text-[#8E8E93] mb-1.5">
+              <div className="flex items-center gap-2 text-[10px] font-mono text-neutral-500 mb-1">
                 <span className="uppercase tracking-wider">Day {currentModule.day} Module</span>
                 <span>·</span>
-                <span className="text-[#0071E3] dark:text-[#0A84FF] font-semibold">{currentModule.status}</span>
+                <span className="text-black dark:text-white font-semibold">{currentModule.status}</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold tracking-tight text-black dark:text-white">
+              <h3 className="text-base sm:text-lg font-semibold tracking-tight text-black dark:text-white">
                 {currentModule.title}
               </h3>
-              <p className="text-[13px] text-[#6E6E73] dark:text-[#8E8E93] mt-1.5 leading-relaxed">
+              <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1 leading-relaxed">
                 {currentModule.description}
               </p>
             </div>
 
-            <div className="space-y-2.5 pt-3 border-t border-black/[0.06] dark:border-white/[0.06]">
-              <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">Verifiable Milestones</div>
-              <div className="space-y-2">
+            <div className="space-y-2 pt-3 border-t border-black/8 dark:border-white/8">
+              <div className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Verifiable Milestones</div>
+              <div className="space-y-1.5">
                 {currentModule.tasks.map((task, idx) => {
                   const isChecked = !!completedTasks[`${currentModule.day}-${idx}`];
                   return (
                     <label
                       key={idx}
-                      className={`flex items-start gap-3 p-3.5 rounded-[14px] border transition-all duration-200 cursor-pointer select-none group ${
+                      className={`flex items-start gap-2.5 p-2.5 rounded-[7px] border transition-all cursor-pointer select-none group ${
                         isChecked
-                          ? 'bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 border-black/[0.06] dark:border-white/[0.06] opacity-70'
-                          : 'bg-white dark:bg-[#1C1C1E] border-black/[0.08] dark:border-white/[0.08] hover:border-black/[0.14] dark:hover:border-white/[0.14] hover:shadow-sm'
+                          ? 'bg-neutral-50 dark:bg-[#18191D] border-black/6 dark:border-white/6 opacity-70'
+                          : 'bg-white dark:bg-[#121316] border-black/8 dark:border-white/8 hover:border-black/15 dark:hover:border-white/15'
                       }`}
                     >
                       <div className="mt-0.5 shrink-0">
                         {isChecked ? (
-                          <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                         ) : (
-                          <div className="w-4 h-4 rounded-full border-2 border-black/[0.20] dark:border-white/[0.20] group-hover:border-black/[0.40] dark:group-hover:border-white/[0.40] transition-colors" />
+                          <div className="w-3.5 h-3.5 rounded-full border border-black/25 dark:border-white/30 group-hover:border-black/50 dark:group-hover:border-white/50 transition-colors" />
                         )}
                       </div>
                       <input type="checkbox" checked={isChecked} onChange={() => toggleTask(currentModule.day, idx)} className="sr-only" />
-                      <span className={`text-[13px] leading-snug ${isChecked ? 'line-through text-[#8E8E93]' : 'text-black dark:text-white'}`}>
+                      <span className={`text-xs leading-snug ${isChecked ? 'line-through text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'}`}>
                         {task}
                       </span>
                     </label>
@@ -460,7 +460,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-black/[0.06] dark:border-white/[0.06]">
+            <div className="flex items-center justify-between pt-3 border-t border-black/8 dark:border-white/8">
               <Button variant="secondary" size="sm" disabled={activeDay <= 1} icon={<ArrowLeft className="w-3.5 h-3.5" />} onClick={() => setActiveDay((p) => Math.max(1, p - 1))}>
                 Previous
               </Button>
@@ -471,19 +471,19 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-4">
-          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 space-y-3 shadow-sm">
+        <div className="lg:col-span-4 space-y-3">
+          <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-2.5 shadow-xs">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-black dark:text-white" />
-              <span className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">Founding Thesis Tour</span>
+              <BookOpen className="w-3.5 h-3.5 text-black dark:text-white" />
+              <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Founding Thesis Tour</span>
             </div>
-            <div className="p-3.5 rounded-[14px] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
-              <div className="text-[13px] font-semibold text-black dark:text-white">Why Startups Die of Context Decay</div>
-              <p className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
+            <div className="p-3 rounded-[7px] bg-neutral-50 dark:bg-[#18191D] border border-black/8 dark:border-white/8 space-y-2">
+              <div className="text-xs font-semibold text-black dark:text-white">Why Startups Die of Context Decay</div>
+              <p className="text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
                 Founder Aryan debriefs the 4 frictions that destroy early-stage engineering velocity.
               </p>
               <div className="flex items-center justify-between pt-1">
-                <span className="font-mono text-[11px] text-[#8E8E93]">{tourPlaying ? 'Playing audio... (3m 45s)' : '3m 45s'}</span>
+                <span className="font-mono text-[10px] text-neutral-500">{tourPlaying ? 'Playing audio... (3m 45s)' : '3m 45s'}</span>
                 <Button
                   variant={tourPlaying ? 'primary' : 'secondary'}
                   size="sm"
@@ -496,20 +496,20 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
             </div>
           </div>
 
-          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-4 sm:p-5 space-y-3 shadow-sm">
+          <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-2.5 shadow-xs">
             <div className="flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
-              <span className="text-[12px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">Suggested Questions</span>
+              <HelpCircle className="w-3.5 h-3.5 text-neutral-400" />
+              <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Suggested Questions</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {suggestedQueries.map((q, i) => (
                 <button
                   key={i}
                   onClick={() => { setMentorDrawerOpen(true); setTimeout(() => handleAskMentor(q), 100); }}
-                  className="w-full text-left p-3 rounded-[12px] border border-black/[0.07] dark:border-white/[0.08] bg-[#F5F5F7]/70 dark:bg-[#2C2C2E]/40 hover:bg-[#F5F5F7] dark:hover:bg-[#2C2C2E]/70 text-[12px] text-black dark:text-white transition-all duration-150 leading-snug group"
+                  className="w-full text-left p-2.5 rounded-[7px] border border-black/8 dark:border-white/8 bg-neutral-50 dark:bg-[#18191D] hover:bg-neutral-100 dark:hover:bg-[#222327] text-xs text-black dark:text-white transition-all leading-snug group"
                 >
                   <span className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-0.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    <ArrowRight className="w-3 h-3 mt-0.5 text-neutral-400 shrink-0 group-hover:translate-x-0.5 transition-transform" />
                     <span className="italic opacity-80">"{q}"</span>
                   </span>
                 </button>
@@ -536,7 +536,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
               value={mentorQuery}
               onChange={(e) => setMentorQuery(e.target.value)}
               placeholder="Ask about decisions, invariants, or architecture..."
-              className="flex-1 px-3.5 py-2.5 text-[13px] rounded-full border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] transition-all"
+              className="flex-1 px-3 py-2 text-xs rounded-[7px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all"
             />
             <Button type="submit" variant="primary" size="sm" loading={mentorLoading} icon={<Send className="w-3.5 h-3.5" />}>
               Ask
@@ -548,29 +548,29 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           {mentorMessages.map((m, idx) => (
             <div
               key={idx}
-              className={`px-4 py-3.5 rounded-[16px] text-[13px] leading-relaxed ${
+              className={`p-3 rounded-[8px] text-xs leading-relaxed ${
                 m.sender === 'user'
-                  ? 'bg-[#0071E3] text-white ml-8'
-                  : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white mr-4'
+                  ? 'bg-black text-white dark:bg-white dark:text-black ml-8'
+                  : 'bg-neutral-100 dark:bg-[#18191D] text-black dark:text-white mr-4 border border-black/6 dark:border-white/8'
               }`}
             >
-              <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1.5 ${m.sender === 'user' ? 'text-white/60' : 'text-[#8E8E93]'}`}>
+              <div className={`text-[10px] font-semibold uppercase tracking-wider mb-1 ${m.sender === 'user' ? 'text-white/60 dark:text-black/60' : 'text-neutral-400'}`}>
                 {m.sender === 'user' ? 'You' : 'TARS Mentor'}
               </div>
               <p>{m.text}</p>
               {m.citation && (
-                <div className={`pt-2 mt-2 border-t text-[11px] font-mono ${m.sender === 'user' ? 'border-white/20 text-white/70' : 'border-black/[0.08] dark:border-white/[0.08] text-[#0071E3] dark:text-[#0A84FF]'}`}>
+                <div className={`pt-1.5 mt-1.5 border-t text-[10px] font-mono ${m.sender === 'user' ? 'border-white/20 dark:border-black/20 text-white/70 dark:text-black/70' : 'border-black/8 dark:border-white/8 text-neutral-500'}`}>
                   ↳ {m.citation}
                 </div>
               )}
             </div>
           ))}
           {mentorLoading && (
-            <div className="flex items-center gap-2.5 p-3.5 rounded-[16px] bg-[#F5F5F7] dark:bg-[#2C2C2E] mr-4">
+            <div className="flex items-center gap-2.5 p-3 rounded-[8px] bg-neutral-100 dark:bg-[#18191D] mr-4">
               {[0, 1, 2].map((i) => (
-                <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#8E8E93] animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
+                <span key={i} className="w-1.5 h-1.5 rounded-full bg-neutral-400 animate-pulse" style={{ animationDelay: `${i * 0.15}s` }} />
               ))}
-              <span className="text-[12px] text-[#8E8E93]">Synthesising…</span>
+              <span className="text-xs text-neutral-500">Synthesising…</span>
             </div>
           )}
         </div>

@@ -109,7 +109,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       title: 'TARS Genesis Onboarding Wizard',
       category: 'Genesis',
       subtitle: '5-Step Sovereign Setup & Company Flight Plan',
-      icon: <Sparkles className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
+      icon: <Sparkles className="w-4 h-4 text-black dark:text-white" />,
       action: () => {
         if (onOpenGenesis) onOpenGenesis();
         else onOpenSettings();
@@ -187,7 +187,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       title: 'Open Action Hub',
       category: 'Task',
       subtitle: 'Track team commitments and extracted client action items',
-      icon: <CheckSquare className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
+      icon: <CheckSquare className="w-4 h-4 text-black dark:text-white" />,
       action: () => {
         onOpenActionHub();
         onClose();
@@ -198,7 +198,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       title: 'Record Voice Memo',
       category: 'Capture',
       subtitle: 'Instant offline audio transcription and task synthesis',
-      icon: <Mic className="w-4 h-4 text-[#B25000] dark:text-[#FF9F0A]" />,
+      icon: <Mic className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />,
       action: () => {
         onOpenMemo();
         onClose();
@@ -230,11 +230,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           : 'Action Items (SQLite)';
 
       map[categoryName] = group.items.map((item) => {
-        let icon = <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />;
+        let icon = <FileText className="w-4 h-4 text-black dark:text-white" />;
         if (group.category === 'Decisions') {
-          icon = <Scale className="w-4 h-4 text-[#30D158]" />;
+          icon = <Scale className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />;
         } else if (group.category === 'Action Items') {
-          icon = <CheckSquare className="w-4 h-4 text-[#FF9500]" />;
+          icon = <CheckSquare className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />;
         }
 
         return {
@@ -351,7 +351,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           />
 
           {isLoading && (
-            <Loader2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-spin mr-2 shrink-0" />
+            <Loader2 className="w-4 h-4 text-black dark:text-white animate-spin mr-2 shrink-0" />
           )}
 
           {query ? (
@@ -386,7 +386,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 if (items.length === 0) return null;
                 return (
                   <div key={category} className="space-y-1">
-                    <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#0071E3] dark:text-[#0A84FF] font-mono flex items-center justify-between">
+                    <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400 font-mono flex items-center justify-between">
                       <span>{category}</span>
                       <span className="text-[10px] text-[#8E8E93] font-normal">{items.length} hit{items.length > 1 ? 's' : ''}</span>
                     </div>
@@ -398,14 +398,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                           key={item.id}
                           onClick={item.action}
                           onMouseEnter={() => setActiveIndex(idx)}
-                          className={`w-full px-3 py-2 rounded-[12px] text-left flex items-center justify-between transition-colors mb-0.5 ${
+                          className={`w-full px-2.5 py-2 rounded-[8px] text-left flex items-center justify-between transition-colors mb-0.5 ${
                             isActive
                               ? 'bg-black/[0.06] dark:bg-white/[0.08] ring-1 ring-black/[0.1] dark:ring-white/[0.1]'
                               : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-8 h-8 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0">
+                            <div className="w-7 h-7 rounded-[6px] bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0">
                               {item.icon}
                             </div>
                             <div className="min-w-0">
@@ -417,12 +417,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                                   <span
                                     className={`text-[9.5px] px-1.5 py-0.2 rounded font-mono font-bold ${
                                       item.badge === 'ACTIVE'
-                                        ? 'bg-[#30D158]/10 text-[#30D158]'
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                                         : item.badge === 'SUPERSEDED'
-                                        ? 'bg-[#FF9F0A]/10 text-[#FF9F0A]'
+                                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                                         : item.badge === 'HIGH'
-                                        ? 'bg-[#FF453A]/10 text-[#FF453A]'
-                                        : 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]'
+                                        ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                                        : 'bg-black/5 dark:bg-white/10 text-black dark:text-white'
                                     }`}
                                   >
                                     {item.badge}
@@ -453,7 +453,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               {/* 2. Render Matching Quick Actions / Commands */}
               {filteredQuickActions.length > 0 && (
                 <div className="space-y-1">
-                  <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8E8E93] font-mono">
+                  <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 font-mono">
                     Commands & Workspaces
                   </div>
                   {filteredQuickActions.map((item) => {
@@ -464,14 +464,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         key={item.id}
                         onClick={item.action}
                         onMouseEnter={() => setActiveIndex(idx)}
-                        className={`w-full px-3 py-2 rounded-[12px] text-left flex items-center justify-between transition-colors mb-0.5 ${
+                        className={`w-full px-2.5 py-2 rounded-[8px] text-left flex items-center justify-between transition-colors mb-0.5 ${
                           isActive
                             ? 'bg-black/[0.06] dark:bg-white/[0.08] ring-1 ring-black/[0.1] dark:ring-white/[0.1]'
                             : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-[10px] bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0 text-[#3C3C43] dark:text-[#EBEBF5]">
+                          <div className="w-7 h-7 rounded-[6px] bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center shrink-0 text-[#3C3C43] dark:text-[#EBEBF5]">
                             {item.icon}
                           </div>
                           <div className="min-w-0">
@@ -504,7 +504,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Footer info ribbon */}
         <div className="px-4 py-2.5 border-t border-black/[0.07] dark:border-white/[0.07] bg-black/[0.015] dark:bg-white/[0.02] flex items-center justify-between text-[11px] text-[#8E8E93] font-mono">
           <div className="flex items-center gap-1.5">
-            <Shield className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
+            <Shield className="w-3 h-3 text-neutral-500 dark:text-neutral-400" />
             <span>0.00 KB Egress · Sovereign Federated Index</span>
           </div>
           <div className="flex items-center gap-3">

@@ -277,14 +277,14 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
       {/* Toast Notification for Deletion / Lifecycle events */}
       {deleteToast && (
-        <div className="p-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-[13px] flex items-center justify-between gap-2 animate-slide-up">
+        <div className="p-3 rounded-[8px] border border-black/10 dark:border-white/15 bg-white dark:bg-[#121316] text-black dark:text-white text-xs flex items-center justify-between gap-2 shadow-xs animate-slide-up">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" />
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{deleteToast}</span>
           </div>
           <button
             onClick={() => setDeleteToast(null)}
-            className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity"
+            className="text-[11px] font-medium text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
           >
             Dismiss
           </button>
@@ -303,25 +303,25 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
       ) : (
         <>
           {/* Call Selector Ribbon */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
             {calls.map((call) => (
               <button
                 key={call.call_id}
                 onClick={() => handleSelectCallItem(call)}
-                className={`px-3.5 py-2 rounded-[14px] text-xs font-medium border shrink-0 transition-all ${
+                className={`px-3 py-1.5 rounded-[7px] text-xs font-medium border shrink-0 transition-all ${
                   selectedCall.call_id === call.call_id
-                    ? 'border-black/[0.25] dark:border-white/[0.30] bg-white dark:bg-[#1C1C1E] font-semibold text-black dark:text-white shadow-sm ring-1 ring-black/[0.08] dark:ring-white/[0.12]'
-                    : 'border-black/[0.08] dark:border-white/[0.08] bg-white/70 dark:bg-[#1C1C1E]/60 text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-white dark:hover:bg-[#1C1C1E]'
+                    ? 'border-black dark:border-white bg-black/[0.05] dark:bg-white/[0.10] font-semibold text-black dark:text-white'
+                    : 'border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] text-neutral-600 dark:text-neutral-300 hover:border-black/20 dark:hover:border-white/20 hover:text-black dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 text-black dark:text-white" />
+                  <Phone className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                   <span>{call.client_name}</span>
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded-[4px] font-mono font-medium ${
                       call.sentiment === 'URGENT'
-                        ? 'bg-[#FF3B30]/[0.12] text-[#C0392B] dark:text-[#FF453A]'
-                        : 'bg-black/[0.05] dark:bg-white/[0.08] text-[#3C3C43] dark:text-[#EBEBF5]'
+                        ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                        : 'bg-black/5 dark:bg-white/10 text-neutral-600 dark:text-neutral-300'
                     }`}
                   >
                     {call.sentiment}
@@ -331,29 +331,29 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             ))}
           </div>
 
-          {/* Apple Podcasts/Voice Memos-Style Audio Player */}
-          <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] p-5 shadow-sm space-y-4">
+          {/* Audio Player */}
+          <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 shadow-xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold tracking-tight text-black dark:text-white">
+                <h3 className="text-sm font-semibold tracking-tight text-black dark:text-white">
                   {selectedCall.client_name}
                 </h3>
-                <p className="text-xs text-[#86868B] dark:text-[#8E8E93] mt-0.5">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono">
                   {selectedCall.recorded_at} · {formatSeconds(selectedCall.audio_duration_seconds)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2">
                 {/* Speed Toggles */}
-                <div className="flex items-center rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] p-0.5 text-xs">
+                <div className="flex items-center rounded-[6px] border border-black/10 dark:border-white/10 bg-neutral-100 dark:bg-[#18191D] p-0.5 text-xs">
                   {[1, 1.25, 1.5, 2].map((spd) => (
                     <button
                       key={spd}
                       onClick={() => handleSpeedChange(spd)}
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+                      className={`px-2 py-0.5 rounded-[4px] text-[11px] font-medium transition-all ${
                         playbackSpeed === spd
-                          ? 'bg-white dark:bg-[#323236] text-black dark:text-white shadow-xs font-semibold'
-                          : 'text-[#86868B] dark:text-[#8E8E93] hover:text-black dark:hover:text-white'
+                          ? 'bg-white dark:bg-[#2C2C2E] text-black dark:text-white shadow-xs font-semibold'
+                          : 'text-neutral-500 hover:text-black dark:hover:text-white'
                       }`}
                     >
                       {spd}x
@@ -370,27 +370,26 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                   {isPlaying ? 'Pause' : 'Play'}
                 </Button>
 
-                {/* Delete Call Button with Trash Icon (Bug 19) */}
+                {/* Delete Call Button */}
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="sm"
-                  icon={<Trash2 className="w-3.5 h-3.5 text-[#FF3B30]" />}
+                  icon={<Trash2 className="w-3.5 h-3.5" />}
                   onClick={() => setDeleteModalOpen(true)}
-                  className="text-xs text-[#FF3B30] hover:bg-[#FF3B30]/10 border border-[#FF3B30]/20"
                 >
-                  Delete Recording
+                  Delete
                 </Button>
 
-                <div className="text-xs text-[#86868B] dark:text-[#8E8E93] tabular-nums font-mono">
+                <div className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums font-mono pl-1">
                   {formatSeconds(playbackSeconds)} / {formatSeconds(selectedCall.audio_duration_seconds)}
                 </div>
               </div>
             </div>
 
-            {/* Apple Dynamic Waveform Visualizer (Bug 3: NaN guard enforced) */}
-            <div className="space-y-1.5">
+            {/* Dynamic Waveform Visualizer */}
+            <div className="space-y-1">
               <div
-                className="h-12 w-full flex items-end gap-[3px] py-1 px-3 rounded-[12px] bg-black/[0.03] dark:bg-white/[0.04] cursor-pointer overflow-hidden"
+                className="h-9 w-full flex items-end gap-[2px] py-1 px-2.5 rounded-[6px] bg-neutral-100 dark:bg-[#18191D] cursor-pointer overflow-hidden border border-black/5 dark:border-white/5"
                 onClick={handleSeek}
               >
                 {waveformBars.map((barHeight, idx) => {
@@ -401,10 +400,10 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                     <div
                       key={idx}
                       style={{ height: `${barHeight}%` }}
-                      className={`flex-1 rounded-full transition-all duration-75 ${
+                      className={`flex-1 rounded-[1px] transition-all duration-75 ${
                         isPast
                           ? 'bg-black dark:bg-white'
-                          : 'bg-black/[0.12] dark:bg-white/[0.14] hover:bg-black/[0.25] dark:hover:bg-white/[0.28]'
+                          : 'bg-black/10 dark:bg-white/15 hover:bg-black/25 dark:hover:bg-white/30'
                       }`}
                     />
                   );
@@ -427,36 +426,36 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
           </div>
 
           {/* Main Analytical Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
             {/* Left Column: Timestamped Transcript with Search & Speaker Filter (7 cols) */}
             <div
-              className={`md:col-span-6 lg:col-span-7 space-y-4 ${
+              className={`md:col-span-6 lg:col-span-7 space-y-3 ${
                 mobileTab !== 'transcript' ? 'hidden md:block' : ''
               }`}
             >
-              <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 space-y-4 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/[0.08] dark:border-white/[0.08] pb-3">
-                  <h4 className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+              <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-3 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-black/8 dark:border-white/8 pb-2.5">
+                  <h4 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                     Transcript & Diarization
                   </h4>
 
                   {/* Transcript Search & Filter */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <div className="relative flex items-center">
-                      <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-2.5 pointer-events-none" />
+                      <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2 pointer-events-none" />
                       <input
                         type="text"
                         value={transcriptSearch}
                         onChange={(e) => setTranscriptSearch(e.target.value)}
                         placeholder="Search words..."
-                        className="pl-7 pr-2 py-1 text-xs rounded-[8px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white w-28 sm:w-36 focus:outline-none"
+                        className="pl-6.5 pr-2 py-1 text-xs rounded-[6px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white w-28 sm:w-36 focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                       />
                     </div>
 
                     <select
                       value={selectedSpeaker}
                       onChange={(e) => setSelectedSpeaker(e.target.value)}
-                      className="px-2 py-1 text-xs rounded-[8px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white appearance-none"
+                      className="px-2 py-1 text-xs rounded-[6px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white appearance-none focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                     >
                       <option value="ALL">All Speakers</option>
                       {speakers.map((sp) => (
@@ -469,20 +468,20 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                 </div>
 
                 {/* Transcript Stream */}
-                <div className="space-y-3.5 max-h-[580px] overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-[560px] overflow-y-auto pr-1">
                   {filteredTranscript?.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-[#8E8E93]">
+                    <div className="text-center py-8 text-xs text-neutral-400">
                       No dialogue matches "{transcriptSearch}"
                     </div>
                   ) : (
                     filteredTranscript?.map((t, idx) => (
                       <div
                         key={idx}
-                        className="space-y-1 group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] p-3 rounded-[12px] transition-colors border border-transparent hover:border-black/[0.06] dark:hover:border-white/[0.08]"
+                        className="space-y-1 group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] p-2.5 rounded-[8px] transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5"
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]" />
+                          <span className="font-medium text-black dark:text-white flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 dark:bg-neutral-500" />
                             {t.speaker}
                           </span>
                           <button
@@ -495,12 +494,12 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                                 audioRef.current.play().catch(() => {});
                               }
                             }}
-                            className="font-mono text-[11px] text-[#0071E3] dark:text-[#0A84FF] hover:underline px-2 py-0.5 rounded-[6px] bg-black/[0.05] dark:bg-white/[0.08]"
+                            className="font-mono text-[11px] text-neutral-600 dark:text-neutral-300 hover:text-black dark:hover:text-white px-1.5 py-0.5 rounded-[4px] bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.10] transition-colors"
                           >
                             {t.timestamp}
                           </button>
                         </div>
-                        <p className="text-xs sm:text-sm text-[#3C3C43] dark:text-[#EBEBF5] leading-relaxed font-sans pl-3.5">
+                        <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed font-sans pl-3">
                           {t.text}
                         </p>
                       </div>
@@ -510,9 +509,9 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Right Column: Segmented Tabbed Analytical Inspector (Bug 17) */}
+            {/* Right Column: Segmented Tabbed Analytical Inspector */}
             <div
-              className={`md:col-span-6 lg:col-span-5 space-y-4 ${
+              className={`md:col-span-6 lg:col-span-5 space-y-3 ${
                 mobileTab === 'transcript' ? 'hidden md:block' : ''
               }`}
             >
@@ -533,20 +532,20 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
               {/* Tab 1: Executive Summary & Sentiment */}
               {activeInspectorTab === 'summary' && (
-                <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 space-y-4 shadow-sm animate-fade-in">
-                  <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider flex items-center justify-between">
+                <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-3 shadow-xs animate-fade-in">
+                  <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between">
                     <span>Executive Summary</span>
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-[4px] font-medium ${
                         selectedCall.sentiment === 'URGENT'
-                          ? 'bg-[#FF3B30]/[0.12] text-[#C0392B] dark:text-[#FF453A]'
-                          : 'bg-black/[0.05] dark:bg-white/[0.08] text-[#3C3C43] dark:text-[#EBEBF5]'
+                          ? 'bg-red-500/10 text-red-600 dark:text-red-400'
+                          : 'bg-black/5 dark:bg-white/10 text-neutral-600 dark:text-neutral-300'
                       }`}
                     >
                       Sentiment: {selectedCall.sentiment}
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-black dark:text-white leading-relaxed font-sans">
+                  <p className="text-xs text-neutral-800 dark:text-neutral-200 leading-relaxed font-sans">
                     {selectedCall.summary}
                   </p>
                 </div>
@@ -554,19 +553,19 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
               {/* Tab 2: Pain Points & Features */}
               {activeInspectorTab === 'specs' && (
-                <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] p-5 space-y-4 shadow-sm animate-fade-in">
+                <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-3 shadow-xs animate-fade-in">
                   {/* Pain Points */}
                   <div className="space-y-2">
-                    <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+                    <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                       Unfiltered Customer Pain Points
                     </div>
                     {selectedCall.pain_points.length === 0 ? (
-                      <p className="text-xs text-[#8E8E93] italic">No customer pain points detected.</p>
+                      <p className="text-xs text-neutral-400 italic">No customer pain points detected.</p>
                     ) : (
-                      <ul className="space-y-2 text-xs text-black dark:text-white">
+                      <ul className="space-y-2 text-xs text-neutral-800 dark:text-neutral-200">
                         {selectedCall.pain_points.map((pp, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <span className="text-[#C0392B] dark:text-[#FF453A] font-bold text-sm leading-none">•</span>
+                            <span className="text-red-500 dark:text-red-400 font-bold text-sm leading-none">•</span>
                             <span className="leading-snug">{pp}</span>
                           </li>
                         ))}
@@ -575,17 +574,17 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                   </div>
 
                   {/* Feature Requests */}
-                  <div className="pt-3 border-t border-black/[0.08] dark:border-white/[0.08] space-y-2">
-                    <div className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+                  <div className="pt-3 border-t border-black/8 dark:border-white/8 space-y-2">
+                    <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                       Requested Features & Constraints
                     </div>
                     {selectedCall.feature_requests.length === 0 ? (
-                      <p className="text-xs text-[#8E8E93] italic">No specific feature requests identified.</p>
+                      <p className="text-xs text-neutral-400 italic">No specific feature requests identified.</p>
                     ) : (
-                      <ul className="space-y-2 text-xs text-black dark:text-white">
+                      <ul className="space-y-2 text-xs text-neutral-800 dark:text-neutral-200">
                         {selectedCall.feature_requests.map((fr, i) => (
                           <li key={i} className="flex items-start gap-2">
-                            <span className="text-[#0071E3] dark:text-[#0A84FF] font-bold text-sm leading-none">•</span>
+                            <span className="text-neutral-400 dark:text-neutral-500 font-bold text-sm leading-none">•</span>
                             <span className="leading-snug">{fr}</span>
                           </li>
                         ))}
@@ -597,29 +596,29 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
               {/* Tab 3: Explicit Verbal Commitments */}
               {activeInspectorTab === 'commitments' && (
-                <div className="rounded-[20px] border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#1C1C1E] p-5 space-y-3.5 shadow-sm animate-fade-in">
+                <div className="rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] p-4 space-y-3 shadow-xs animate-fade-in">
                   <div className="flex items-center justify-between">
-                    <div className="text-xs font-bold text-black dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <FileCheck className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                    <div className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <FileCheck className="w-3.5 h-3.5 text-neutral-600 dark:text-neutral-300" />
                       <span>Verbal Commitments ({selectedCall.commitments.length})</span>
                     </div>
-                    <span className="text-[11px] text-[#8E8E93] font-mono">1-Click Push to Hub</span>
+                    <span className="text-[10px] text-neutral-400 font-mono">1-Click Push to Hub</span>
                   </div>
 
                   {selectedCall.commitments.length === 0 ? (
-                    <p className="text-xs text-[#8E8E93] italic py-2">
+                    <p className="text-xs text-neutral-400 italic py-2">
                       No verbal commitments flagged in this call.
                     </p>
                   ) : (
-                    <div className="space-y-2.5">
+                    <div className="space-y-2">
                       {selectedCall.commitments.map((comm, idx) => {
                         const isPromoted = promotedSet.has(`${selectedCall.call_id}-${idx}`);
                         return (
                           <div
                             key={idx}
-                            className="p-3.5 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                            className="p-3 rounded-[8px] border border-black/8 dark:border-white/8 bg-neutral-50 dark:bg-[#18191D] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                           >
-                            <p className="text-xs text-black dark:text-white font-medium leading-snug">
+                            <p className="text-xs text-neutral-800 dark:text-neutral-200 font-medium leading-snug">
                               {comm}
                             </p>
                             <Button
@@ -628,7 +627,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                               disabled={isPromoted}
                               icon={
                                 isPromoted ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 ) : (
                                   <Plus className="w-3.5 h-3.5" />
                                 )
@@ -636,7 +635,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                               onClick={() => handlePromote(comm, idx)}
                               className="shrink-0 text-xs"
                             >
-                              {isPromoted ? 'Promoted' : 'Promote to Action Hub'}
+                              {isPromoted ? 'Promoted' : 'Promote'}
                             </Button>
                           </div>
                         );
@@ -652,39 +651,39 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
 
       {/* Interactive Task Pruning Modal (Bug 19) */}
       {deleteModalOpen && selectedCall && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-[20px] bg-white dark:bg-[#1C1C1E] border border-black/[0.10] dark:border-white/[0.15] shadow-2xl p-6 space-y-5 animate-scale-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-lg rounded-[12px] bg-white dark:bg-[#121316] border border-black/10 dark:border-white/15 shadow-2xl p-5 space-y-4 animate-scale-up">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#FF3B30]/[0.12] flex items-center justify-center text-[#FF3B30]">
-                  <AlertTriangle className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center text-red-600 dark:text-red-400">
+                  <AlertTriangle className="w-4.5 h-4.5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-black dark:text-white">
+                  <h3 className="text-sm font-semibold text-black dark:text-white">
                     Delete Call Recording
                   </h3>
-                  <p className="text-xs text-[#8E8E93]">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
                     {selectedCall.client_name} · {formatSeconds(selectedCall.audio_duration_seconds)}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setDeleteModalOpen(false)}
-                className="text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+                className="text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Explanation Banner */}
-            <div className="p-3.5 rounded-[12px] bg-[#FF3B30]/[0.08] border border-[#FF3B30]/[0.20] text-xs text-[#C0392B] dark:text-[#FF453A] leading-relaxed">
+            <div className="p-3 rounded-[8px] bg-red-500/5 border border-red-500/20 text-xs text-red-600 dark:text-red-400 leading-relaxed">
               <strong>Permanent Deletion:</strong> This action permanently removes the raw audio recording and detaches its graph relations in Kùzu.
               Please select which extracted Action Hub tasks should be deleted alongside the recording. Deselected tasks will remain safely preserved in Action Hub.
             </div>
 
             {/* Task Selection Checkboxes */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs text-[#6E6E73] dark:text-[#8E8E93] pb-1 border-b border-black/[0.08] dark:border-white/[0.08]">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 pb-1 border-b border-black/8 dark:border-white/8">
                 <span>Extracted Action Hub Tasks ({selectedCall.commitments.length})</span>
                 <button
                   type="button"
@@ -696,25 +695,25 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                       setSelectedDeleteTaskIds(allIds);
                     }
                   }}
-                  className="text-[#0071E3] dark:text-[#0A84FF] font-medium hover:underline text-[11px]"
+                  className="text-neutral-700 dark:text-neutral-300 font-medium hover:underline text-[11px]"
                 >
                   {selectedDeleteTaskIds.length === selectedCall.commitments.length ? 'Deselect All' : 'Select All'}
                 </button>
               </div>
 
               {selectedCall.commitments.length === 0 ? (
-                <p className="text-xs text-[#8E8E93] italic py-2">
+                <p className="text-xs text-neutral-400 italic py-2">
                   No Action Hub tasks were extracted from this call.
                 </p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                   {selectedCall.commitments.map((comm, idx) => {
                     const taskId = `ACT-${selectedCall.call_id}-${idx + 1}`;
                     const isChecked = selectedDeleteTaskIds.includes(taskId);
                     return (
                       <label
                         key={taskId}
-                        className="flex items-start gap-2.5 p-2.5 rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors"
+                        className="flex items-start gap-2.5 p-2 rounded-[6px] bg-black/[0.02] dark:bg-white/[0.04] cursor-pointer hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors border border-transparent hover:border-black/5 dark:hover:border-white/5"
                       >
                         <input
                           type="checkbox"
@@ -726,10 +725,10 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                               setSelectedDeleteTaskIds((prev) => prev.filter((id) => id !== taskId));
                             }
                           }}
-                          className="mt-0.5 rounded text-[#FF3B30] focus:ring-[#FF3B30]"
+                          className="mt-0.5 rounded-[4px] accent-red-600 dark:accent-red-500"
                         />
                         <div className="text-xs leading-snug">
-                          <span className="font-mono text-[10px] text-[#8E8E93] block">{taskId}</span>
+                          <span className="font-mono text-[10px] text-neutral-400 block">{taskId}</span>
                           <span className="text-black dark:text-white font-medium">{comm}</span>
                         </div>
                       </label>
@@ -740,7 +739,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-black/[0.08] dark:border-white/[0.08]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/8 dark:border-white/8">
               <Button
                 variant="secondary"
                 size="sm"
@@ -750,11 +749,10 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
                 Cancel
               </Button>
               <Button
-                variant="primary"
+                variant="destructive"
                 size="sm"
                 loading={isDeleting}
                 onClick={handleDeleteConfirm}
-                className="bg-[#FF3B30] hover:bg-[#D70015] text-white border-none"
               >
                 {selectedDeleteTaskIds.length > 0
                   ? `Delete Recording & (${selectedDeleteTaskIds.length}) Task(s)`

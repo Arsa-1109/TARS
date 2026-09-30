@@ -66,13 +66,13 @@ export function CustomSelect<T extends string = string>({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="w-full min-h-[42px] px-3.5 py-2 text-left rounded-[12px] border border-black/[0.09] dark:border-white/[0.12] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.04] dark:hover:bg-white/[0.07] text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-all flex items-center justify-between gap-2 cursor-pointer select-none"
+        className="w-full min-h-[38px] px-3 py-1.5 text-left rounded-[8px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] hover:border-black/20 dark:hover:border-white/20 text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all flex items-center justify-between gap-2 cursor-pointer select-none shadow-2xs"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {selectedOption?.icon && (
-            <span className="shrink-0 text-[#0071E3] dark:text-[#2997FF]">
+            <span className="shrink-0 text-neutral-600 dark:text-neutral-400">
               {selectedOption.icon}
             </span>
           )}
@@ -102,8 +102,8 @@ export function CustomSelect<T extends string = string>({
 
       {/* Dropdown Popover */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 z-[60] animate-apple-in">
-          <div className="rounded-[16px] overflow-hidden border border-black/[0.12] dark:border-white/[0.16] bg-white dark:bg-[#1C1C1E] shadow-[0_20px_48px_rgba(0,0,0,0.22)] dark:shadow-[0_24px_56px_rgba(0,0,0,0.92)] p-1.5 space-y-0.5 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 right-0 top-full mt-1 z-[60] animate-apple-in">
+          <div className="rounded-[10px] overflow-hidden border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] shadow-[0_12px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.7)] p-1 space-y-0.5 max-h-64 overflow-y-auto">
             {options.map((opt) => {
               const isSelected = opt.value === value;
               return (
@@ -113,7 +113,7 @@ export function CustomSelect<T extends string = string>({
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`w-full px-3 py-2.5 rounded-[10px] text-left cursor-pointer transition-all flex items-center justify-between gap-3 group select-none ${
+                  className={`w-full px-2.5 py-2 rounded-[6px] text-left cursor-pointer transition-all flex items-center justify-between gap-3 group select-none ${
                     isSelected
                       ? 'bg-black/[0.06] dark:bg-white/[0.09] text-black dark:text-white font-medium'
                       : 'hover:bg-black/[0.04] dark:hover:bg-white/[0.06] text-[#3C3C43] dark:text-[#D1D1D8]'
@@ -123,7 +123,7 @@ export function CustomSelect<T extends string = string>({
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     {opt.icon && (
-                      <span className="shrink-0 text-[#0071E3] dark:text-[#2997FF]">
+                      <span className="shrink-0 text-neutral-600 dark:text-neutral-400">
                         {opt.icon}
                       </span>
                     )}
@@ -146,7 +146,7 @@ export function CustomSelect<T extends string = string>({
                       </span>
                     )}
                     {isSelected && (
-                      <Check className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#2997FF]" />
+                      <Check className="w-3.5 h-3.5 text-black dark:text-white" />
                     )}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { ActionItemDTO } from '../../types/contracts';
 import { CheckCircle2, Circle, Clock, User, Calendar, Trash2 } from 'lucide-react';
 import { ProvenanceLink } from '../provenance/ProvenanceLink';
@@ -36,17 +36,17 @@ export const ActionItemRow: React.FC<ActionItemRowProps> = ({
       label: 'In Progress',
     },
     DONE: {
-      icon: <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
-      badge: 'text-[#0071E3] dark:text-[#0A84FF] bg-[#0A84FF]/[0.10] dark:bg-[#0A84FF]/[0.12] border-[#0A84FF]/[0.22] dark:border-[#0A84FF]/[0.22]',
+      icon: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />,
+      badge: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
       label: 'Done',
     },
   };
 
   const priorityStyles: Record<string, string> = {
-    URGENT: 'text-[#FF3B30] dark:text-[#FF453A] bg-[#FF3B30]/10 border-[#FF3B30]/25 font-bold',
-    HIGH: 'text-[#E5A000] dark:text-[#E5A000] bg-[#E5A000]/10 border-[#E5A000]/25 font-medium',
-    MEDIUM: 'text-black dark:text-white bg-black/[0.05] dark:bg-white/[0.08] border-black/[0.10] dark:border-white/[0.14] font-medium',
-    LOW: 'text-[#6E6E73] dark:text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.06] border-black/[0.08] dark:border-white/[0.08]',
+    URGENT: 'text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/25 font-bold',
+    HIGH: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/25 font-medium',
+    MEDIUM: 'text-black dark:text-white bg-black/[0.05] dark:bg-white/[0.08] border-black/10 dark:border-white/10 font-medium',
+    LOW: 'text-neutral-500 dark:text-neutral-400 bg-black/[0.03] dark:bg-white/[0.05] border-black/[0.08] dark:border-white/[0.08]',
   };
 
   const config = statusConfig[item.status];
@@ -57,12 +57,12 @@ export const ActionItemRow: React.FC<ActionItemRowProps> = ({
   return (
     <div
       className={[
-        'group flex items-start gap-3 p-3.5 rounded-[14px] select-text',
-        'border border-black/[0.08] dark:border-white/[0.08]',
-        'bg-white dark:bg-[#1C1C1E]',
+        'group flex items-start gap-3 p-3 rounded-[8px] select-text',
+        'border border-black/10 dark:border-white/10',
+        'bg-white dark:bg-[#18191D]',
         'hover:bg-black/[0.015] dark:hover:bg-white/[0.025]',
-        'hover:border-black/[0.14] dark:hover:border-white/[0.16]',
-        'hover:shadow-xs transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]',
+        'hover:border-black/20 dark:hover:border-white/20',
+        'hover:shadow-2xs transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]',
         isDone ? 'opacity-60' : '',
       ].join(' ')}
     >

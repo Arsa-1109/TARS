@@ -63,7 +63,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col bg-[#F5F5F7] dark:bg-black text-black dark:text-white antialiased font-sans">
+    <div className="h-screen overflow-hidden flex flex-col bg-[#F7F7F8] dark:bg-[#090A0D] text-black dark:text-white antialiased font-sans">
       {/* Top Application Bar */}
       <TopBar
         currentWorkspace={currentWorkspace}
@@ -92,13 +92,13 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* Main Viewport */}
       <main className={`flex-1 w-full min-h-0 ${
         currentWorkspace === 'knowledge'
-          ? 'h-[calc(100vh-52px)] overflow-hidden flex flex-col'
-          : 'h-[calc(100vh-52px)] overflow-y-auto'
+          ? 'h-[calc(100vh-48px)] overflow-hidden flex flex-col'
+          : 'h-[calc(100vh-48px)] overflow-y-auto'
       }`}>
         <div className={`w-full mx-auto ${
           currentWorkspace === 'knowledge'
-            ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl px-4 sm:px-6 lg:px-8 py-3 pb-20 md:pb-4'
-            : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 pb-20 md:pb-6'
+            ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] px-3 sm:px-5 lg:px-6 py-2.5 pb-20 md:pb-3'
+            : 'max-w-[1600px] px-3 sm:px-5 lg:px-6 py-3 pb-20 md:pb-6'
         }`}>
           {children}
         </div>
@@ -217,12 +217,12 @@ export const AppShell: React.FC<AppShellProps> = ({
           {/* Footer controls */}
           <div className="pt-2 flex items-center justify-between border-t border-black/[0.07] dark:border-white/[0.07]">
             <div className="flex items-center gap-1.5 text-[12px] text-[#6E6E73] dark:text-[#8E8E93]">
-              <Shield className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+              <Shield className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
               <span className="font-mono">0.00 KB Egress</span>
             </div>
             <button
               onClick={onToggleTheme}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] border border-black/[0.09] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] text-[12px] font-medium text-black dark:text-white"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#18191D] text-[12px] font-medium text-black dark:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors"
             >
               {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
               <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>

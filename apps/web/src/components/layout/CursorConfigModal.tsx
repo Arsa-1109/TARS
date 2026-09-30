@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '../primitives/Button';
 import {
   Download,
@@ -108,7 +108,7 @@ export const CursorConfigModal: React.FC<CursorConfigModalProps> = ({
           <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-black dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                <Shield className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
                 <span>Patch P-01 & P-02: Stdio-to-FastAPI Loopback Proxy</span>
               </span>
               <span className="text-[11px] font-mono text-[#8E8E93]">Port :7777</span>
@@ -128,7 +128,7 @@ export const CursorConfigModal: React.FC<CursorConfigModalProps> = ({
                 <Button
                   variant="secondary"
                   size="xs"
-                  icon={copied ? <Check className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" /> : <Copy className="w-3 h-3" />}
+                  icon={copied ? <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   onClick={handleCopy}
                 >
                   {copied ? 'Copied' : 'Copy JSON'}

@@ -337,14 +337,14 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Topic Channels (3 cols on desktop) */}
         <div className={`lg:col-span-3 space-y-3 ${viewMode === 'canvas' ? 'hidden lg:block' : ''}`}>
-          <Surface className="p-3.5 space-y-2">
-            <div className="flex items-center justify-between px-2 py-1">
-              <span className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">
+          <div className="p-3 rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] shadow-xs space-y-2">
+            <div className="flex items-center justify-between px-1 py-0.5">
+              <span className="text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                 Topic Channels
               </span>
               <button
                 onClick={() => setCreateDialogOpen(true)}
-                className="w-5 h-5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] hover:bg-black/[0.12] dark:hover:bg-white/[0.16] text-[#3C3C43] dark:text-[#EBEBF5] flex items-center justify-center transition-colors"
+                className="w-5 h-5 rounded-[4px] bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-neutral-700 dark:text-neutral-300 flex items-center justify-center transition-colors"
                 title="Create New Discussion Channel"
               >
                 <Plus className="w-3 h-3" />
@@ -355,27 +355,27 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 <button
                   key={ch.id}
                   onClick={() => setActiveChannelId(ch.id)}
-                  className={`w-full text-left px-2.5 py-2 rounded-[10px] text-xs flex items-center gap-2 transition-all ${
+                  className={`w-full text-left px-2.5 py-1.5 rounded-[6px] text-xs flex items-center gap-2 transition-all ${
                     activeChannelId === ch.id
-                      ? 'bg-black/[0.06] dark:bg-white/[0.10] font-semibold text-black dark:text-white border border-black/[0.08] dark:border-white/[0.12]'
-                      : 'text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.03] dark:hover:bg-white/[0.05] hover:text-black dark:hover:text-white'
+                      ? 'bg-black/[0.05] dark:bg-white/[0.10] font-medium text-black dark:text-white border border-black/10 dark:border-white/10'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:bg-black/3 dark:hover:bg-white/5 hover:text-black dark:hover:text-white border border-transparent'
                   }`}
                 >
-                  <Hash className="w-3.5 h-3.5 shrink-0 text-[#8E8E93]" />
+                  <Hash className="w-3 h-3 shrink-0 text-neutral-400" />
                   <span className="truncate">{ch.name.replace('#', '')}</span>
                 </button>
               ))}
             </div>
 
-            <div className="pt-3 border-t border-black/[0.08] dark:border-white/[0.08] px-2 text-[11px] text-[#6E6E73] dark:text-[#8E8E93] space-y-1">
+            <div className="pt-2.5 border-t border-black/8 dark:border-white/8 px-1 text-[11px] text-neutral-500 dark:text-neutral-400 space-y-1">
               <div>
-                Type <code className="text-black dark:text-white font-mono font-semibold">@TARS</code> to query historical context.
+                Type <code className="text-black dark:text-white font-mono font-medium">@TARS</code> to query historical context.
               </div>
               <div>
-                Type <code className="text-[#0071E3] dark:text-[#0A84FF] font-mono font-semibold">/teach &lt;fact&gt;</code> to record new policy directly.
+                Type <code className="text-black dark:text-white font-mono font-medium">/teach &lt;fact&gt;</code> to record new policy directly.
               </div>
             </div>
-          </Surface>
+          </div>
         </div>
 
         {/* Center Column: Message Thread & Composer (9 cols in document mode, 5 in split mode) */}
@@ -388,24 +388,24 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               : 'hidden'
           }`}
         >
-          <Surface className="p-4 sm:p-5 flex flex-col h-[600px] shadow-subtle">
+          <div className="p-4 rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] shadow-xs flex flex-col h-[600px]">
             {/* Thread Header */}
-            <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3 mb-3">
+            <div className="flex items-center justify-between border-b border-black/8 dark:border-white/8 pb-2.5 mb-3">
               <div className="min-w-0 pr-3">
-                <h3 className="text-sm font-semibold text-black dark:text-white truncate">
+                <h3 className="text-xs font-semibold text-black dark:text-white truncate">
                   {currentChannel.name}
                 </h3>
-                <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] truncate mt-0.5">
+                <p className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
                   {currentChannel.topic}
                 </p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                icon={<Eraser className="w-3.5 h-3.5 text-[#8E8E93]" />}
+                icon={<Eraser className="w-3.5 h-3.5" />}
                 onClick={() => setClearDialogOpen(true)}
                 title="Clear Channel History"
-                className="text-xs shrink-0 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10"
+                className="text-xs shrink-0 text-neutral-500 hover:text-red-600"
               >
                 Clear Channel
               </Button>
@@ -427,28 +427,28 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`group relative p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 transition-all ${
+                    className={`group relative p-3 rounded-[8px] text-xs leading-relaxed space-y-1.5 transition-all ${
                       msg.is_ai
-                        ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
-                        : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
+                        ? 'bg-neutral-100/70 dark:bg-[#18191D] border border-black/10 dark:border-white/10 text-black dark:text-white'
+                        : 'bg-neutral-50 dark:bg-[#15161A] border border-black/6 dark:border-white/8 text-black dark:text-white'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                    <div className="flex items-center justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
                       <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
                         {msg.is_ai && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
                         {msg.sender}
                         {msg.is_edited && (
-                          <span className="text-[10px] text-[#8E8E93] font-normal italic">(edited)</span>
+                          <span className="text-[10px] text-neutral-400 font-normal italic">(edited)</span>
                         )}
                       </span>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[#8E8E93]">{formatMessageTime(msg.created_at)}</span>
+                        <span className="font-mono text-neutral-400">{formatMessageTime(msg.created_at)}</span>
                         {/* Hover Actions: Edit / Delete */}
                         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
                           {!msg.is_ai && editingMessageId !== msg.id && (
                             <button
                               onClick={() => handleStartEdit(msg)}
-                              className="p-1 rounded hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+                              className="p-1 rounded-[4px] hover:bg-black/5 dark:hover:bg-white/10 text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
                               title="Edit Message"
                             >
                               <Edit2 className="w-3 h-3" />
@@ -456,7 +456,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                           )}
                           <button
                             onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1 rounded hover:bg-[#FF3B30]/15 text-[#8E8E93] hover:text-[#FF3B30] transition-colors"
+                            className="p-1 rounded-[4px] hover:bg-red-500/10 text-neutral-400 hover:text-red-600 transition-colors"
                             title="Delete Message"
                           >
                             <Trash2 className="w-3 h-3" />
@@ -471,35 +471,35 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                         <textarea
                           value={editingText}
                           onChange={(e) => setEditingText(e.target.value)}
-                          className="w-full p-2 text-xs sm:text-sm rounded-[8px] border border-black/[0.15] dark:border-white/[0.20] bg-white dark:bg-[#1C1C1E] text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
+                          className="w-full p-2 text-xs rounded-[6px] border border-black/10 dark:border-white/15 bg-white dark:bg-[#121316] text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20"
                           rows={2}
                           autoFocus
                         />
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={handleCancelEdit}
-                            className="px-2 py-1 text-[11px] rounded bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.10] text-[#6E6E73] dark:text-[#8E8E93] transition-colors"
+                            className="px-2 py-1 text-[11px] rounded-[4px] bg-black/5 dark:bg-white/10 hover:bg-black/10 text-neutral-600 dark:text-neutral-400 transition-colors"
                           >
                             Cancel
                           </button>
                           <button
                             onClick={() => handleSaveEdit(msg.id)}
-                            className="px-2 py-1 text-[11px] rounded bg-[#0071E3] hover:bg-[#0077ED] text-white flex items-center gap-1 transition-colors"
+                            className="px-2.5 py-1 text-[11px] rounded-[4px] bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200 flex items-center gap-1 transition-colors font-medium"
                           >
                             <Check className="w-3 h-3" /> Save
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <p className="text-xs sm:text-sm text-black dark:text-[#EBEBF5] font-sans leading-relaxed whitespace-pre-wrap">
+                      <p className="text-xs text-neutral-800 dark:text-neutral-200 font-sans leading-relaxed whitespace-pre-wrap">
                         {msg.text}
                       </p>
                     )}
 
                     {msg.provenance && (
-                      <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
-                        <span>Evidence Grounding:</span>
-                        <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">
+                      <div className="pt-1.5 mt-1 border-t border-black/6 dark:border-white/8 text-[10px] font-mono text-neutral-600 dark:text-neutral-400 flex items-center gap-1.5">
+                        <span className="font-medium text-black dark:text-white">Evidence:</span>
+                        <span className="underline decoration-black/20 dark:decoration-white/20 underline-offset-2">
                           {msg.provenance}
                         </span>
                       </div>
@@ -517,7 +517,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="pt-3 border-t border-black/[0.08] dark:border-white/[0.08] flex items-center gap-2 mt-2"
+              className="pt-2.5 border-t border-black/8 dark:border-white/8 flex items-center gap-2 mt-2"
             >
               <input
                 type="text"
@@ -525,7 +525,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Discuss topic, @TARS for context, or '/teach Our payment provider is Stripe'..."
                 disabled={isSending}
-                className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all disabled:opacity-50"
+                className="flex-1 px-3 py-2 text-xs rounded-[7px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all disabled:opacity-50"
               />
               <Button
                 type="submit"
@@ -537,7 +537,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 {isSending ? 'Sending...' : 'Send'}
               </Button>
             </form>
-          </Surface>
+          </div>
         </div>
 
         {/* Right / Full Column: Optional Relationship Canvas (SVG diagram) */}
@@ -547,14 +547,14 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               viewMode === 'split' ? 'lg:col-span-4' : 'lg:col-span-9'
             }`}
           >
-            <Surface className="p-4 sm:p-5 flex flex-col h-[600px] shadow-subtle">
-              <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3 mb-2">
+            <div className="p-4 rounded-[10px] border border-black/10 dark:border-white/10 bg-white dark:bg-[#121316] shadow-xs flex flex-col h-[600px]">
+              <div className="flex items-center justify-between border-b border-black/8 dark:border-white/8 pb-2.5 mb-2">
                 <div>
-                  <h4 className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider flex items-center gap-1.5">
-                    <GitBranch className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <h4 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <GitBranch className="w-3.5 h-3.5 text-black dark:text-white" />
                     <span>Decision & Commitment Topology</span>
                   </h4>
-                  <p className="text-[11px] text-[#8E8E93]">
+                  <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
                     Analytical relationship view (Never decorative, zero particle effects)
                   </p>
                 </div>
@@ -562,17 +562,17 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
 
               {/* Interactive SVG Relationship Canvas */}
               {canvasNodes.length === 0 ? (
-                <div className="flex-1 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-[#1C1C1E] flex flex-col items-center justify-center p-8 text-center space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#8E8E93] mb-1">
-                    <Layers className="w-5 h-5" />
+                <div className="flex-1 rounded-[8px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] flex flex-col items-center justify-center p-8 text-center space-y-2">
+                  <div className="w-9 h-9 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-neutral-400 mb-1">
+                    <Layers className="w-4 h-4" />
                   </div>
-                  <h4 className="text-sm font-semibold text-black dark:text-white">No Decision Nodes Mapped</h4>
-                  <p className="text-xs text-[#8E8E93] max-w-sm">
+                  <h4 className="text-xs font-semibold text-black dark:text-white">No Decision Nodes Mapped</h4>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-sm">
                     Record company decisions in Workspace 3 to visualize institutional topology, trade-offs, and invariants here.
                   </p>
                 </div>
               ) : (
-                <div className="flex-1 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7]/50 dark:bg-[#1C1C1E] relative overflow-hidden flex items-center justify-center p-4">
+                <div className="flex-1 rounded-[8px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] relative overflow-hidden flex items-center justify-center p-4">
                   <svg className="w-full h-full" viewBox="0 0 700 360">
                     {/* Render Connecting Edges if multiple nodes */}
                     {canvasNodes.length > 1 && (
@@ -600,16 +600,16 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                           <rect
                             width="160"
                             height="75"
-                            rx="12"
-                            className={isSelected ? 'fill-white dark:fill-[#242428]' : 'fill-white dark:fill-[#141416]'}
+                            rx="8"
+                            className={isSelected ? 'fill-white dark:fill-[#222327]' : 'fill-white dark:fill-[#18191D]'}
                             stroke={
                               isSelected
-                                ? '#0071E3'
+                                ? 'currentColor'
                                 : n.isConflict
-                                ? '#E5A000'
+                                ? '#D97706'
                                 : 'rgba(128,128,128,0.25)'
                             }
-                            strokeWidth={isSelected ? '2' : '1'}
+                            strokeWidth={isSelected ? '1.5' : '1'}
                           />
                           <text
                             x="12"
@@ -647,12 +647,12 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
 
               {/* Selected Node Details Footer */}
               {selectedNode && (
-                <div className="mt-3 p-3.5 rounded-[12px] border border-black/[0.08] dark:border-white/[0.08] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-xs flex items-center justify-between">
+                <div className="mt-2.5 p-3 rounded-[8px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-xs flex items-center justify-between">
                   <div>
                     <span className="font-semibold text-black dark:text-white">
                       {canvasNodes.find((n) => n.id === selectedNode)?.title || selectedNode}
                     </span>
-                    <span className="text-[#6E6E73] dark:text-[#8E8E93] ml-2">
+                    <span className="text-neutral-500 dark:text-neutral-400 ml-2">
                       {canvasNodes.find((n) => n.id === selectedNode)?.detail}
                     </span>
                   </div>
@@ -665,7 +665,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                   </Button>
                 </div>
               )}
-            </Surface>
+            </div>
           </div>
         )}
       </div>
@@ -695,7 +695,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           </div>
         }
       >
-        <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93]">
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
           All discussions and AI syntheses in this channel will be purged from the active database.
         </p>
       </Dialog>
@@ -726,13 +726,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           </div>
         }
       >
-        <form onSubmit={handleCreateChannel} className="space-y-4">
+        <form onSubmit={handleCreateChannel} className="space-y-3">
           <div>
-            <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
+            <label className="block text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1 uppercase tracking-wider">
               Channel Name
             </label>
             <div className="relative flex items-center">
-              <span className="absolute left-3.5 text-[#8E8E93] font-mono text-sm">#</span>
+              <span className="absolute left-3 text-neutral-400 font-mono text-xs">#</span>
               <input
                 type="text"
                 value={newChannelName}
@@ -740,13 +740,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 placeholder="e.g. enterprise-security"
                 required
                 autoFocus
-                className="w-full pl-8 pr-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 dark:focus:ring-[#0A84FF]/20 focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all font-mono"
+                className="w-full pl-7 pr-3 py-2 text-xs rounded-[7px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all font-mono"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] mb-1.5 uppercase tracking-wide">
+            <label className="block text-[10px] font-semibold text-neutral-500 dark:text-neutral-400 mb-1 uppercase tracking-wider">
               Discussion Topic & Purpose
             </label>
             <textarea
@@ -754,7 +754,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               onChange={(e) => setNewChannelTopic(e.target.value)}
               placeholder="Describe the trade-off, proposal, or context being explored..."
               rows={3}
-              className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 dark:focus:ring-[#0A84FF]/20 focus:border-[#0071E3] dark:focus:border-[#0A84FF] transition-all resize-none"
+              className="w-full px-3 py-2 text-xs rounded-[7px] border border-black/10 dark:border-white/10 bg-neutral-50 dark:bg-[#18191D] text-black dark:text-white placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black/20 dark:focus:ring-white/20 transition-all resize-none"
             />
           </div>
         </form>

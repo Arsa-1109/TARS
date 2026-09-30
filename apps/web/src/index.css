@@ -6,83 +6,83 @@
 @tailwind utilities;
 
 :root {
-  /* Apple Light Mode — crisp, high-contrast white canvas */
-  --canvas: #F5F5F7;
+  /* TARS Premium Light Mode — high precision, architectural paper & graphite */
+  --canvas: #F7F7F8;
   --surface: #FFFFFF;
-  --surface-secondary: #F2F2F7;
-  --surface-tertiary: #E5E5EA;
+  --surface-secondary: #F3F3F5;
+  --surface-tertiary: #E5E5E9;
   --surface-elevated: #FFFFFF;
-  --surface-glass: rgba(255, 255, 255, 0.88);
+  --surface-glass: rgba(255, 255, 255, 0.92);
 
-  /* Separators & Borders */
-  --separator: rgba(0, 0, 0, 0.09);
-  --separator-opaque: #E1E1E1;
-  --border-strong: rgba(0, 0, 0, 0.20);
+  /* Separators & Precision Borders */
+  --separator: rgba(0, 0, 0, 0.08);
+  --separator-opaque: #E5E5E9;
+  --border-strong: rgba(0, 0, 0, 0.18);
 
-  /* Typography — maximum contrast */
+  /* Typography Hierarchy */
   --text-primary: #000000;
-  --text-secondary: #3C3C43;
+  --text-secondary: #2C2C2E;
   --text-tertiary: #6E6E73;
-  --text-quaternary: #AEAEB2;
+  --text-quaternary: #A1A1A6;
 
-  /* Accent — Apple Pro Monochromatic Graphite & Slate */
-  --accent: #1C1C1E;
-  --accent-dark: #000000;
-  --accent-soft: rgba(0, 0, 0, 0.06);
+  /* Accent — Strict Monochrome Palette (Black/White/Graphite) */
+  --accent: #000000;
+  --accent-dark: #1C1C1E;
+  --accent-soft: rgba(0, 0, 0, 0.05);
   --accent-soft-border: rgba(0, 0, 0, 0.12);
 
-  /* Semantic — precise Apple values */
-  --success-text: #0071E3;
-  --success-bg: rgba(0, 113, 227, 0.10);
-  --success-border: rgba(0, 113, 227, 0.22);
-  --warning-text: #B25000;
-  --warning-bg: rgba(255, 149, 0, 0.12);
-  --warning-border: rgba(255, 149, 0, 0.25);
-  --critical-text: #C0392B;
-  --critical-bg: rgba(255, 59, 48, 0.10);
-  --critical-border: rgba(255, 59, 48, 0.22);
+  /* Semantic Status Colors — Restrained */
+  --success-text: #15803D;
+  --success-bg: rgba(21, 128, 61, 0.08);
+  --success-border: rgba(21, 128, 61, 0.20);
+  --warning-text: #B45309;
+  --warning-bg: rgba(180, 83, 9, 0.08);
+  --warning-border: rgba(180, 83, 9, 0.20);
+  --critical-text: #B91C1C;
+  --critical-bg: rgba(185, 28, 28, 0.08);
+  --critical-border: rgba(185, 28, 28, 0.20);
   --info-text: #1C1C1E;
-  --info-bg: rgba(0, 0, 0, 0.05);
+  --info-bg: rgba(0, 0, 0, 0.04);
 }
 
 .dark {
-  /* Apple Pro Obsidian Mode — rich deep tones, layered depth */
+  /* TARS Premium Dark Mode — Void obsidian, charcoal & graphite surfaces */
   --canvas: #090A0D;
-  --surface: #121317;
-  --surface-secondary: #1A1B22;
-  --surface-tertiary: #252631;
-  --surface-elevated: #1E2028;
-  --surface-glass: rgba(18, 19, 23, 0.88);
+  --surface: #121316;
+  --surface-secondary: #18191D;
+  --surface-tertiary: #222327;
+  --surface-elevated: #1A1B20;
+  --surface-glass: rgba(14, 15, 18, 0.90);
 
-  /* Separators & Borders — refined luminous edges */
+  /* Separators & Precision Borders — luminous hairline */
   --separator: rgba(255, 255, 255, 0.08);
-  --separator-opaque: #282933;
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --separator-opaque: #222327;
+  --border-strong: rgba(255, 255, 255, 0.18);
 
-  /* Typography — crisp white hierarchy */
+  /* Typography Hierarchy */
   --text-primary: #FFFFFF;
-  --text-secondary: #D1D1D8;
-  --text-tertiary: #8E8E98;
-  --text-quaternary: #4D4E56;
+  --text-secondary: #D4D4D8;
+  --text-tertiary: #8E8E93;
+  --text-quaternary: #52525B;
 
-  /* Accent — Apple Pro Monochromatic Crisp Light */
+  /* Accent — Pure Crisp White */
   --accent: #FFFFFF;
-  --accent-dark: #EBEBF5;
+  --accent-dark: #E4E4E7;
   --accent-soft: rgba(255, 255, 255, 0.08);
-  --accent-soft-border: rgba(255, 255, 255, 0.18);
+  --accent-soft-border: rgba(255, 255, 255, 0.16);
 
-  /* Semantic — dark variants */
-  --success-text: #2997FF;
-  --success-bg: rgba(41, 151, 255, 0.12);
-  --success-border: rgba(41, 151, 255, 0.24);
-  --warning-text: #FF9F0A;
-  --warning-bg: rgba(255, 159, 10, 0.12);
-  --warning-border: rgba(255, 159, 10, 0.24);
-  --critical-text: #FF453A;
-  --critical-bg: rgba(255, 69, 58, 0.12);
-  --critical-border: rgba(255, 69, 58, 0.24);
+  /* Semantic Status Colors — Restrained Dark */
+  --success-text: #34D399;
+  --success-bg: rgba(52, 211, 153, 0.10);
+  --success-border: rgba(52, 211, 153, 0.22);
+  --warning-text: #FBBF24;
+  --warning-bg: rgba(251, 191, 36, 0.10);
+  --warning-border: rgba(251, 191, 36, 0.22);
+  --critical-text: #F87171;
+  --critical-bg: rgba(248, 113, 113, 0.10);
+  --critical-border: rgba(248, 113, 113, 0.22);
   --info-text: #FFFFFF;
-  --info-bg: rgba(255, 255, 255, 0.06);
+  --info-bg: rgba(255, 255, 255, 0.05);
 }
 
 /* ============================================================
@@ -126,27 +126,76 @@ html, body {
   -webkit-backdrop-filter: saturate(180%) blur(20px);
 }
 
-/* Solid Surface Card — dark mode preferred over glass */
-.apple-card {
+/* High Precision Surface Card — desktop productivity tuned */
+.apple-card, .tars-card {
   background-color: var(--surface);
   border: 1px solid var(--separator);
-  border-radius: 18px;
-  transition: box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 12px;
+  transition: box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Light mode card shadow */
-.apple-card {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.05);
+/* Light mode card shadow — micro subtle */
+.apple-card, .tars-card {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.02);
 }
 
-/* Dark mode card shadow — richer, deeper */
-.dark .apple-card {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
+/* Dark mode card shadow — rich deep obsidian */
+.dark .apple-card, .dark .tars-card {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06) inset;
 }
 
-.apple-card:hover {
+.apple-card:hover, .tars-card:hover {
   border-color: var(--border-strong);
+}
+
+.tars-header-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.tars-badge-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: var(--accent-soft);
+  color: var(--text-primary);
+  border: 1px solid var(--separator);
+}
+
+.tars-badge-success {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+
+.tars-badge-warning {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
+}
+
+.tars-badge-critical {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background-color: var(--critical-bg);
+  color: var(--critical-text);
+  border: 1px solid var(--critical-border);
 }
 
 /* Specular top highlight for modals */

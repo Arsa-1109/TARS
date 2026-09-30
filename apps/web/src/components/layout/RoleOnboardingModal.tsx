@@ -56,7 +56,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     role: 'FOUNDER',
     roleTitle: 'Founder & Sovereign Admin Flight-Plan',
     badge: 'Executive Track',
-    icon: <Shield className="w-4 h-4 text-amber-400" />,
+    icon: <Shield className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />,
     audioTour: {
       title: 'Founding Thesis: Why Startups Die of Context Decay',
       speaker: 'Alex Vance (CEO & Co-Founder)',
@@ -119,7 +119,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     role: 'ENGINEER',
     roleTitle: 'Engineering & Architecture Flight-Plan',
     badge: 'Engineering Track',
-    icon: <Code2 className="w-4 h-4 text-blue-400" />,
+    icon: <Code2 className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />,
     audioTour: {
       title: 'The 4 Killer Invariants that Protect Codebase Velocity',
       speaker: 'Alex Vance & Dr. Elena Rostova',
@@ -182,7 +182,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     role: 'PRODUCT',
     roleTitle: 'Product & Customer Intelligence Flight-Plan',
     badge: 'Product Track',
-    icon: <Briefcase className="w-4 h-4 text-purple-400" />,
+    icon: <Briefcase className="w-4 h-4 text-neutral-600 dark:text-neutral-400" />,
     audioTour: {
       title: 'Compiling Customer Words into Hard Specifications',
       speaker: 'Marcus Chen & Sarah Jenkins',
@@ -549,7 +549,7 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                             <span>Passed</span>
                           </span>
                         ) : isCurrent ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 font-semibold">
+                          <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-mono bg-black/10 dark:bg-white/10 text-black dark:text-white border border-black/15 dark:border-white/20 font-semibold">
                             In Progress
                           </span>
                         ) : (
