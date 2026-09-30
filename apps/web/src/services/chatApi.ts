@@ -125,8 +125,8 @@ export const chatApi = {
   }): Promise<ThinkTankMessageDTO> {
     const payload = {
       channel_id: params.channel_id,
-      sender: params.sender || params.sender_name || 'You',
-      sender_name: params.sender_name || params.sender || 'You',
+      sender: params.sender || params.sender_name || 'Team Member',
+      sender_name: params.sender_name || params.sender || 'Team Member',
       sender_role: params.sender_role || 'ENGINEER',
       sender_type: params.sender_type || (params.is_ai ? 'AI' : 'USER'),
       text: params.text || params.content || '',
@@ -146,7 +146,7 @@ export const chatApi = {
       ...data,
       text: data.text || data.content || '',
       content: data.content || data.text || '',
-      sender: data.sender || data.user_name || 'You',
+      sender: data.sender || data.user_name || 'Team Member',
     };
   },
 
