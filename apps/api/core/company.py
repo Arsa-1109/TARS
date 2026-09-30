@@ -401,6 +401,13 @@ class CompanyProfileRepository:
         except Exception as action_err:
             print(f"Notice: Flight plan configuration message: {action_err}")
 
+        # 3b. Seed Dynamic Onboarding Flight-Plan Modules in SQLite
+        try:
+            from apps.api.core.onboarding import onboarding_repo
+            onboarding_repo.seed_genesis_defaults(company_name, profile)
+        except Exception as onb_err:
+            print(f"Notice: Onboarding flight plan seeding message: {onb_err}")
+
         # 4. Optional Golden Demo Assets Ingestion
         load_sample = payload.get("load_sample_assets", False)
         if load_sample:

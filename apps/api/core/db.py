@@ -313,6 +313,39 @@ class LocalDB:
             )
         ''')
 
+        # Onboarding Modules table (Company-Scoped Dynamic Flight-Plans)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS onboarding_modules (
+                id TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                company_id TEXT,
+                day INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                tasks TEXT NOT NULL,
+                milestone_tour TEXT,
+                order_index INTEGER NOT NULL DEFAULT 0,
+                is_published INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_onboarding_modules_company ON onboarding_modules(company_name, day);")
+
+        # Onboarding Progress table (User-Scoped Task Completion State)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS onboarding_progress (
+                id TEXT PRIMARY KEY,
+                company_name TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                task_key TEXT NOT NULL,
+                completed INTEGER NOT NULL DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_name, user_id, task_key)
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_onboarding_progress_lookup ON onboarding_progress(company_name, user_id);")
+
         # Seed default demo personas if table is empty
         default_personas = [
             ("usr-alex", "Alex Vance", "alex@aetherflow.ai", "FOUNDER", "Executive", "EXECUTIVE_ONLY"),
@@ -459,6 +492,35 @@ class LocalDB:
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')
+                vault_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS onboarding_modules (
+                        id TEXT PRIMARY KEY,
+                        company_name TEXT NOT NULL,
+                        company_id TEXT,
+                        day INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        description TEXT NOT NULL,
+                        tasks TEXT NOT NULL,
+                        milestone_tour TEXT,
+                        order_index INTEGER NOT NULL DEFAULT 0,
+                        is_published INTEGER NOT NULL DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                vault_conn.execute("CREATE INDEX IF NOT EXISTS idx_vault_onboarding_modules_company ON onboarding_modules(company_name, day);")
+                vault_conn.execute('''
+                    CREATE TABLE IF NOT EXISTS onboarding_progress (
+                        id TEXT PRIMARY KEY,
+                        company_name TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        task_key TEXT NOT NULL,
+                        completed INTEGER NOT NULL DEFAULT 1,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE(company_name, user_id, task_key)
+                    )
+                ''')
+                vault_conn.execute("CREATE INDEX IF NOT EXISTS idx_vault_onboarding_progress_lookup ON onboarding_progress(company_name, user_id);")
                 for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
                     vault_conn.execute('''
                         INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)

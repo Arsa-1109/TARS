@@ -15,6 +15,9 @@ import {
   TopologyResponse,
   PreCommitSimulationResponse,
   MadrResponse,
+  OnboardingFlightPlanDTO,
+  OnboardingFlightPlanCreate,
+  OnboardingProgressUpdateDTO,
 } from '../types/contracts';
 
 const API_BASE = '/api';
@@ -520,6 +523,40 @@ export class LiveTarsApi implements TarsApi {
     return this.fetchJson<import('../types/contracts').WorkspaceResetResponse>('/core/workspace/reset', {
       method: 'POST',
       body: JSON.stringify(payload || { reset_type: 'ALL', preserve_users: true }),
+    });
+  }
+
+  // --- Workspace 3: Dynamic Onboarding Flight-Plans ---
+  async getFlightPlan(companyName?: string, userId?: string): Promise<OnboardingFlightPlanDTO> {
+    const targetComp = companyName || this._getActiveCompanyName();
+    const params = new URLSearchParams();
+    if (targetComp) params.set('company_name', targetComp);
+    if (userId) params.set('user_id', userId);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.fetchJson<OnboardingFlightPlanDTO>(`/onboarding/flight-plan${qs}`);
+  }
+
+  async saveFlightPlan(plan: OnboardingFlightPlanCreate): Promise<OnboardingFlightPlanDTO> {
+    const targetComp = plan.company_name || this._getActiveCompanyName() || 'Sovereign Startup';
+    return this.fetchJson<OnboardingFlightPlanDTO>('/onboarding/flight-plan', {
+      method: 'POST',
+      body: JSON.stringify({ ...plan, company_name: targetComp }),
+    });
+  }
+
+  async updateTaskProgress(update: OnboardingProgressUpdateDTO): Promise<{ completed_tasks: Record<string, boolean> }> {
+    const targetComp = update.company_name || this._getActiveCompanyName() || 'Sovereign Startup';
+    return this.fetchJson<{ completed_tasks: Record<string, boolean> }>('/onboarding/progress', {
+      method: 'POST',
+      body: JSON.stringify({ ...update, company_name: targetComp }),
+    });
+  }
+
+  async resetFlightPlanDefaults(companyName: string): Promise<OnboardingFlightPlanDTO> {
+    const targetComp = companyName || this._getActiveCompanyName() || 'Sovereign Startup';
+    return this.fetchJson<OnboardingFlightPlanDTO>('/onboarding/reset-defaults', {
+      method: 'POST',
+      body: JSON.stringify({ company_name: targetComp }),
     });
   }
 }
