@@ -14,22 +14,18 @@ logger = logging.getLogger("tars.core.model_router")
 
 OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
-# Defined fallback cascades prioritizing local lightweight Qwen model
+# Defined fallback cascades prioritizing local Qwen models (qwen3:8b for deep reasoning, qwen3:1.7b for extraction)
 DEEP_REASONING_CASCADE: List[str] = [
-    "qwen2.5:1.5b",
-    "qwen3:1.5b",
-    "qwen3.5:0.8b",
     "qwen3:8b",
     "qwen2.5-coder:7b",
     "qwen2.5:7b",
     "deepseek-r1:7b",
+    "qwen2.5:1.5b",
 ]
 
 SUBSECOND_EXTRACTION_CASCADE: List[str] = [
-    "qwen2.5:1.5b",
-    "qwen3:1.5b",
-    "qwen3.5:0.8b",
     "qwen3:1.7b",
+    "qwen2.5:1.5b",
     "llama3.2:1b",
     "qwen2.5-coder:1.5b",
 ]
