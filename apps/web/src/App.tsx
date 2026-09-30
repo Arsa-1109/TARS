@@ -422,6 +422,8 @@ export function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMemo={() => setVoiceMemoOpen(true)}
         onOpenGenesis={() => setGenesisWizardOpen(true)}
+        onSelectDecision={setActiveDecisionId}
+        onSelectDocument={(id) => navigateToSource(id, 'DOC')}
       />
 
       {/* Host Settings & Genesis Cold Start Modal */}

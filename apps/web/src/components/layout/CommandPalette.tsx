@@ -29,6 +29,8 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onOpenMemo: () => void;
   onOpenGenesis?: () => void;
+  onSelectDecision?: (id: string) => void;
+  onSelectDocument?: (id: string) => void;
 }
 
 interface PaletteActionItem {
@@ -50,6 +52,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenSettings,
   onOpenMemo,
   onOpenGenesis,
+  onSelectDecision,
+  onSelectDocument,
 }) => {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
