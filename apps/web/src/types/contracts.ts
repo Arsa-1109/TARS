@@ -79,6 +79,48 @@ export interface SimulationResponse {
   executive_synthesis: string;
 }
 
+export interface DecisionPatchRequest {
+  title?: string;
+  context?: string;
+  drivers?: string[];
+  chosen_option?: string;
+  lifecycle_status?: 'ACTIVE' | 'SUPERSEDED' | 'REPEALED' | string;
+}
+
+export interface DecisionCreateRequest {
+  id?: string;
+  title: string;
+  category?: 'ENGINEERING' | 'PRODUCT' | 'STRATEGY' | 'PRICING' | 'SECURITY' | string;
+  context?: string;
+  chosen_option?: string;
+  clearance?: 'ALL_TEAM' | 'EXECUTIVE_ONLY' | string;
+  drivers?: string[];
+  options_considered?: string[];
+}
+
+export interface SimulationScenarioRequest {
+  scenario_prompt: string;
+  burn_delta_monthly?: number;
+  timeline_shift_days?: number;
+  devs_reallocated?: number;
+}
+
+export interface SimulationScenarioResponse {
+  baseline_runway_months: number;
+  simulated_runway_months: number;
+  runway_delta_months: number;
+  compromised_clients: Array<{ client: string; commitment: string; value: string }>;
+  compromised_deliverables: Array<any>;
+  strategic_narrative: string;
+  pre_populated_adr: {
+    title: string;
+    category: string;
+    context: string;
+    chosen_option: string;
+    drivers?: string[];
+  };
+}
+
 // Workspace 6: Tech & Architecture
 export interface InvariantCheckResult {
   is_breached: boolean;

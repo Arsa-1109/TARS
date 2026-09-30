@@ -18,9 +18,12 @@ import uuid
 from typing import Dict, Any, List, Optional
 import httpx
 
-from apps.api.schemas.contracts import VoiceToSpecResponse
+from apps.api.schemas.contracts import VoiceToSpecResponse, ActionItemDTO
 from apps.api.ingestion.xml_framer import xml_framer
 from apps.api.ingestion.kuzu_sync import kuzu_sync
+from apps.api.core.events.models import Event, EventType
+from apps.api.core.events.bus import local_bus
+from apps.api.ingestion.action_hub import action_hub_repo
 
 logger = logging.getLogger("tars.ingestion.spec_extractor")
 
@@ -114,20 +117,46 @@ class VoiceToSpecExtractor:
                     date=int(time.time()),
                 )
 
-                # Link commitments as ActionItems in the graph
+                # Link commitments as ActionItems in the graph and Action Hub SQLite
                 for idx, commitment in enumerate(response.commitments):
                     action_id = f"ACT-{call_id}-{idx + 1}"
+                    offset = f"00:{idx * 30:02d}"
                     kuzu_sync.sync_action_item(
                         item_id=action_id,
                         description=commitment,
-                        owner="Sales / Product",
+                        owner="Sales / Product Lead",
                         status="OPEN",
                         source_type="CLIENT_CALL",
                         source_id=call_id,
-                        timestamp_offset=f"00:{idx * 30:02d}",
+                        timestamp_offset=offset,
+                    )
+
+                    action_item = ActionItemDTO(
+                        id=action_id,
+                        title=f"Commitment: {response.client_name}",
+                        description=commitment,
+                        owner="Sales / Product Lead",
+                        department="Product",
+                        priority="HIGH",
+                        status="OPEN",
+                        source_type="CLIENT_CALL",
+                        source_id=call_id,
+                        source_offset=offset,
+                    )
+                    action_hub_repo.create(action_item)
+
+                    # Broadcast SSE notification via properly structured Event model
+                    local_bus.publish(
+                        Event(
+                            event_id=f"EVT-{uuid.uuid4().hex[:8].upper()}",
+                            event_type=EventType.ACTION_ITEM_CREATED,
+                            source="spec_extractor",
+                            timestamp=int(time.time()),
+                            payload={"call_id": call_id, "commitment": commitment, "item_id": action_item.id}
+                        )
                     )
             except Exception as graph_err:
-                logger.warning(f"Error syncing call {call_id} to Kùzu graph: {graph_err}")
+                logger.warning(f"Error syncing call {call_id} to Kùzu graph / action hub: {graph_err}")
 
         return response
 

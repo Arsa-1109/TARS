@@ -90,10 +90,14 @@ async def search_knowledge(req: SearchRequest):
 
     # Synthesize answer with local Ollama SLM
     user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}' and clearance level '{req.clearance}'.\n"
+    system_prompt = (
+        f"You are TARS, the autonomous startup second brain for {comp_name}. "
+        "Answer questions directly, accurately, and professionally based strictly on verified company facts and internal documents. "
+        "Do NOT output internal thinking or scratchpad notes. "
+        "Do NOT repeat the question or start with robotic self-introductions like 'As TARS, the autonomous startup second brain...'. "
+        "Provide a polished, complete answer."
+    )
     prompt = (
-        f"You are TARS, the autonomous startup second brain for {comp_name}.\n"
-        f"Answer the user's query directly, accurately, and concisely using the verified company institutional knowledge facts below.\n"
-        f"Never say you do not have access to employee count, team size, finances, or company policies—always state the exact numbers and facts from the institutional context.\n\n"
         f"Company Institutional Knowledge Facts:\n{company_facts}\n"
         f"{user_context}"
         f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n\n"
@@ -109,6 +113,13 @@ async def search_knowledge(req: SearchRequest):
         context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
         prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
 
+    prompt += (
+        f"\nUser Query: {req.query}\n\n"
+        "Provide a structured, refined, and complete response addressing this query directly. "
+        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
+        "Ensure all points are distinct, actionable, and the answer concludes cleanly without trailing off."
+    )
+
     # 3. Honest Local Ollama Generation & Outage Behavior
     ollama_ok = await ollama_client.is_available()
     if not ollama_ok:
@@ -119,7 +130,7 @@ async def search_knowledge(req: SearchRequest):
             answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
     else:
         print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
-        llm_res = await ollama_client.generate(prompt, task_complexity="light")
+        llm_res = await ollama_client.generate(prompt, task_complexity="deep", max_tokens=1024, system=system_prompt)
         print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
         if llm_res.get("success") and llm_res.get("response"):
             answer = str(llm_res.get("response")).strip()

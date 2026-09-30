@@ -25,6 +25,8 @@ interface DocumentReaderModalProps {
   department: string;
   clearance: string;
   content: string;
+  pageCount?: number;
+  chunkCount?: number;
 }
 
 export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
@@ -34,6 +36,8 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
   department,
   clearance,
   content,
+  pageCount,
+  chunkCount,
 }) => {
   const isPdf = docTitle.toLowerCase().endsWith('.pdf') || content.trim().startsWith('%PDF');
   const [viewMode, setViewMode] = useState<'pdf' | 'text'>(isPdf ? 'pdf' : 'text');
@@ -141,7 +145,10 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
 
   if (!isOpen) return null;
 
-  const totalPages = 3;
+  const totalPages = Math.max(
+    1,
+    pageCount || (chunkCount ? Math.ceil(chunkCount / 3) : Math.max(1, Math.ceil((content?.length || 800) / 800)))
+  );
 
   const handleCopyText = () => {
     navigator.clipboard.writeText(content);

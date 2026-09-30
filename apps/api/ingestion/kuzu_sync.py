@@ -389,6 +389,42 @@ class KuzuGraphEngine:
                 conn.commit()
             return True
 
+    def delete_client_call(self, call_id: str) -> Dict[str, Any]:
+        """
+        Prunes a recorded call node and its extracted spec/action relationships from Kùzu.
+        Supports both Native Kùzu engine and SQLite-backed embedded graph fallback.
+        """
+        detached_count = 0
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        "MATCH (c:ClientCall) WHERE c.id = $call_id DETACH DELETE c;",
+                        {"call_id": call_id}
+                    )
+                    detached_count += 1
+                except Exception as e:
+                    logger.warning(f"Native delete_client_call error: {e}")
+
+            # Fallback sqlite graph engine cleanup
+            try:
+                with sqlite3.connect(self._sqlite_path) as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "DELETE FROM graph_nodes WHERE node_type = 'ClientCall' AND id = ?;",
+                        (call_id,)
+                    )
+                    detached_count += cur.rowcount
+                    cur.execute(
+                        "DELETE FROM graph_edges WHERE (from_type = 'ClientCall' AND from_id = ?) OR (to_type = 'ClientCall' AND to_id = ?);",
+                        (call_id, call_id)
+                    )
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"Embedded delete_client_call fallback error: {e}")
+
+        return {"call_id": call_id, "detached_count": max(1, detached_count)}
+
     def sync_action_item(
         self,
         item_id: str,

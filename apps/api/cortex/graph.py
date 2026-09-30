@@ -59,7 +59,8 @@ class EmbeddedGraphConn:
                     "chosen_option": params.get("chosen_option", ""),
                     "timestamp": params.get("timestamp", int(time.time())),
                     "clearance": params.get("clearance", "ALL_TEAM"),
-                    "status": params.get("status", "ACTIVE")
+                    "status": params.get("status", "ACTIVE"),
+                    "lifecycle_status": params.get("status", "ACTIVE"),
                 }
             return EmbeddedQueryResult([])
 
@@ -102,6 +103,25 @@ class EmbeddedGraphConn:
             old_id = params.get("old_id")
             if new_id and old_id:
                 self.supersedes.append((new_id, old_id))
+            return EmbeddedQueryResult([])
+
+        if "SET d.lifecycle_status = 'SUPERSEDED'" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                self.decisions[target_id]["status"] = "SUPERSEDED"
+                self.decisions[target_id]["lifecycle_status"] = "SUPERSEDED"
+                if "superseded_by" in params:
+                    self.decisions[target_id]["superseded_by"] = params.get("superseded_by")
+                return EmbeddedQueryResult([[target_id]])
+            return EmbeddedQueryResult([])
+
+        if "MATCH (d:Decision {id: $id}) SET" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                for k, v in params.items():
+                    if k != "id":
+                        self.decisions[target_id][k] = v
+                return EmbeddedQueryResult([[target_id]])
             return EmbeddedQueryResult([])
 
         if "MATCH (d:Decision {id: $id}) DETACH DELETE d" in q:
@@ -291,6 +311,60 @@ class TarsGraph:
             print(f"Error adding decision: {e}")
             return False
 
+    def update_decision(self, decision_id: str, fields: Dict[str, Any]) -> bool:
+        """Updates specific fields of a Decision node in Kùzu."""
+        if not fields:
+            return True
+        ALLOWED_FIELDS = {"title", "category", "context", "chosen_option", "clearance", "status", "lifecycle_status"}
+        set_clauses = []
+        params = {"id": decision_id}
+        for k, v in fields.items():
+            if k not in ALLOWED_FIELDS:
+                continue
+            if k == "lifecycle_status":
+                params["status"] = v
+                set_clauses.append("d.status = $status")
+            else:
+                params[k] = v
+                set_clauses.append(f"d.{k} = ${k}")
+        query = f"MATCH (d:Decision {{id: $id}}) SET {', '.join(set_clauses)} RETURN d.id"
+        try:
+            res = self.conn.execute(query, params)
+            return res.has_next()
+        except Exception as e:
+            print(f"Error updating decision {decision_id}: {e}")
+            return False
+
+    def delete_decision(self, decision_id: str, hard_purge: bool = False, superseded_by: Optional[str] = None) -> bool:
+        """Deletes or soft-marks a Decision node as SUPERSEDED."""
+        if hard_purge:
+            query = "MATCH (d:Decision {id: $id}) DETACH DELETE d"
+            params = {"id": decision_id}
+        else:
+            query = "MATCH (d:Decision {id: $id}) SET d.status = 'SUPERSEDED' RETURN d.id"
+            params = {"id": decision_id}
+        try:
+            res = self.conn.execute(query, params)
+            if hard_purge:
+                return True
+            has_res = res.has_next()
+            if has_res and superseded_by:
+                try:
+                    self.link_supersedes(superseded_by, decision_id)
+                except Exception:
+                    pass
+            return has_res
+        except Exception as e:
+            print(f"Error deleting/superseding decision {decision_id}: {e}")
+            return False
+
+    def get_decision(self, decision_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves a single Decision node by ID."""
+        for d in self.get_all_decisions():
+            if d["id"] == decision_id:
+                return d
+        return None
+
     def add_invariant(self, inv_id: str, name: str, category: str, severity: str, rationale: str, adr_ref: str = "") -> bool:
         """Adds or updates an Invariant node in the graph."""
         query = """
@@ -363,6 +437,7 @@ class TarsGraph:
                     "timestamp": row[5],
                     "clearance": row[6],
                     "status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
+                    "lifecycle_status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
                 })
             return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
         except Exception:
@@ -380,6 +455,7 @@ class TarsGraph:
                         "timestamp": row[5],
                         "clearance": row[6],
                         "status": "ACTIVE",
+                        "lifecycle_status": "ACTIVE",
                     })
                 return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
             except Exception as e:

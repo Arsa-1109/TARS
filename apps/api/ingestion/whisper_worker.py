@@ -196,5 +196,51 @@ class WhisperWorker:
         )
 
 
+import concurrent.futures
+
+_callback_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2,
+    thread_name_prefix="WhisperCallback"
+)
+
+
+def _async_spec_dispatch(call_id: str, transcript: str, audio_path: str, client_name: str = "Enterprise Client", duration: float = 180.0):
+    try:
+        from apps.api.ingestion.spec_extractor import spec_extractor
+        spec_extractor.extract_spec(
+            transcript=transcript,
+            call_id=call_id,
+            client_name=client_name,
+            audio_duration=duration,
+            audio_path=audio_path,
+            sync_to_graph=True
+        )
+    except Exception as e:
+        logger.error(f"Async spec extraction error for {call_id}: {e}")
+
+
+def _default_transcription_complete_handler(task_or_call_id, *args, **kwargs):
+    """Non-blocking: immediately releases the WhisperWorkerThread in <1ms."""
+    if hasattr(task_or_call_id, "task_id"):
+        call_id = task_or_call_id.task_id
+        transcript = task_or_call_id.transcript
+        audio_path = getattr(task_or_call_id, "file_path", "")
+        client_name = getattr(task_or_call_id, "client_name", "Enterprise Client")
+        duration = getattr(task_or_call_id, "duration_seconds", 180.0)
+    else:
+        call_id = str(task_or_call_id)
+        transcript = args[0] if len(args) > 0 else kwargs.get("transcript", "")
+        audio_path = args[1] if len(args) > 1 else kwargs.get("audio_path", "")
+        client_name = kwargs.get("client_name", "Enterprise Client")
+        duration = kwargs.get("duration", 180.0)
+
+    _callback_executor.submit(_async_spec_dispatch, call_id, transcript, audio_path, client_name, duration)
+
+
 # Global singleton worker instance
 whisper_worker = WhisperWorker()
+global_whisper_worker = whisper_worker
+
+if whisper_worker.on_complete_callback is None:
+    whisper_worker.on_complete_callback = _default_transcription_complete_handler
+

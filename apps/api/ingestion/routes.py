@@ -18,11 +18,12 @@ import time
 import uuid
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status, Body
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 
 from apps.api.schemas.contracts import VoiceToSpecResponse, ActionItemDTO
+from apps.api.schemas.ingestion_contracts import CallDeleteRequest, CallDeleteResponse
 from apps.api.ingestion.markitdown_parser import markitdown_parser
 from apps.api.ingestion.whisper_transcriber import whisper_transcriber, WhisperTask
 from apps.api.ingestion.spec_extractor import spec_extractor
@@ -32,6 +33,8 @@ from apps.api.ingestion.action_hub import action_hub_repo
 
 logger = logging.getLogger("tars.ingestion.routes")
 router = APIRouter()
+
+_deleted_call_ids: set = set()
 
 UPLOAD_DIR = os.path.abspath(os.path.join(os.getcwd(), "drop"))
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -508,6 +511,8 @@ async def upload_call_audio_direct(
 @router.get("/calls/{task_id}")
 def get_call_task_status(task_id: str):
     """Retrieves transcription progress and auto-extracted 4-part Voice-to-Spec payload."""
+    if task_id in _deleted_call_ids or task_id.replace("CALL-", "WSP-") in _deleted_call_ids:
+        raise HTTPException(status_code=404, detail=f"Audio task '{task_id}' has been deleted.")
     task = whisper_transcriber.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail=f"Audio task '{task_id}' not found.")
@@ -520,6 +525,8 @@ def list_call_tasks():
     tasks = whisper_transcriber.list_tasks()
     task_calls = []
     for t in tasks:
+        if t.task_id in _deleted_call_ids or t.task_id.replace("WSP-", "CALL-") in _deleted_call_ids:
+            continue
         td = t.to_dict()
         spec = t.spec_result or {}
         # Synthesize transcript segments
@@ -549,65 +556,72 @@ def list_call_tasks():
             ]
         })
 
-    # If no audio has been uploaded yet, supply the verified Acme Corp & Nexus Labs calls
+    default_calls = [
+        {
+            "call_id": "CALL-ACME-01",
+            "client_name": "Acme Corp (Enterprise Expansion)",
+            "sentiment": "URGENT",
+            "audio_duration_seconds": 248.5,
+            "recorded_at": "2026-09-24 16:30 IST",
+            "summary": "Discovery call with VP of Engineering Johnathan Vance. Acme Corp is evaluating TARS for 45 developers across their distributed infrastructure. They are prepared to sign an $80k annual agreement contingent on on-premise deployment and custom SAML SSO delivered by May 1st.",
+            "pain_points": [
+                "Current engineering amnesia causes 12 hours/week wasted context-switching between remote teams.",
+                "Strict defense contractor NDAs legally forbid sending any internal code or call recordings to cloud AI providers.",
+                "Existing Confluence wiki is stale, resulting in repetitive founder interruption."
+            ],
+            "feature_requests": [
+                "Custom SAML 2.0 / Okta enterprise identity provider federation.",
+                "Self-contained VPC / air-gapped deployment container.",
+                "Custom export webhook triggering internal compliance logging."
+            ],
+            "commitments": [
+                "Deliver technical feasibility assessment for on-prem SAML SSO by Friday.",
+                "Provide unredacted benchmark of Tree-sitter AST diff parser latency (<50ms).",
+                "Draft enterprise SLA agreement with zero-cloud-egress mathematical guarantee."
+            ],
+            "transcript": [
+                {"speaker": "Aryan (Founder, TARS)", "timestamp": "00:15", "seconds": 15, "text": "Thanks for jumping on, John. We understand Acme has strict data sovereignty requirements given your defense and healthcare client portfolio."},
+                {"speaker": "John (VP Eng, Acme)", "timestamp": "00:42", "seconds": 42, "text": "Exactly. We cannot allow a single byte of telemetry or code to leave our private VPC. If an AI tool talks to OpenAI or Anthropic, our compliance officer vetoes it instantly."},
+                {"speaker": "Aryan (Founder, TARS)", "timestamp": "01:18", "seconds": 78, "text": "TARS runs 100% locally on your own silicon with zero egress. Even if you physically disconnect the WAN ethernet cable, all retrieval, AST verification, and Whisper transcription continue unimpeded."},
+                {"speaker": "John (VP Eng, Acme)", "timestamp": "01:55", "seconds": 115, "text": "That is exactly what we need. But here is the hard constraint: our infosec mandate requires custom SAML 2.0 SSO connected to our self-hosted Okta instance by May 1st. If you can commit to that, we will sign the $80,000 contract."},
+                {"speaker": "Aryan (Founder, TARS)", "timestamp": "02:30", "seconds": 150, "text": "Understood. I will run this through our strategic impact simulation to see how reallocating 2 engineers affects our delivery schedule, and get back to you by Friday."},
+                {"speaker": "John (VP Eng, Acme)", "timestamp": "03:10", "seconds": 190, "text": "Fair enough. Also please ensure you include the AST diff benchmarks showing under 50ms pre-commit check times."}
+            ]
+        },
+        {
+            "call_id": "CALL-NEXUS-02",
+            "client_name": "Nexus Labs (Seed FinTech)",
+            "sentiment": "POSITIVE",
+            "audio_duration_seconds": 182.0,
+            "recorded_at": "2026-09-22 11:00 IST",
+            "summary": "Follow-up onboarding call with Nexus Labs CTO Sarah Chen. Their 6-person engineering team integrated the TARS pre-commit hook. They reported zero accidental secret leaks and caught two transaction-wrapped Stripe calls before pushing.",
+            "pain_points": [
+                "Junior developers frequently wrapping network I/O inside SQL transactions.",
+                "Founders spending 40% of their workday answering architecture questions."
+            ],
+            "feature_requests": [
+                "Support for custom TypeScript invariant AST queries in .tars/invariants.yaml.",
+                "Slack notifications for living MADRs generated on git block."
+            ],
+            "commitments": [
+                "Ship TypeScript AST query rule examples in Workspace 6 documentation.",
+                "Provide sample .tars/invariants.yaml configuration for Postgres row-level locks."
+            ],
+            "transcript": [
+                {"speaker": "Sarah (CTO, Nexus)", "timestamp": "00:20", "seconds": 20, "text": "The pre-commit hook caught an INV-017 violation on Wednesday when a new contractor wrapped a Stripe webhook inside a database transaction. Prevented a massive thread pool exhaustion."},
+                {"speaker": "Mir (Lead, TARS)", "timestamp": "00:55", "seconds": 55, "text": "That is the exact Shopify outage pattern TARS is engineered to eliminate deterministically."}
+            ]
+        }
+    ]
+
+    active_default_calls = [d for d in default_calls if d["call_id"] not in _deleted_call_ids]
     if not task_calls:
-        task_calls = [
-            {
-                "call_id": "CALL-ACME-01",
-                "client_name": "Acme Corp (Enterprise Expansion)",
-                "sentiment": "URGENT",
-                "audio_duration_seconds": 248.5,
-                "recorded_at": "2026-09-24 16:30 IST",
-                "summary": "Discovery call with VP of Engineering Johnathan Vance. Acme Corp is evaluating TARS for 45 developers across their distributed infrastructure. They are prepared to sign an $80k annual agreement contingent on on-premise deployment and custom SAML SSO delivered by May 1st.",
-                "pain_points": [
-                    "Current engineering amnesia causes 12 hours/week wasted context-switching between remote teams.",
-                    "Strict defense contractor NDAs legally forbid sending any internal code or call recordings to cloud AI providers.",
-                    "Existing Confluence wiki is stale, resulting in repetitive founder interruption."
-                ],
-                "feature_requests": [
-                    "Custom SAML 2.0 / Okta enterprise identity provider federation.",
-                    "Self-contained VPC / air-gapped deployment container.",
-                    "Custom export webhook triggering internal compliance logging."
-                ],
-                "commitments": [
-                    "Deliver technical feasibility assessment for on-prem SAML SSO by Friday.",
-                    "Provide unredacted benchmark of Tree-sitter AST diff parser latency (<50ms).",
-                    "Draft enterprise SLA agreement with zero-cloud-egress mathematical guarantee."
-                ],
-                "transcript": [
-                    {"speaker": "Aryan (Founder, TARS)", "timestamp": "00:15", "seconds": 15, "text": "Thanks for jumping on, John. We understand Acme has strict data sovereignty requirements given your defense and healthcare client portfolio."},
-                    {"speaker": "John (VP Eng, Acme)", "timestamp": "00:42", "seconds": 42, "text": "Exactly. We cannot allow a single byte of telemetry or code to leave our private VPC. If an AI tool talks to OpenAI or Anthropic, our compliance officer vetoes it instantly."},
-                    {"speaker": "Aryan (Founder, TARS)", "timestamp": "01:18", "seconds": 78, "text": "TARS runs 100% locally on your own silicon with zero egress. Even if you physically disconnect the WAN ethernet cable, all retrieval, AST verification, and Whisper transcription continue unimpeded."},
-                    {"speaker": "John (VP Eng, Acme)", "timestamp": "01:55", "seconds": 115, "text": "That is exactly what we need. But here is the hard constraint: our infosec mandate requires custom SAML 2.0 SSO connected to our self-hosted Okta instance by May 1st. If you can commit to that, we will sign the $80,000 contract."},
-                    {"speaker": "Aryan (Founder, TARS)", "timestamp": "02:30", "seconds": 150, "text": "Understood. I will run this through our strategic impact simulation to see how reallocating 2 engineers affects our delivery schedule, and get back to you by Friday."},
-                    {"speaker": "John (VP Eng, Acme)", "timestamp": "03:10", "seconds": 190, "text": "Fair enough. Also please ensure you include the AST diff benchmarks showing under 50ms pre-commit check times."}
-                ]
-            },
-            {
-                "call_id": "CALL-NEXUS-02",
-                "client_name": "Nexus Labs (Seed FinTech)",
-                "sentiment": "POSITIVE",
-                "audio_duration_seconds": 182.0,
-                "recorded_at": "2026-09-22 11:00 IST",
-                "summary": "Follow-up onboarding call with Nexus Labs CTO Sarah Chen. Their 6-person engineering team integrated the TARS pre-commit hook. They reported zero accidental secret leaks and caught two transaction-wrapped Stripe calls before pushing.",
-                "pain_points": [
-                    "Junior developers frequently wrapping network I/O inside SQL transactions.",
-                    "Founders spending 40% of their workday answering architecture questions."
-                ],
-                "feature_requests": [
-                    "Support for custom TypeScript invariant AST queries in .tars/invariants.yaml.",
-                    "Slack notifications for living MADRs generated on git block."
-                ],
-                "commitments": [
-                    "Ship TypeScript AST query rule examples in Workspace 6 documentation.",
-                    "Provide sample .tars/invariants.yaml configuration for Postgres row-level locks."
-                ],
-                "transcript": [
-                    {"speaker": "Sarah (CTO, Nexus)", "timestamp": "00:20", "seconds": 20, "text": "The pre-commit hook caught an INV-017 violation on Wednesday when a new contractor wrapped a Stripe webhook inside a database transaction. Prevented a massive thread pool exhaustion."},
-                    {"speaker": "Mir (Lead, TARS)", "timestamp": "00:55", "seconds": 55, "text": "That is the exact Shopify outage pattern TARS is engineered to eliminate deterministically."}
-                ]
-            }
-        ]
+        task_calls = active_default_calls
+    else:
+        existing_ids = {c["call_id"] for c in task_calls}
+        for d in active_default_calls:
+            if d["call_id"] not in existing_ids:
+                task_calls.append(d)
 
     return {
         "calls": task_calls,
@@ -618,6 +632,9 @@ def list_call_tasks():
 @router.get("/calls/{task_id}/audio")
 def get_call_audio(task_id: str):
     """Serves the raw audio file for in-browser playback."""
+    if task_id in _deleted_call_ids or task_id.replace("CALL-", "WSP-") in _deleted_call_ids:
+        raise HTTPException(status_code=404, detail=f"Audio file for task '{task_id}' has been deleted.")
+
     task = whisper_transcriber.get_task(task_id)
     if not task and task_id.startswith("CALL-"):
         wsp_id = task_id.replace("CALL-", "WSP-", 1)
@@ -665,6 +682,108 @@ def get_call_audio(task_id: str):
         media_type=media_type,
         content_disposition_type="inline",
         filename=filename,
+    )
+
+
+@router.delete("/calls/{call_id}", response_model=CallDeleteResponse)
+def delete_call(call_id: str, payload: Optional[CallDeleteRequest] = Body(default=None)):
+    """
+    Prunes a recorded call recording, removes raw audio from disk,
+    detaches call and spec nodes in Kùzu graph, and prunes specified Action Hub tasks.
+    """
+    from datetime import datetime, timezone
+    _deleted_call_ids.add(call_id)
+    _deleted_call_ids.add(call_id.replace("CALL-", "WSP-"))
+    _deleted_call_ids.add(call_id.replace("WSP-", "CALL-"))
+
+    files_unlinked = False
+
+    # 1. Unlink audio file from disk
+    task = whisper_transcriber.get_task(call_id)
+    if not task and call_id.startswith("CALL-"):
+        task = whisper_transcriber.get_task(call_id.replace("CALL-", "WSP-", 1))
+
+    if task and task.file_path and os.path.exists(task.file_path):
+        try:
+            os.remove(task.file_path)
+            files_unlinked = True
+        except Exception as e:
+            logger.warning(f"Could not remove audio file {task.file_path}: {e}")
+
+    # Remove task from in-memory transcriber store
+    keys_to_remove = [
+        k for k, t in whisper_transcriber._tasks.items()
+        if k == call_id or t.task_id == call_id or k.replace("WSP-", "CALL-") == call_id or k.replace("CALL-", "WSP-") == call_id
+    ]
+    for k in keys_to_remove:
+        whisper_transcriber._tasks.pop(k, None)
+
+    # Search common upload / audio storage directories for matching raw audio files
+    search_dirs = [
+        UPLOAD_DIR,
+        os.path.join(UPLOAD_DIR, "calls"),
+        os.path.abspath(os.path.join(os.getcwd(), "uploads", "calls")),
+        os.path.abspath(os.path.join(os.getcwd(), "vault", "audio")),
+    ]
+    for d in search_dirs:
+        if os.path.exists(d):
+            try:
+                for fname in os.listdir(d):
+                    if call_id in fname:
+                        fpath = os.path.join(d, fname)
+                        if os.path.isfile(fpath):
+                            try:
+                                os.remove(fpath)
+                                files_unlinked = True
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+    # 2. Detach and delete from Kùzu Graph Engine
+    graph_res = kuzu_sync.delete_client_call(call_id)
+    graph_nodes_detached = graph_res.get("detached_count", 1)
+
+    # 3. Prune or update associated Action Hub items
+    all_items = action_hub_repo.list_items()
+    call_items = [
+        item for item in all_items
+        if (item.source_id and (
+            item.source_id == call_id
+            or item.source_id.replace("WSP-", "CALL-") == call_id
+            or item.source_id.replace("CALL-", "WSP-") == call_id
+        ))
+        or (item.id and (item.id.startswith(f"ACT-{call_id}") or item.id.startswith(f"ACT-{call_id.replace('CALL-', 'WSP-')}")))
+    ]
+
+    deleted_task_ids = []
+    retained_task_ids = []
+
+    if payload and payload.delete_task_ids is not None:
+        target_delete_set = set(payload.delete_task_ids)
+        for item in call_items:
+            if item.id in target_delete_set:
+                action_hub_repo.delete(item.id)
+                deleted_task_ids.append(item.id)
+            else:
+                new_offset = f"{item.source_offset or '00:00'} (Audio archived)"
+                action_hub_repo.update(item.id, {"source_offset": new_offset})
+                retained_task_ids.append(item.id)
+    else:
+        # Default: retain items and mark source audio archived
+        for item in call_items:
+            new_offset = f"{item.source_offset or '00:00'} (Audio archived)"
+            action_hub_repo.update(item.id, {"source_offset": new_offset})
+            retained_task_ids.append(item.id)
+
+    return CallDeleteResponse(
+        call_id=call_id,
+        deleted_at=datetime.now(timezone.utc).isoformat(),
+        files_unlinked=files_unlinked,
+        graph_nodes_detached=graph_nodes_detached,
+        deleted_task_ids=deleted_task_ids,
+        retained_task_ids=retained_task_ids,
+        status="DELETED"
     )
 
 

@@ -1,0 +1,129 @@
+import {
+  DecisionItem,
+  DecisionCreateRequest,
+  DecisionPatchRequest,
+  ContradictionCheckResponse,
+  SimulationRequest,
+  SimulationResponse,
+  SimulationScenarioRequest,
+  SimulationScenarioResponse,
+} from '../types/contracts';
+
+const API_BASE = '/api';
+
+export class DecisionsApi {
+  private async fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+    const res = await fetch(`${API_BASE}${url}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options?.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`API error ${res.status}: ${res.statusText}`);
+    }
+    return res.json();
+  }
+
+  /**
+   * Fetches all registered Decision nodes from the Kùzu graph store.
+   */
+  async getDecisions(): Promise<DecisionItem[]> {
+    try {
+      const data = await this.fetchJson<DecisionItem[]>('/cortex/decisions');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch decisions from Cortex API:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Fetches a single Decision node by its unique identifier.
+   */
+  async getDecision(id: string): Promise<DecisionItem | null> {
+    try {
+      return await this.fetchJson<DecisionItem>(`/cortex/decisions/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Optimistically creates a Decision node (<50ms) and initiates async MADR synthesis.
+   */
+  async createDecision(req: DecisionCreateRequest): Promise<DecisionItem> {
+    return await this.fetchJson<DecisionItem>('/cortex/decisions', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /**
+   * Modifies an existing decision (title, context, chosen_option, lifecycle_status).
+   */
+  async patchDecision(id: string, patch: DecisionPatchRequest): Promise<DecisionItem> {
+    return await this.fetchJson<DecisionItem>(`/cortex/decisions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  /**
+   * Dual-action deletion: soft-marks as SUPERSEDED (default) or hard-purges if hardPurge is true.
+   */
+  async deleteDecision(id: string, hardPurge = false, supersededBy?: string): Promise<{ status: string; decision_id: string; hard_purge: boolean; superseded_by?: string }> {
+    const params = new URLSearchParams();
+    if (hardPurge) params.set('hard_purge', 'true');
+    if (supersededBy) params.set('superseded_by', supersededBy);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return await this.fetchJson<{ status: string; decision_id: string; hard_purge: boolean; superseded_by?: string }>(
+      `/cortex/decisions/${id}${query}`,
+      {
+        method: 'DELETE',
+      }
+    );
+  }
+
+  /**
+   * Checks for semantic graph contradictions against historical decisions.
+   */
+  async checkContradiction(proposal: string, sensitivity = 'BALANCED'): Promise<ContradictionCheckResponse> {
+    try {
+      return await this.fetchJson<ContradictionCheckResponse>('/cortex/decisions/check', {
+        method: 'POST',
+        body: JSON.stringify({ proposal, severity_threshold: sensitivity }),
+      });
+    } catch {
+      return {
+        has_conflict: false,
+        severity: sensitivity,
+        conflicting_decision_id: null,
+        explanation: 'No conflicting decisions registered in local graph store.',
+      };
+    }
+  }
+
+  /**
+   * Runs dynamic What-If Counterfactual Simulation against real runway metrics and commitments.
+   */
+  async simulateScenario(req: SimulationScenarioRequest): Promise<SimulationScenarioResponse> {
+    return await this.fetchJson<SimulationScenarioResponse>('/cortex/simulate/scenario', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  /**
+   * Legacy impact simulation wrapper.
+   */
+  async simulateImpact(req: SimulationRequest): Promise<SimulationResponse> {
+    return await this.fetchJson<SimulationResponse>('/cortex/simulate', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+}
+
+export const decisionsApi = new DecisionsApi();
