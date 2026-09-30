@@ -90,7 +90,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
 
       {/* Main Viewport */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 overflow-y-auto pb-24 md:pb-8">
+      <main className="h-[calc(100vh-56px)] overflow-hidden flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-20 md:pb-6">
         {children}
       </main>
 

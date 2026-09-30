@@ -16,17 +16,20 @@ class TarsASTParser:
     """Polyglot Tree-sitter AST parser and query engine."""
 
     def __init__(self):
+        self.py_lang = None
+        self.ts_lang = None
+        self.js_lang = None
         self.py_parser = None
         self.ts_parser = None
         self.js_parser = None
 
-        # Initialize Language bindings and Parsers with graceful fallbacks
         try:
             self.py_lang = tree_sitter.Language(tree_sitter_python.language())
             self.py_parser = tree_sitter.Parser(self.py_lang)
         except Exception as e:
             self.py_lang = None
             self.py_parser = None
+            print(f"Warning: Failed to load Tree-sitter Python grammar: {e}")
 
         try:
             self.ts_lang = tree_sitter.Language(tree_sitter_typescript.language_typescript())
@@ -34,6 +37,7 @@ class TarsASTParser:
         except Exception as e:
             self.ts_lang = None
             self.ts_parser = None
+            print(f"Warning: Failed to load Tree-sitter TypeScript grammar: {e}")
 
         try:
             self.js_lang = tree_sitter.Language(tree_sitter_javascript.language())
@@ -41,16 +45,17 @@ class TarsASTParser:
         except Exception as e:
             self.js_lang = None
             self.js_parser = None
+            print(f"Warning: Failed to load Tree-sitter JavaScript grammar: {e}")
 
     def parse_code(self, code: str, file_path: str) -> Optional[tree_sitter.Tree]:
         """Parses source code into a Tree-sitter AST based on file extension."""
         encoded = code.encode("utf-8")
-        if file_path.endswith(".py") and self.py_parser:
-            return self.py_parser.parse(encoded)
-        elif file_path.endswith((".ts", ".tsx")) and self.ts_parser:
-            return self.ts_parser.parse(encoded)
-        elif file_path.endswith((".js", ".jsx")) and self.js_parser:
-            return self.js_parser.parse(encoded)
+        if file_path.endswith(".py"):
+            return self.py_parser.parse(encoded) if self.py_parser else None
+        elif file_path.endswith((".ts", ".tsx")):
+            return self.ts_parser.parse(encoded) if self.ts_parser else None
+        elif file_path.endswith((".js", ".jsx")):
+            return self.js_parser.parse(encoded) if self.js_parser else None
         return None
 
     # =========================================================================
@@ -140,6 +145,10 @@ class TarsASTParser:
             traverse_ts(tree.root_node)
 
         return violations
+
+    def check_outbox_pattern(self, code: str, file_path: str) -> List[Dict[str, Any]]:
+        """Parses both 'with' and 'async with' transaction scopes to verify outbox pattern compliance (INV-017)."""
+        return self.check_http_in_transaction(code, file_path)
 
     # =========================================================================
     # KILLER RULE 2: Parameter Count Mismatch in Dynamic Dispatch (INV-021)
