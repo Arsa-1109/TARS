@@ -91,12 +91,12 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       {/* Main Viewport */}
       <main className={`flex-1 w-full min-h-0 ${
-        currentWorkspace === 'knowledge'
+        currentWorkspace === 'knowledge' || currentWorkspace === 'calls'
           ? 'h-[calc(100vh-48px)] overflow-hidden flex flex-col'
           : 'h-[calc(100vh-48px)] overflow-y-auto'
       }`}>
         <div className={`w-full mx-auto ${
-          currentWorkspace === 'knowledge'
+          currentWorkspace === 'knowledge' || currentWorkspace === 'calls'
             ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-[1600px] px-3 sm:px-5 lg:px-6 py-2.5 pb-20 md:pb-3'
             : 'max-w-[1600px] px-3 sm:px-5 lg:px-6 py-3 pb-20 md:pb-6'
         }`}>
