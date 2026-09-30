@@ -34,6 +34,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
   onOpenGenesis,
   onOpenCitation,
 }) => {
+  const { profile: sessionProfile } = useSessionStore();
   const [profile, setProfile] = useState<CompanyProfile | null>(propProfile || null);
   const [activeDay, setActiveDay] = useState(1);
   const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
@@ -41,17 +42,31 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
 
   useEffect(() => {
     if (propProfile) {
-      setProfile(propProfile);
+      if (sessionProfile?.company_name && propProfile.company_name && propProfile.company_name.toLowerCase().trim() !== sessionProfile.company_name.toLowerCase().trim()) {
+        setProfile(null);
+      } else {
+        setProfile(propProfile);
+      }
     } else {
-      api.getCompanyProfile().then((p) => {
-        if (p) setProfile(p);
-      }).catch(() => {});
+      const userCompany = sessionProfile?.company_name || sessionProfile?.company_id || undefined;
+      if (!userCompany) {
+        setProfile(null);
+      } else {
+        api.getCompanyProfile(userCompany).then((p) => {
+          if (p && (!sessionProfile?.company_name || p.company_name.toLowerCase().trim() === sessionProfile.company_name.toLowerCase().trim())) {
+            setProfile(p);
+          } else {
+            setProfile(null);
+          }
+        }).catch(() => {
+          setProfile(null);
+        });
+      }
     }
-  }, [propProfile]);
+  }, [propProfile, sessionProfile?.company_name, sessionProfile?.company_id]);
 
-  const { profile: sessionProfile } = useSessionStore();
   const founderName = sessionProfile?.name || 'Founder';
-  const companyName = profile?.company_name || sessionProfile?.company_name || 'Sovereign Startup';
+  const companyName = sessionProfile?.company_name || profile?.company_name || (sessionProfile?.name ? `${sessionProfile.name}'s Startup` : 'Sovereign Startup');
   const techStack = profile?.tech_stack || 'Python, TypeScript, SQLite';
   const enterprisePolicy = profile?.enterprise_policy || 'Strict Rejection of Bespoke Forks';
   const teamSize = profile?.team_size || 'core team';
@@ -302,7 +317,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       <div className="space-y-6 animate-fade-in">
         <PageHeader
           eyebrow="Onboarding"
-          title="Fast Onboarding Hub"
+          title={`${companyName} Onboarding Hub`}
           description="Role-tailored flight-plans and Socratic mentor sandbox to bring new hires to day-3 productivity."
           actions={
             onOpenGenesis && (

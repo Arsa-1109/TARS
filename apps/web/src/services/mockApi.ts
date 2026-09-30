@@ -34,57 +34,103 @@ import {
 // Helper for simulated local latency (40-100ms)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+export const MOCK_AETHERFLOW_PROFILE: CompanyProfile = {
+  id: 'CMP-GENESIS-01',
+  company_name: 'AetherFlow Technologies, Inc.',
+  website: 'https://aetherflow.ai',
+  industry: 'Developer Tools / Sovereign AI',
+  stage: 'Seed',
+  team_size: '12 FTE',
+  runway_months: 9.0,
+  one_liner: 'Privacy-preserving sovereign institutional memory and codebase invariant operating system.',
+  core_thesis: 'Early-stage startups die of institutional context decay, code invariant breaches, and unvetted cloud AI leaks.',
+  icp: 'Regulated Enterprises, Defense Contractors, and Fast-Growing Startups',
+  tech_stack: 'Python, TypeScript, FastAPI, React 19, SQLite WAL, Kùzu Graph, Tree-sitter',
+  enterprise_policy: 'REJECT_CUSTOM_FORKS',
+  pricing_model: 'TIERED_SUBSCRIPTION',
+  tars_tone: 'CONCISE_EXECUTIVE',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 export class MockTarsApi implements TarsApi {
-  private companyProfile: CompanyProfile | null = {
-    id: 'CMP-GENESIS-01',
-    company_name: 'AetherFlow AI',
-    website: 'https://aetherflow.ai',
-    industry: 'Developer Tools / Sovereign AI',
-    stage: 'Seed',
-    team_size: '12 FTE',
-    runway_months: 9.0,
-    one_liner: 'Privacy-preserving sovereign institutional memory and codebase invariant operating system.',
-    core_thesis: 'Early-stage startups die of institutional context decay, code invariant breaches, and unvetted cloud AI leaks.',
-    icp: 'Regulated Enterprises, Defense Contractors, and Fast-Growing Startups',
-    tech_stack: 'Python, TypeScript, FastAPI, React 19, SQLite WAL, Kùzu Graph, Tree-sitter',
-    enterprise_policy: 'REJECT_CUSTOM_FORKS',
-    pricing_model: 'TIERED_SUBSCRIPTION',
-    tars_tone: 'CONCISE_EXECUTIVE',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  // Fresh/unbloomed sessions start with null so new accounts never leak AetherFlow
+  private companyProfile: CompanyProfile | null = null;
+  private companyProfiles: Map<string, CompanyProfile> = new Map([
+    ['cmp-genesis-01', MOCK_AETHERFLOW_PROFILE],
+    ['aetherflow technologies, inc.', MOCK_AETHERFLOW_PROFILE],
+    ['aetherflow ai', MOCK_AETHERFLOW_PROFILE],
+    ['aetherflow', MOCK_AETHERFLOW_PROFILE],
+  ]);
 
   private decisions: DecisionItem[] = [...MOCK_DECISIONS];
   private calls: VoiceToSpecResponse[] = [...MOCK_CALLS];
   private invariants: InvariantCheckResult[] = [...MOCK_INVARIANTS];
   private actions: ActionItemDTO[] = [...MOCK_ACTION_ITEMS];
 
-  async getCompanyProfile(_companyIdOrName?: string): Promise<CompanyProfile | null> {
+  async getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null> {
     await sleep(40);
-    // In mock mode always return the canonical profile regardless of query
+    if (companyIdOrName && companyIdOrName.trim()) {
+      const key = companyIdOrName.trim().toLowerCase();
+      if (this.companyProfiles.has(key)) {
+        return { ...this.companyProfiles.get(key)! };
+      }
+      for (const [id, prof] of this.companyProfiles.entries()) {
+        if (id.toLowerCase() === key || prof.company_name.toLowerCase() === key) {
+          return { ...prof };
+        }
+      }
+      return null;
+    }
+
+    // If no specific company identifier was queried, check active user profile
+    try {
+      const savedUser = localStorage.getItem('tars_current_user_profile');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const comp = (parsed.company_name || parsed.company_id || '').trim().toLowerCase();
+        if (comp) {
+          if (this.companyProfiles.has(comp)) {
+            return { ...this.companyProfiles.get(comp)! };
+          }
+          for (const [id, prof] of this.companyProfiles.entries()) {
+            if (id.toLowerCase() === comp || prof.company_name.toLowerCase() === comp) {
+              return { ...prof };
+            }
+          }
+          return null;
+        }
+      }
+    } catch {}
+
+    // Unbloomed or generic new session returns null
     return this.companyProfile ? { ...this.companyProfile } : null;
   }
 
   async saveCompanyProfile(profile: Partial<CompanyProfile>): Promise<CompanyProfile> {
     await sleep(80);
+    const compName = profile.company_name || this.companyProfile?.company_name || 'Autonomous Venture';
+    const compId = profile.id || this.companyProfile?.id || `CMP-${Date.now()}`;
     const updated: CompanyProfile = {
-      id: this.companyProfile?.id || `CMP-${Date.now()}`,
-      company_name: profile.company_name || this.companyProfile?.company_name || 'Autonomous Venture',
-      website: profile.website ?? this.companyProfile?.website,
+      id: compId,
+      company_name: compName,
+      website: profile.website ?? this.companyProfile?.website ?? '',
       industry: profile.industry || this.companyProfile?.industry || 'B2B SaaS',
       stage: profile.stage || this.companyProfile?.stage || 'Seed',
       team_size: profile.team_size || this.companyProfile?.team_size || '1–5',
       runway_months: profile.runway_months ?? this.companyProfile?.runway_months ?? 18,
-      one_liner: profile.one_liner || this.companyProfile?.one_liner || '',
+      one_liner: profile.one_liner || this.companyProfile?.one_liner || `${compName} sovereign intelligence workspace.`,
       core_thesis: profile.core_thesis ?? this.companyProfile?.core_thesis,
       icp: profile.icp ?? this.companyProfile?.icp,
-      tech_stack: profile.tech_stack ?? this.companyProfile?.tech_stack,
+      tech_stack: profile.tech_stack ?? this.companyProfile?.tech_stack ?? 'Python, TypeScript, SQLite',
       enterprise_policy: profile.enterprise_policy ?? this.companyProfile?.enterprise_policy ?? 'REJECT_CUSTOM_FORKS',
       pricing_model: profile.pricing_model ?? this.companyProfile?.pricing_model ?? 'USAGE_BASED',
       tars_tone: profile.tars_tone ?? this.companyProfile?.tars_tone ?? 'CONCISE_EXECUTIVE',
       updated_at: new Date().toISOString(),
     };
     this.companyProfile = updated;
+    this.companyProfiles.set(compId.toLowerCase(), updated);
+    this.companyProfiles.set(compName.toLowerCase().trim(), updated);
     return { ...updated };
   }
 
@@ -417,8 +463,9 @@ export class MockTarsApi implements TarsApi {
     const companyName = payload.company_name || undefined;
 
     if (payload.company_name) {
-      this.companyProfile = {
-        id: companyId || `CMP-${Date.now().toString().slice(-4)}`,
+      const compId = companyId || `CMP-${Date.now().toString().slice(-4)}`;
+      const newCompProfile: CompanyProfile = {
+        id: compId,
         company_name: payload.company_name,
         website: '',
         industry: 'B2B SaaS',
@@ -432,6 +479,11 @@ export class MockTarsApi implements TarsApi {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+      this.companyProfile = newCompProfile;
+      this.companyProfiles.set(compId.toLowerCase(), newCompProfile);
+      this.companyProfiles.set(payload.company_name.toLowerCase().trim(), newCompProfile);
+    } else {
+      this.companyProfile = null;
     }
 
     const newUser: import('../types/contracts').UserDTO = {

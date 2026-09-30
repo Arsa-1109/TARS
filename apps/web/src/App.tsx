@@ -105,8 +105,13 @@ export function App() {
     api.getActionItems().then((items) => setActionItems(items));
     api.getCompanyProfile(targetComp).then((prof) => {
       if (prof && prof.company_name) {
+        if (profile?.company_name && prof.company_name.toLowerCase().trim() !== profile.company_name.toLowerCase().trim()) {
+          setCompanyProfile(null);
+          return;
+        }
         setCompanyProfile(prof);
       } else {
+        setCompanyProfile(null);
         // If company_profile is unbloomed or empty for this company, check genesis completion
         const companyKey = profile?.company_name
           ? `tars_genesis_completed_${profile.company_name.toLowerCase().trim().replace(/\s+/g, '_')}`

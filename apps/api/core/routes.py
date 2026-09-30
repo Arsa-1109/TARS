@@ -356,12 +356,21 @@ async def system_status():
 
 # --- Genesis Onboarding & Sovereign Company Profile Routes ---
 @router.get("/company/profile", response_model=Optional[CompanyProfileDTO])
-async def get_company_profile(company_id: Optional[str] = None, company_name: Optional[str] = None):
+async def get_company_profile(
+    company_id: Optional[str] = None,
+    company_name: Optional[str] = None,
+    x_company_id: Optional[str] = Header(None),
+    x_company_name: Optional[str] = Header(None)
+):
     """
     Retrieves the persisted sovereign startup company profile.
     Returns None if the instance has not yet undergone Genesis Onboarding.
     """
-    profile = company_repo.get_profile(company_id=company_id, company_name=company_name)
+    cid = company_id or x_company_id
+    cname = company_name or x_company_name
+    if not cid and not cname:
+        return None
+    profile = company_repo.get_profile(company_id=cid, company_name=cname)
     if not profile:
         return None
     # If the company has registered but not yet completed Genesis Blooming, return None
