@@ -4,7 +4,7 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
 from apps.api.schemas.contracts import (
     ActionItemDTO,
