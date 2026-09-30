@@ -972,6 +972,10 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                 <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] shrink-0 font-medium">
                   {clearance}
                 </span>
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Qwen 3 (Local ML Connected)
+                </span>
               </div>
 
               <div className="flex items-center gap-1.5">
@@ -1327,7 +1331,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
                 <div className="flex items-center justify-between text-[11px] text-[#8E8E93] px-2">
                   <span>Press <kbd className="font-mono bg-black/[0.05] dark:bg-white/[0.08] px-1 py-0.5 rounded text-[10px]">Enter</kbd> to send</span>
-                  <span className="font-mono text-[10px]">Grounded in Sovereign Graph & Vector Store</span>
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Local ML: Qwen 3 (Ollama Connected)
+                    </span>
+                    <span className="text-[#8E8E93] text-[10px]">·</span>
+                    <span className="font-mono text-[10px]">Grounded in Sovereign Graph & Vector Store</span>
+                  </div>
                 </div>
               </form>
             </div>

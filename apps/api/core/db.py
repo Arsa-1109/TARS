@@ -112,14 +112,28 @@ class LocalDB:
         ''')
         cursor.execute("PRAGMA table_info(chat_messages)")
         msg_cols = [row[1] for row in cursor.fetchall()]
-        if "chat_id" not in msg_cols:
-            cursor.execute("ALTER TABLE chat_messages ADD COLUMN chat_id TEXT")
-        if "role" not in msg_cols:
-            cursor.execute("ALTER TABLE chat_messages ADD COLUMN role TEXT")
-        if "citations" not in msg_cols:
-            cursor.execute("ALTER TABLE chat_messages ADD COLUMN citations TEXT")
-        if "is_deleted" not in msg_cols:
-            cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
+        if "channel_id" in msg_cols:
+            cursor.execute("DROP TABLE chat_messages")
+            cursor.execute('''
+                CREATE TABLE chat_messages (
+                    id TEXT PRIMARY KEY,
+                    chat_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    citations TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_deleted INTEGER DEFAULT 0
+                )
+            ''')
+        else:
+            if "chat_id" not in msg_cols:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN chat_id TEXT")
+            if "role" not in msg_cols:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN role TEXT")
+            if "citations" not in msg_cols:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN citations TEXT")
+            if "is_deleted" not in msg_cols:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id, created_at ASC);")
         
         # Audit Log table
