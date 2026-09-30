@@ -15,18 +15,28 @@ class SearchRequest(BaseModel):
     clearance: str = "ALL_TEAM"
     user_role: Optional[str] = None
     user_name: Optional[str] = None
+    organisation_id: Optional[str] = None
+    as_of: Optional[int] = None
 
 class SearchCitation(BaseModel):
     doc_id: str
     doc_title: str
     page_number: int
     snippet: str
+    source_type: Optional[str] = "DOCUMENT"
+    confidence: Optional[float] = 1.0
+    effective_from: Optional[int] = None
+    confidence_state: Optional[str] = "CONFIRMED"
 
 class SearchResponse(BaseModel):
     query: str
     answer: str
     citations: List[SearchCitation]
     latency_ms: float
+    source_mode: str = "LIVE"  # LIVE | MOCK | FALLBACK | SYNTHETIC
+    is_authoritative: bool = True
+    status: str = "COMPLETED"  # COMPLETED | INFERENCE_UNAVAILABLE | NO_EVIDENCE | PARTIAL
+    request_id: Optional[str] = None
 
 # ==========================================
 # WORKSPACE 2: CLIENT CALL STUDIO
@@ -59,6 +69,12 @@ class DecisionItem(BaseModel):
     clearance: str = "ALL_TEAM"
     lifecycle_status: Optional[str] = "ACTIVE"
     superseded_by: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
+    confidence_state: str = "CONFIRMED"
     drivers: List[str] = Field(default_factory=list)
     options_considered: List[str] = Field(default_factory=list)
 
@@ -114,6 +130,12 @@ class ActionItemDTO(BaseModel):
     source_type: str = "CALL" # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT, ARCHITECTURE
     source_id: str = ""
     source_offset: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    lifecycle_status: Optional[str] = "OPEN"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
 
 # ==========================================
 # CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE
@@ -128,6 +150,13 @@ class MemoryRecord(BaseModel):
     tags: List[str] = Field(default_factory=list)
     related_ids: List[str] = Field(default_factory=list)
     vector_ref: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    superseded_by: Optional[str] = None
+    confidence_state: str = "CONFIRMED"
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
 
 class ToolExecutionRequest(BaseModel):
     tool_name: str
@@ -143,6 +172,22 @@ class ToolAuditRecord(BaseModel):
     approval_state: str
     result: Optional[str] = None
     error: Optional[str] = None
+
+class AuditBlockDTO(BaseModel):
+    event_id: str
+    sequence_id: int
+    timestamp: int
+    actor: str
+    organisation_id: str
+    action: str
+    source: str
+    input_hash: str
+    result_hash: str
+    previous_hash: str
+    event_hash: str
+    is_valid: bool = True
+    current_hash: Optional[str] = None
+    sequence: Optional[int] = None
 
 class SystemStatus(BaseModel):
     status: str

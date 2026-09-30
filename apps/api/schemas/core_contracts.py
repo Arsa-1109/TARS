@@ -58,3 +58,41 @@ class CoreSearchResponse(BaseModel):
     results: List[Dict[str, Any]]
     conversational_response: Optional[str] = None
     starter_chips: Optional[List[str]] = None
+
+
+# ==========================================
+# CORE INVARIANT FOUNDATION CONTRACTS
+# ==========================================
+class FactLifecycleState:
+    EXTRACTED = "EXTRACTED"
+    UNVERIFIED = "UNVERIFIED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    CONFIRMED = "CONFIRMED"
+    REJECTED = "REJECTED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class BiTemporalProperties(BaseModel):
+    created_at: int
+    effective_from: int
+    effective_to: Optional[int] = None
+    superseded_by: Optional[str] = None
+    superseded_at: Optional[int] = None
+    source_timestamp: int
+    confidence_state: str = FactLifecycleState.CONFIRMED
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
+    organisation_id: str = "CMP-GENESIS-01"
+
+
+class AuditVerifyResponse(BaseModel):
+    status: str  # AUDIT_VALID | AUDIT_INTEGRITY_FAILURE
+    total_events: int
+    tip_hash: str
+    message: str
+    broken_at_sequence: Optional[int] = None
+    event_id: Optional[str] = None
+    reason: Optional[str] = None
+    expected_previous_hash: Optional[str] = None
+    stored_previous_hash: Optional[str] = None
+

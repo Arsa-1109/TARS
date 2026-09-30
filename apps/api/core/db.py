@@ -136,7 +136,7 @@ class LocalDB:
                 cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id, created_at ASC);")
         
-        # Audit Log table
+        # Audit Log table (Legacy compatibility)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS mcp_audit (
                 id TEXT PRIMARY KEY,
@@ -149,6 +149,25 @@ class LocalDB:
                 error TEXT
             )
         ''')
+        
+        # Tamper-Evident Chained SHA-256 Audit Ledger
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS audit_ledger (
+                sequence_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE NOT NULL,
+                timestamp INTEGER NOT NULL,
+                actor TEXT NOT NULL,
+                organisation_id TEXT NOT NULL,
+                action TEXT NOT NULL,
+                source TEXT NOT NULL,
+                input_hash TEXT NOT NULL,
+                result_hash TEXT NOT NULL,
+                previous_hash TEXT NOT NULL,
+                event_hash TEXT NOT NULL,
+                is_valid INTEGER DEFAULT 1
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_org_seq ON audit_ledger(organisation_id, sequence_id);")
         
         # Action Hub table
         cursor.execute('''
@@ -220,16 +239,50 @@ class LocalDB:
             )
         ''')
 
-        # Safe schema migrations for demo-tagging and data isolation
+        # Safe schema migrations for demo-tagging, multi-tenancy, and bi-temporal lifecycle
         cursor.execute("PRAGMA table_info(documents)")
         doc_cols = [row[1] for row in cursor.fetchall()]
         if "is_demo" not in doc_cols:
             cursor.execute("ALTER TABLE documents ADD COLUMN is_demo INTEGER DEFAULT 0")
+        if "organisation_id" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'")
+        if "effective_from" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN effective_from INTEGER NOT NULL DEFAULT 0")
+        if "effective_to" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN effective_to INTEGER DEFAULT NULL")
+        if "superseded_by" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN superseded_by TEXT DEFAULT NULL")
+        if "superseded_at" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN superseded_at INTEGER DEFAULT NULL")
+        if "source_timestamp" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN source_timestamp INTEGER NOT NULL DEFAULT 0")
+        if "confidence_state" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN confidence_state TEXT NOT NULL DEFAULT 'CONFIRMED'")
+        if "source_mode" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN source_mode TEXT NOT NULL DEFAULT 'LIVE'")
+        if "is_authoritative" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN is_authoritative INTEGER NOT NULL DEFAULT 1")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_documents_bitemporal ON documents(organisation_id, effective_from, effective_to);")
 
         cursor.execute("PRAGMA table_info(action_items)")
         act_cols = [row[1] for row in cursor.fetchall()]
         if "is_demo" not in act_cols:
             cursor.execute("ALTER TABLE action_items ADD COLUMN is_demo INTEGER DEFAULT 0")
+        if "organisation_id" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'")
+        if "lifecycle_status" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN lifecycle_status TEXT NOT NULL DEFAULT 'OPEN'")
+        if "effective_from" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN effective_from INTEGER NOT NULL DEFAULT 0")
+        if "effective_to" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN effective_to INTEGER DEFAULT NULL")
+        if "superseded_by" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN superseded_by TEXT DEFAULT NULL")
+        if "source_mode" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN source_mode TEXT NOT NULL DEFAULT 'LIVE'")
+        if "is_authoritative" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN is_authoritative INTEGER NOT NULL DEFAULT 1")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_lifecycle ON action_items(organisation_id, lifecycle_status);")
 
         cursor.execute("PRAGMA table_info(memories)")
         mem_cols = [row[1] for row in cursor.fetchall()]
@@ -238,6 +291,26 @@ class LocalDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_clearance ON memories(clearance);")
         if "is_demo" not in mem_cols:
             cursor.execute("ALTER TABLE memories ADD COLUMN is_demo INTEGER DEFAULT 0")
+        if "organisation_id" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'")
+        if "effective_from" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN effective_from INTEGER NOT NULL DEFAULT 0")
+        if "effective_to" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN effective_to INTEGER DEFAULT NULL")
+        if "superseded_by" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN superseded_by TEXT DEFAULT NULL")
+        if "superseded_at" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN superseded_at INTEGER DEFAULT NULL")
+        if "source_timestamp" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN source_timestamp INTEGER NOT NULL DEFAULT 0")
+        if "confidence_state" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN confidence_state TEXT NOT NULL DEFAULT 'CONFIRMED'")
+        if "source_mode" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN source_mode TEXT NOT NULL DEFAULT 'LIVE'")
+        if "is_authoritative" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN is_authoritative INTEGER NOT NULL DEFAULT 1")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_bitemporal ON memories(organisation_id, effective_from, effective_to);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_confidence ON memories(confidence_state);")
 
         # Think Tank Channels table (Workspace 4 Chat Persistence)
         cursor.execute('''

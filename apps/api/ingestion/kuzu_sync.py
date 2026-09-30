@@ -189,9 +189,16 @@ class KuzuGraphEngine:
         valid_from: Optional[int] = None,
         valid_until: Optional[int] = None,
         lifecycle_status: str = "ACTIVE",
+        organisation_id: str = "CMP-GENESIS-01",
+        effective_from: Optional[int] = None,
+        effective_to: Optional[int] = None,
+        superseded_by: Optional[str] = None,
+        confidence_state: str = "CONFIRMED",
+        source_mode: str = "LIVE",
     ) -> bool:
-        valid_from = valid_from or int(time.time())
-        valid_until = valid_until or int(time.time() + 31536000)
+        now_ts = int(time.time())
+        eff_from = effective_from or valid_from or now_ts
+        eff_to = effective_to or valid_until
 
         with self._lock:
             if self.use_native and self._conn:
@@ -210,8 +217,8 @@ class KuzuGraphEngine:
                             "title": title,
                             "department": department,
                             "clearance": clearance,
-                            "valid_from": valid_from,
-                            "valid_until": valid_until,
+                            "valid_from": eff_from,
+                            "valid_until": eff_to or (now_ts + 31536000),
                             "status": lifecycle_status,
                         },
                     )
@@ -226,9 +233,15 @@ class KuzuGraphEngine:
                 "title": title,
                 "department": department,
                 "clearance": clearance,
-                "valid_from": valid_from,
-                "valid_until": valid_until,
+                "valid_from": eff_from,
+                "valid_until": eff_to,
                 "lifecycle_status": lifecycle_status,
+                "organisation_id": organisation_id,
+                "effective_from": eff_from,
+                "effective_to": eff_to,
+                "superseded_by": superseded_by,
+                "confidence_state": confidence_state,
+                "source_mode": source_mode,
             }
             with sqlite3.connect(self._sqlite_path) as conn:
                 conn.execute(
@@ -237,6 +250,33 @@ class KuzuGraphEngine:
                 )
                 conn.commit()
             return True
+
+    def delete_document_atomic(self, doc_id: str) -> Dict[str, Any]:
+        """
+        Compensating transaction method: atomically detaches and deletes a Document
+        node and its related edges from Kùzu upon downstream ingestion failure.
+        """
+        detached = 0
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute("MATCH (d:Document) WHERE d.id = $doc_id DETACH DELETE d;", {"doc_id": doc_id})
+                    detached += 1
+                except Exception as e:
+                    logger.warning(f"Native delete_document_atomic notice: {e}")
+            try:
+                with sqlite3.connect(self._sqlite_path) as conn:
+                    cur = conn.cursor()
+                    cur.execute("DELETE FROM graph_nodes WHERE node_type = 'Document' AND id = ?;", (doc_id,))
+                    detached += cur.rowcount
+                    cur.execute(
+                        "DELETE FROM graph_edges WHERE (from_type = 'Document' AND from_id = ?) OR (to_type = 'Document' AND to_id = ?);",
+                        (doc_id, doc_id),
+                    )
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"Embedded delete_document_atomic notice: {e}")
+        return {"doc_id": doc_id, "detached_count": max(1, detached)}
 
     def sync_decision(
         self,

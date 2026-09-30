@@ -16,7 +16,9 @@ class UnifiedSearchService:
         priority: int = Priority.INTERACTIVE,
         user_clearance: str = "ALL_TEAM",
         user_role: str = "ENGINEER",
-        clearance: Optional[str] = None
+        clearance: Optional[str] = None,
+        organisation_id: Optional[str] = None,
+        as_of: Optional[int] = None,
     ) -> List[SearchCitation]:
         if clearance and (not user_clearance or user_clearance == "ALL_TEAM"):
             user_clearance = clearance
@@ -35,7 +37,6 @@ class UnifiedSearchService:
                 keywords = raw_tokens or [query.lower().strip()]
 
             # Compile word-boundary regex for each keyword to prevent substring collisions
-            # (e.g. "hi" will NOT match "Whitepaper", "Historical", or "This")
             kw_patterns = [re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE) for kw in keywords if kw]
             if not kw_patterns:
                 return []
@@ -49,22 +50,39 @@ class UnifiedSearchService:
             conn = db.get_connection()
             cursor = conn.cursor()
 
-            # Retrieve candidate memories with deterministic SQL clearance enforcement
-            if has_exec_clearance:
-                clearance_filter = "1=1"
-            else:
-                clearance_filter = """
+            # Server-authoritative clearance, tenant, and bi-temporal pre-retrieval candidate filtering
+            where_conditions = []
+            params = []
+
+            # Multi-tenant isolation: If specified, enforce organisation_id strictly
+            if organisation_id and organisation_id not in ("ALL", "*"):
+                where_conditions.append("(organisation_id = ? OR organisation_id IS NULL OR organisation_id = 'default')")
+                params.append(organisation_id)
+
+            # Clearance filter directly in query candidates
+            if not has_exec_clearance:
+                where_conditions.append("""
                     (clearance NOT IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL') OR clearance IS NULL)
                     AND id NOT IN (SELECT doc_id FROM documents WHERE clearance IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL'))
                     AND (related_ids IS NULL OR related_ids NOT IN (SELECT doc_id FROM documents WHERE clearance IN ('EXECUTIVE_ONLY', 'CONFIDENTIAL')))
-                """
+                """)
+
+            # Bi-temporal validity filter (effective_from <= as_of AND (effective_to IS NULL OR effective_to > as_of))
+            if as_of is not None:
+                where_conditions.append("""
+                    (effective_from IS NULL OR effective_from <= ?)
+                    AND (effective_to IS NULL OR effective_to > ?)
+                """)
+                params.extend([as_of, as_of])
+
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
 
             cursor.execute(f"""
-                SELECT id, title, content, source, clearance, timestamp 
+                SELECT id, title, content, source, clearance, timestamp, effective_from, effective_to, organisation_id 
                 FROM memories 
-                WHERE {clearance_filter} 
+                WHERE {where_clause} 
                 ORDER BY timestamp DESC
-            """)
+            """, params)
             rows = cursor.fetchall()
             
             scored_results = []

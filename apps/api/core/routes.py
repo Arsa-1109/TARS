@@ -30,7 +30,11 @@ from apps.api.schemas.contracts import (
     ChatSessionUpdate,
     ChatMessageDTO,
     ChatMessageCreate,
+    AuditBlockDTO,
 )
+from apps.api.schemas.core_contracts import AuditVerifyResponse
+from apps.api.core.audit_ledger import audit_ledger
+from apps.api.core.errors import TARSException, ErrorCodes
 from apps.api.core.action_hub import action_hub_repo
 from apps.api.core.session import session_manager, SessionData, user_manager
 from apps.api.core.ollama_client import ollama_client
@@ -119,12 +123,16 @@ async def search_knowledge(req: SearchRequest):
             latency_ms=round(elapsed_ms, 2)
         )
 
-    # 3. RBAC-Filtered Federated Search
+    req_id = f"REQ-{uuid.uuid4().hex[:8]}"
+
+    # 3. RBAC-Filtered Federated Search with server-authoritative candidate generation
     citations = await search_service.search(
         query=req.query,
         limit=8,
         user_clearance=req.clearance or "ALL_TEAM",
-        user_role=req.user_role or "ENGINEER"
+        user_role=req.user_role or "ENGINEER",
+        organisation_id=req.organisation_id,
+        as_of=req.as_of,
     )
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
     # Retrieve and format institutional company facts
@@ -221,22 +229,39 @@ async def search_knowledge(req: SearchRequest):
 
     # 4. Honest Local Ollama Generation & Outage Behavior
     ollama_ok = await ollama_client.is_available()
+    source_mode = "LIVE"
+    is_authoritative = True
+    response_status = "COMPLETED"
+
     if not ollama_ok:
         print("[SEARCH DEBUG] Ollama is OFFLINE. Returning truthful outage response.", flush=True)
+        source_mode = "FALLBACK"
+        is_authoritative = False
         if citations:
-            answer = f"Local AI unavailable — Ollama is not running. Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            answer = f"Local AI inference unavailable — Ollama is offline. Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            response_status = "PARTIAL"
         else:
-            answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+            answer = f"Local AI inference unavailable — Ollama is offline. 0 citations found matching '{req.query}'."
+            response_status = "INFERENCE_UNAVAILABLE"
     else:
         print(f"[SEARCH DEBUG] Calling ollama_client.generate with task_complexity={task_complexity}...", flush=True)
         llm_res = await ollama_client.generate(prompt, task_complexity=task_complexity, max_tokens=max_tokens, system=system_prompt)
         print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}, model={llm_res.get('model_used')}", flush=True)
         if llm_res.get("success") and llm_res.get("response"):
             answer = str(llm_res.get("response")).strip()
+            source_mode = "LIVE"
+            is_authoritative = True
+            response_status = "COMPLETED"
         elif citations:
             answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            source_mode = "FALLBACK"
+            is_authoritative = False
+            response_status = "PARTIAL"
         else:
-            answer = f"Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+            answer = f"No evidence found matching query '{req.query}' in institutional memory."
+            source_mode = "LIVE"
+            is_authoritative = True
+            response_status = "NO_EVIDENCE"
 
     # 4. Telemetry Logging (Safe Continuous Learning Telemetry)
     try:
@@ -254,7 +279,11 @@ async def search_knowledge(req: SearchRequest):
         query=req.query,
         answer=answer,
         citations=citations,
-        latency_ms=round(elapsed_ms, 2)
+        latency_ms=round(elapsed_ms, 2),
+        source_mode=source_mode,
+        is_authoritative=is_authoritative,
+        status=response_status,
+        request_id=req_id,
     )
 
 # --- Action Hub Routes ---
@@ -1596,3 +1625,25 @@ async def dismiss_core_strategic_recommendation(rec_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return {"status": "dismissed", "id": rec_id}
+
+
+# ==========================================
+# AUDIT LEDGER ENDPOINTS (Tamper-evident SHA-256)
+# ==========================================
+@router.get("/audit/verify", response_model=AuditVerifyResponse)
+async def verify_audit_ledger():
+    """
+    Cryptographic chain verification endpoint.
+    Traverses the chained SHA-256 ledger from Genesis block to tip,
+    verifying sequential hash integrity and reporting any tampering or broken links.
+    """
+    result = audit_ledger.verify_chain()
+    return AuditVerifyResponse(**result)
+
+
+@router.get("/audit/trail", response_model=List[AuditBlockDTO])
+async def get_audit_trail(limit: int = 100, entity_id: Optional[str] = None):
+    """Returns recent tamper-evident audit ledger entries."""
+    events = audit_ledger.get_events(limit=limit, entity_id=entity_id)
+    return [AuditBlockDTO(**e) for e in events]
+

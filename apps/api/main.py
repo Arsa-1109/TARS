@@ -6,11 +6,15 @@ Mounts track-specific sub-routers while preserving strict directory boundaries.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from apps.api.core.errors import TARSException, tars_exception_handler
+
 app = FastAPI(
     title="TARS Sovereign Local API",
     description="Offline-first Knowledge, Architectural Cortex & Audio Intelligence Gateway",
     version="1.0.0",
 )
+
+app.add_exception_handler(TARSException, tars_exception_handler)
 
 # Allow local network & client connections
 app.add_middleware(
