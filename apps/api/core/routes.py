@@ -4,6 +4,7 @@ import shutil
 import uuid
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
 from apps.api.schemas.contracts import (
     ActionItemDTO,
     SystemStatus,
@@ -30,11 +31,45 @@ router = APIRouter()
 
 
 # --- Search Route with SLM Answering ---
+GREETINGS = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon"}
+
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge(req: SearchRequest):
     start_time = time.perf_counter()
     print(f"[SEARCH DEBUG] Incoming search query: {req.query}", flush=True)
-    citations = await search_service.search(req.query)
+
+    # 1. Greeting Interception (Bug 18 / Joel's "hi" search quality fix)
+    clean_q = req.query.strip().lower()
+    is_exec = (
+        req.clearance == "EXECUTIVE_ONLY" or
+        (req.user_role and req.user_role.upper() in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE"))
+    )
+    if clean_q in GREETINGS:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        user_display = req.user_name or ("Alex" if is_exec else "Team Member")
+        if is_exec:
+            greeting_text = (
+                f"Hello {user_display}! Founder clearance active. I am TARS, your strategic & institutional intelligence co-pilot. "
+                f"How can I assist you with corporate memory, architecture radar, or active client commitments today?"
+            )
+        else:
+            greeting_text = (
+                f"Hello {user_display}! I am TARS, your startup institutional second brain. "
+                f"How can I assist you today with company policies, client commitments, or architectural decisions?"
+            )
+        return SearchResponse(
+            query=req.query,
+            answer=greeting_text,
+            citations=[],
+            latency_ms=round(elapsed_ms, 2)
+        )
+
+    # 2. RBAC-Filtered Federated Search
+    citations = await search_service.search(
+        query=req.query,
+        user_clearance=req.clearance,
+        user_role=req.user_role or "ENGINEER"
+    )
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
     
     # Retrieve and format institutional company facts
@@ -54,7 +89,7 @@ async def search_knowledge(req: SearchRequest):
     )
 
     # Synthesize answer with local Ollama SLM
-    user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}'.\n" if req.user_role else ""
+    user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}' and clearance level '{req.clearance}'.\n"
     prompt = (
         f"You are TARS, the autonomous startup second brain for {comp_name}.\n"
         f"Answer the user's query directly, accurately, and concisely using the verified company institutional knowledge facts below.\n"
@@ -62,22 +97,48 @@ async def search_knowledge(req: SearchRequest):
         f"Company Institutional Knowledge Facts:\n{company_facts}\n"
         f"{user_context}"
         f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n\n"
-        f"Query: {req.query}\n"
     )
+
+    # Layer 2 RBAC Guardrail: explicit security policy
+    if not is_exec:
+        prompt += "SECURITY POLICY: If the user queries cap table allocations, founder equity, or confidential executive finances, state clearly that this information is restricted to Founder/Executive clearance and refuse disclosure.\n"
+
+    prompt += f"Query: {req.query}\n"
+
     if citations:
         context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
         prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
-    
-    print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
-    llm_res = await ollama_client.generate(prompt, task_complexity="light")
-    print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
-    if llm_res.get("success") and llm_res.get("response"):
-        answer = str(llm_res.get("response")).strip()
-    elif citations:
-        answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+
+    # 3. Honest Local Ollama Generation & Outage Behavior
+    ollama_ok = await ollama_client.is_available()
+    if not ollama_ok:
+        print("[SEARCH DEBUG] Ollama is OFFLINE. Returning truthful outage response.", flush=True)
+        if citations:
+            answer = f"Local AI unavailable — Ollama is not running. Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+        else:
+            answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
     else:
-        answer = f"Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
-    
+        print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
+        llm_res = await ollama_client.generate(prompt, task_complexity="light")
+        print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
+        if llm_res.get("success") and llm_res.get("response"):
+            answer = str(llm_res.get("response")).strip()
+        elif citations:
+            answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+        else:
+            answer = f"Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+
+    # 4. Telemetry Logging (Safe Continuous Learning Telemetry)
+    try:
+        conn = db.get_connection()
+        conn.execute(
+            "INSERT INTO interaction_logs (id, user_name, user_role, clearance, event_type, query, response) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (f"LOG-{uuid.uuid4().hex[:8]}", req.user_name or "Anonymous", req.user_role or "ENGINEER", req.clearance, "SEARCH", req.query, answer[:500])
+        )
+        conn.commit()
+    except Exception as log_err:
+        print(f"Notice: Interaction telemetry log note: {log_err}")
+
     elapsed_ms = (time.perf_counter() - start_time) * 1000
     return SearchResponse(
         query=req.query,
@@ -386,5 +447,269 @@ async def reset_workspace(payload: WorkspaceResetRequest):
         cleared=cleared,
         timestamp=now_ts,
     )
+
+
+# ============================================================
+# EXPLICIT INSTITUTIONAL TEACHING ("TEACH TARS") (Track 3)
+# ============================================================
+
+class TeachMemoryRequest(BaseModel):
+    content: str
+    title: Optional[str] = None
+    category: Optional[str] = "POLICY"
+    clearance: str = "ALL_TEAM"
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    user_role: Optional[str] = None
+
+class TeachMemoryResponse(BaseModel):
+    memory_id: str
+    status: str
+    title: str
+    clearance: str
+    timestamp: int
+    message: str
+
+@router.post("/teach", response_model=TeachMemoryResponse)
+async def teach_institutional_memory(req: TeachMemoryRequest):
+    """
+    Directly teaches TARS institutional knowledge (e.g. '/teach Our payment provider is Stripe').
+    Persists to SQLite memories with clearance level, tags, and audit telemetry.
+    Immediately accessible to future unified search and LLM context synthesis.
+    """
+    if not req.content or not req.content.strip():
+        raise HTTPException(status_code=400, detail="Content cannot be empty")
+    
+    mem_id = f"MEM-TEACH-{uuid.uuid4().hex[:8].upper()}"
+    title = req.title or f"Taught Fact ({req.category or 'POLICY'})"
+    content = req.content.strip()
+    source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
+    now_ts = int(time.time())
+    tags = f"teach,learned,{(req.category or 'policy').lower()}"
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO memories (id, record_type, title, content, source, timestamp, tags, clearance)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (mem_id, "INSTITUTIONAL_FACT", title, content, source, now_ts, tags, req.clearance or "ALL_TEAM"))
+
+    # Log to interaction_logs telemetry
+    cursor.execute('''
+        INSERT INTO interaction_logs (id, session_id, user_name, user_role, clearance, event_type, query, response)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        f"LOG-{uuid.uuid4().hex[:8]}",
+        req.user_id,
+        req.user_name or "Anonymous",
+        req.user_role or "ENGINEER",
+        req.clearance or "ALL_TEAM",
+        "TEACH",
+        title,
+        content
+    ))
+    conn.commit()
+
+    return TeachMemoryResponse(
+        memory_id=mem_id,
+        status="LEARNED",
+        title=title,
+        clearance=req.clearance or "ALL_TEAM",
+        timestamp=now_ts,
+        message=f"Institutional memory successfully updated: '{title}' recorded."
+    )
+
+
+# ============================================================
+# THINK TANK PERSISTENCE & CRUD ROUTES (Track 3)
+# ============================================================
+
+class ThinkTankChannelDTO(BaseModel):
+    id: str
+    name: str
+    topic: Optional[str] = None
+    created_at: Optional[str] = None
+
+class ThinkTankChannelCreate(BaseModel):
+    name: str
+    topic: Optional[str] = None
+
+class ThinkTankMessageDTO(BaseModel):
+    id: str
+    channel_id: str
+    sender: str
+    sender_role: Optional[str] = "ENGINEER"
+    sender_type: Optional[str] = "USER"
+    text: str
+    provenance: Optional[str] = None
+    is_ai: bool = False
+    is_edited: bool = False
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+class ThinkTankMessageCreate(BaseModel):
+    channel_id: str = "general"
+    sender: str = "You"
+    sender_role: Optional[str] = "ENGINEER"
+    sender_type: Optional[str] = "USER"
+    text: str
+    provenance: Optional[str] = None
+    is_ai: bool = False
+
+class ThinkTankMessageUpdate(BaseModel):
+    text: str
+
+@router.get("/thinktank/channels", response_model=List[ThinkTankChannelDTO])
+async def list_thinktank_channels():
+    """Returns all active Think Tank discussion channels."""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, topic, created_at FROM thinktank_channels WHERE is_deleted = 0 ORDER BY created_at ASC")
+    rows = cursor.fetchall()
+    return [ThinkTankChannelDTO(
+        id=r["id"],
+        name=r["name"],
+        topic=r["topic"] or "",
+        created_at=str(r["created_at"])
+    ) for r in rows]
+
+@router.post("/thinktank/channels", response_model=ThinkTankChannelDTO)
+async def create_thinktank_channel(payload: ThinkTankChannelCreate):
+    """Creates a new persistent Think Tank channel."""
+    clean_name = payload.name.strip()
+    if not clean_name.startswith("#"):
+        clean_name = "#" + clean_name
+    ch_id = clean_name.lstrip("#").lower().replace(" ", "-") or f"ch-{uuid.uuid4().hex[:6]}"
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR REPLACE INTO thinktank_channels (id, name, topic, is_deleted)
+        VALUES (?, ?, ?, 0)
+    ''', (ch_id, clean_name, payload.topic or ""))
+    conn.commit()
+    return ThinkTankChannelDTO(id=ch_id, name=clean_name, topic=payload.topic or "", created_at=str(time.time()))
+
+@router.get("/thinktank/messages", response_model=List[ThinkTankMessageDTO])
+async def list_thinktank_messages(channel_id: str = "general"):
+    """Returns persistent discussion thread messages for a specific channel."""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, created_at, updated_at
+        FROM thinktank_messages
+        WHERE channel_id = ? AND is_deleted = 0
+        ORDER BY created_at ASC
+    """, (channel_id,))
+    rows = cursor.fetchall()
+    return [
+        ThinkTankMessageDTO(
+            id=r["id"],
+            channel_id=r["channel_id"],
+            sender=r["sender"],
+            sender_role=r["sender_role"] or "ENGINEER",
+            sender_type=r["sender_type"] or "USER",
+            text=r["text"],
+            provenance=r["provenance"],
+            is_ai=bool(r["is_ai"]),
+            is_edited=bool(r["is_edited"]),
+            created_at=str(r["created_at"]),
+            updated_at=str(r["updated_at"])
+        ) for r in rows
+    ]
+
+@router.post("/thinktank/messages", response_model=ThinkTankMessageDTO)
+async def create_thinktank_message(payload: ThinkTankMessageCreate):
+    """Persists a new user prompt or assistant reply to Think Tank channel."""
+    if not payload.text or not payload.text.strip():
+        raise HTTPException(status_code=400, detail="Message text cannot be empty")
+    msg_id = f"m-{uuid.uuid4().hex[:8]}"
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO thinktank_messages (
+            id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, is_deleted
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+    ''', (
+        msg_id,
+        payload.channel_id,
+        payload.sender,
+        payload.sender_role or "ENGINEER",
+        payload.sender_type or ("AI" if payload.is_ai else "USER"),
+        payload.text.strip(),
+        payload.provenance,
+        1 if payload.is_ai else 0
+    ))
+    conn.commit()
+
+    cursor.execute("SELECT id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, created_at, updated_at FROM thinktank_messages WHERE id = ?", (msg_id,))
+    r = cursor.fetchone()
+    return ThinkTankMessageDTO(
+        id=r["id"],
+        channel_id=r["channel_id"],
+        sender=r["sender"],
+        sender_role=r["sender_role"] or "ENGINEER",
+        sender_type=r["sender_type"] or "USER",
+        text=r["text"],
+        provenance=r["provenance"],
+        is_ai=bool(r["is_ai"]),
+        is_edited=bool(r["is_edited"]),
+        created_at=str(r["created_at"]),
+        updated_at=str(r["updated_at"])
+    )
+
+@router.patch("/thinktank/messages/{message_id}", response_model=ThinkTankMessageDTO)
+async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpdate):
+    """Edits an existing Think Tank message and marks it as edited."""
+    if not payload.text or not payload.text.strip():
+        raise HTTPException(status_code=400, detail="Updated text cannot be empty")
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE thinktank_messages
+        SET text = ?, is_edited = 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND is_deleted = 0
+    ''', (payload.text.strip(), message_id))
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Message not found")
+    conn.commit()
+
+    cursor.execute("SELECT id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai, is_edited, created_at, updated_at FROM thinktank_messages WHERE id = ?", (message_id,))
+    r = cursor.fetchone()
+    return ThinkTankMessageDTO(
+        id=r["id"],
+        channel_id=r["channel_id"],
+        sender=r["sender"],
+        sender_role=r["sender_role"] or "ENGINEER",
+        sender_type=r["sender_type"] or "USER",
+        text=r["text"],
+        provenance=r["provenance"],
+        is_ai=bool(r["is_ai"]),
+        is_edited=bool(r["is_edited"]),
+        created_at=str(r["created_at"]),
+        updated_at=str(r["updated_at"])
+    )
+
+@router.delete("/thinktank/messages/{message_id}")
+async def delete_thinktank_message(message_id: str):
+    """Soft deletes a Think Tank message."""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE thinktank_messages SET is_deleted = 1 WHERE id = ?", (message_id,))
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Message not found")
+    conn.commit()
+    return {"status": "deleted", "id": message_id}
+
+@router.delete("/thinktank/channels/{channel_id}/messages")
+async def clear_thinktank_channel_messages(channel_id: str):
+    """Clears all message history in a channel."""
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM thinktank_messages WHERE channel_id = ? AND is_deleted = 0", (channel_id,))
+    count = cursor.fetchone()[0]
+    cursor.execute("UPDATE thinktank_messages SET is_deleted = 1 WHERE channel_id = ?", (channel_id,))
+    conn.commit()
+    return {"status": "cleared", "channel_id": channel_id, "cleared_count": count}
+
 
 

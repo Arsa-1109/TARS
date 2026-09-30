@@ -56,9 +56,9 @@ def isolate_test_state():
         conn = db.get_connection()
         cur = conn.cursor()
         
-        # Purge any test users added during the test, retaining only canonical personas
+        placeholders = ', '.join(['?'] * len(CANONICAL_USER_IDS))
         cur.execute(
-            "DELETE FROM users WHERE id NOT IN (?, ?, ?, ?, ?)",
+            f"DELETE FROM users WHERE id NOT IN ({placeholders})",
             CANONICAL_USER_IDS,
         )
         
@@ -70,5 +70,7 @@ def isolate_test_state():
         
         conn.commit()
     except Exception as e:
-        # Non-fatal cleanup note
-        pass
+        try:
+            conn.rollback()
+        except Exception:
+            pass

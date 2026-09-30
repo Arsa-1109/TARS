@@ -137,3 +137,102 @@ def test_workspace_reset_invalid_type_400():
     assert res.status_code == 400
     assert "invalid reset_type" in res.json()["detail"].lower()
 
+
+def test_thinktank_channels_persistence():
+    """Verify Think Tank channels can be created, listed, and persist in SQLite."""
+    from fastapi.testclient import TestClient
+    from apps.api.main import app
+    client = TestClient(app)
+
+    # 1. Create a custom channel
+    res = client.post("/api/core/thinktank/channels", json={
+        "name": "#fundraising-q4",
+        "topic": "Discussion on seed series extension and venture debt"
+    })
+    assert res.status_code == 200
+    ch_data = res.json()
+    assert ch_data["id"] == "fundraising-q4"
+    assert ch_data["name"] == "#fundraising-q4"
+
+    # 2. List channels and verify it is present
+    res_list = client.get("/api/core/thinktank/channels")
+    assert res_list.status_code == 200
+    channels = res_list.json()
+    channel_ids = [c["id"] for c in channels]
+    assert "fundraising-q4" in channel_ids
+    assert "general" in channel_ids
+
+
+def test_thinktank_messages_crud_and_persistence():
+    """Verify Think Tank message creation, retrieval, editing, and soft-deletion."""
+    from fastapi.testclient import TestClient
+    from apps.api.main import app
+    client = TestClient(app)
+
+    # 1. Create message
+    res_msg = client.post("/api/core/thinktank/messages", json={
+        "channel_id": "general",
+        "sender": "Alex Vance",
+        "sender_role": "FOUNDER",
+        "text": "Initial proposal for unified billing architecture.",
+        "is_ai": False
+    })
+    assert res_msg.status_code == 200
+    msg_data = res_msg.json()
+    msg_id = msg_data["id"]
+    assert msg_id.startswith("m-")
+    assert msg_data["text"] == "Initial proposal for unified billing architecture."
+
+    # 2. Retrieve messages for 'general'
+    res_list = client.get("/api/core/thinktank/messages?channel_id=general")
+    assert res_list.status_code == 200
+    messages = res_list.json()
+    found = [m for m in messages if m["id"] == msg_id]
+    assert len(found) == 1
+
+    # 3. Edit message
+    res_edit = client.patch(f"/api/core/thinktank/messages/{msg_id}", json={
+        "text": "Amended proposal for unified billing architecture with outbox pattern."
+    })
+    assert res_edit.status_code == 200
+    edited_data = res_edit.json()
+    assert edited_data["is_edited"] is True
+    assert "outbox pattern" in edited_data["text"]
+
+    # 4. Soft delete message
+    res_del = client.delete(f"/api/core/thinktank/messages/{msg_id}")
+    assert res_del.status_code == 200
+
+    # 5. Verify deleted message no longer appears in channel message list
+    res_list_after = client.get("/api/core/thinktank/messages?channel_id=general")
+    messages_after = res_list_after.json()
+    assert all(m["id"] != msg_id for m in messages_after)
+
+
+def test_thinktank_channel_isolation_and_clear():
+    """Verify messages are isolated per channel, and clear channel purges thread history."""
+    from fastapi.testclient import TestClient
+    from apps.api.main import app
+    client = TestClient(app)
+
+    # Post message in strategy channel
+    client.post("/api/core/thinktank/messages", json={
+        "channel_id": "strategy",
+        "sender": "Marcus Chen",
+        "text": "Strategy roadmap milestone review."
+    })
+
+    # Verify strategy message does NOT appear in architecture channel
+    res_arch = client.get("/api/core/thinktank/messages?channel_id=architecture")
+    arch_texts = [m["text"] for m in res_arch.json()]
+    assert "Strategy roadmap milestone review." not in arch_texts
+
+    # Clear strategy channel
+    res_clear = client.delete("/api/core/thinktank/channels/strategy/messages")
+    assert res_clear.status_code == 200
+    assert res_clear.json()["status"] == "cleared"
+
+    # Verify strategy channel is now empty
+    res_strat_after = client.get("/api/core/thinktank/messages?channel_id=strategy")
+    assert len(res_strat_after.json()) == 0
+

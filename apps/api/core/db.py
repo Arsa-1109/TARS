@@ -31,8 +31,9 @@ class LocalDB:
             db_dir = os.path.dirname(os.path.abspath(target_path))
             if db_dir:
                 os.makedirs(db_dir, exist_ok=True)
-            conn = sqlite3.connect(target_path, check_same_thread=False)
+            conn = sqlite3.connect(target_path, check_same_thread=False, timeout=30.0)
             conn.row_factory = sqlite3.Row
+            conn.execute('PRAGMA busy_timeout=30000;')
             self.local.conn = conn
             self.local.conn_path = target_path
             # Try loading sqlite-vec extension if available
@@ -75,7 +76,8 @@ class LocalDB:
                 timestamp INTEGER NOT NULL,
                 tags TEXT,
                 related_ids TEXT,
-                vector_ref TEXT
+                vector_ref TEXT,
+                clearance TEXT NOT NULL DEFAULT 'ALL_TEAM'
             )
         ''')
         
@@ -178,6 +180,57 @@ class LocalDB:
         mem_cols = [row[1] for row in cursor.fetchall()]
         if "is_demo" not in mem_cols:
             cursor.execute("ALTER TABLE memories ADD COLUMN is_demo INTEGER DEFAULT 0")
+        if "clearance" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN clearance TEXT NOT NULL DEFAULT 'ALL_TEAM'")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_clearance ON memories(clearance)")
+
+        # Think Tank Channels table (Workspace 4 Chat Persistence)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS thinktank_channels (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                topic TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted INTEGER DEFAULT 0
+            )
+        ''')
+
+        # Think Tank Messages table (Workspace 4 Chat CRUD)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS thinktank_messages (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                sender TEXT NOT NULL,
+                sender_role TEXT DEFAULT 'ENGINEER',
+                sender_type TEXT DEFAULT 'USER',
+                text TEXT NOT NULL,
+                provenance TEXT,
+                is_ai INTEGER DEFAULT 0,
+                is_edited INTEGER DEFAULT 0,
+                is_deleted INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_thinktank_channel ON thinktank_messages(channel_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_thinktank_created ON thinktank_messages(created_at)")
+
+        # Interaction Logs table (Hermes-Style Safe Telemetry & Learning)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS interaction_logs (
+                id TEXT PRIMARY KEY,
+                session_id TEXT,
+                user_id TEXT,
+                user_name TEXT,
+                user_role TEXT,
+                clearance TEXT,
+                event_type TEXT NOT NULL,
+                query TEXT,
+                response TEXT,
+                citations TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
 
         # Company Profile table (Genesis Onboarding Institutional Memory)
         cursor.execute('''
@@ -217,6 +270,50 @@ class LocalDB:
                 INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts))
+
+        # Seed default Think Tank channels
+        default_channels = [
+            ("general", "#general", "Company strategic alignment & cross-functional topics"),
+            ("strategy", "#strategy", "Fundraising, board discussions, and runway projections"),
+            ("architecture", "#architecture", "Core invariants, database schema evolutions, and refactors"),
+        ]
+        for ch_id, ch_name, ch_topic in default_channels:
+            cursor.execute('''
+                INSERT OR IGNORE INTO thinktank_channels (id, name, topic)
+                VALUES (?, ?, ?)
+            ''', (ch_id, ch_name, ch_topic))
+
+        # Seed default welcome message if thinktank_messages is empty
+        cursor.execute("SELECT COUNT(*) FROM thinktank_messages")
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO thinktank_messages (id, channel_id, sender, sender_role, sender_type, text, provenance, is_ai)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                "msg-welcome",
+                "general",
+                "TARS (@TARS)",
+                "ASSISTANT",
+                "AI",
+                "Welcome to Think Tank. Use this workspace to debate strategic changes, roadmap adjustments, and architectural shifts. TARS monitors threads in real-time to alert on policy contradictions and client commitments.",
+                "TARS Institutional Kernel",
+                1
+            ))
+
+        # Seed unredacted Cap Table memory with EXECUTIVE_ONLY clearance
+        cursor.execute('''
+            INSERT OR IGNORE INTO memories (id, record_type, title, content, source, timestamp, tags, clearance)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            "MEM-CAP-TABLE-SEED",
+            "DOCUMENT",
+            "AetherFlow Cap Table & Founder Equity Allocation (Series Seed Unredacted)",
+            "Confidential Cap Table Series Seed Unredacted: Total Authorized Shares: 10,000,000. Alex Vance (Founder & CEO): 4,500,000 shares (45.0% founder equity). Dr. Elena Rostova (Co-Founder & CTO): 3,000,000 shares (30.0% equity). Seed Investor Syndicate: 1,500,000 shares (15.0% preferred stock). Unallocated Employee Stock Option Pool (ESOP): 1,000,000 shares (10.0%). Valuation: $15M post-money valuation at $1.50 per share. Restricted Founder and Executive Clearance Only.",
+            "CAP_TABLE_UNREDACTED",
+            now_ts,
+            "equity,cap_table,shares,executive,valuation",
+            "EXECUTIVE_ONLY"
+        ))
         
         conn.commit()
 

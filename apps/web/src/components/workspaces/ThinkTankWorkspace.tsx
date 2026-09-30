@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
@@ -7,7 +7,7 @@ import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
 import { DecisionItem, SearchCitation } from '../../types/contracts';
-import { MOCK_THINKTANK_CHANNELS, MOCK_THINKTANK_MESSAGES } from '../../mocks/fixtures';
+import { chatApi, ThinkTankChannelDTO, ThinkTankMessageDTO } from '../../services/chatApi';
 import {
   MessageSquare,
   Send,
@@ -20,6 +20,11 @@ import {
   AlertTriangle,
   ExternalLink,
   Plus,
+  Trash2,
+  Edit2,
+  Eraser,
+  Check,
+  X
 } from 'lucide-react';
 
 interface ThinkTankWorkspaceProps {
@@ -28,102 +33,186 @@ interface ThinkTankWorkspaceProps {
 
 type ViewMode = 'document' | 'split' | 'canvas';
 
+function formatMessageTime(isoString?: string): string {
+  if (!isoString) return 'Just now';
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) {
+    const asNum = Number(isoString);
+    if (!isNaN(asNum) && asNum > 1000000000) {
+      return formatMessageTime(new Date(asNum * 1000).toISOString());
+    }
+    return isoString;
+  }
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
 }) => {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
-
-  useEffect(() => {
-    api.getDecisions().then((d) => setDecisions(d)).catch(() => {});
-  }, []);
-
-  const [channels, setChannels] = useState<{ id: string; name: string; topic: string }[]>([
-    ...MOCK_THINKTANK_CHANNELS,
-    { id: 'general', name: '#general', topic: 'Company strategic alignment & cross-functional topics' }
-  ]);
-  const [activeChannelId, setActiveChannelId] = useState(MOCK_THINKTANK_CHANNELS[0]?.id || 'general');
-  const [messages, setMessages] = useState<Record<string, Array<{ id: string; sender: string; time: string; text: string; isAi?: boolean; provenance?: string }>>>({
-    ...MOCK_THINKTANK_MESSAGES,
-    general: [
-      {
-        id: 'msg-welcome',
-        sender: 'TARS (@TARS)',
-        time: 'Just now',
-        isAi: true,
-        text: 'Welcome to Think Tank. Use this workspace to debate strategic changes, roadmap adjustments, and architectural shifts. TARS monitors threads in real-time to alert on policy contradictions and client commitments.',
-      }
-    ]
-  });
+  const [channels, setChannels] = useState<ThinkTankChannelDTO[]>([]);
+  const [activeChannelId, setActiveChannelId] = useState<string>('general');
+  const [messages, setMessages] = useState<ThinkTankMessageDTO[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('document');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+
+  // Edit Message inline state
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+
+  // Clear Channel Modal state
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   // Create Channel Modal state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelTopic, setNewChannelTopic] = useState('');
 
-  const currentChannel = channels.find((c) => c.id === activeChannelId) || channels[0] || {
-    id: 'general',
-    name: '#general',
+  // Auto-scroll ref
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Load Decisions for Canvas
+  useEffect(() => {
+    api.getDecisions().then((d) => setDecisions(d)).catch(() => {});
+  }, []);
+
+  // Fetch Channels from live API
+  const refreshChannels = async () => {
+    try {
+      const liveChannels = await chatApi.getChannels();
+      setChannels(liveChannels);
+      if (liveChannels.length > 0 && !liveChannels.find((c) => c.id === activeChannelId)) {
+        setActiveChannelId(liveChannels[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to load Think Tank channels:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshChannels();
+  }, []);
+
+  // Fetch Messages when activeChannelId changes
+  const refreshMessages = async (channelId: string) => {
+    try {
+      const msgs = await chatApi.getMessages(channelId);
+      setMessages(msgs);
+    } catch (err) {
+      console.error(`Failed to load messages for channel ${channelId}:`, err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeChannelId) {
+      refreshMessages(activeChannelId);
+    }
+  }, [activeChannelId]);
+
+  // Auto-scroll whenever messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const currentChannel = channels.find((c) => c.id === activeChannelId) || {
+    id: activeChannelId || 'general',
+    name: `#${activeChannelId || 'general'}`,
     topic: 'Company strategic alignment & cross-functional topics'
   };
-  const channelMessages = messages[activeChannelId] || [];
 
-  const handleCreateChannel = (e: React.FormEvent) => {
+  // Create Channel Handler
+  const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newChannelName.trim()) return;
 
-    const formattedId = newChannelName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
-    const cleanName = '#' + (newChannelName.startsWith('#') ? newChannelName.slice(1) : newChannelName);
-
-    const newCh = {
-      id: formattedId || `ch-${Date.now()}`,
-      name: cleanName,
-      topic: newChannelTopic.trim() || 'General discussion topic',
-    };
-
-    setChannels((prev) => [...prev, newCh]);
-    setMessages((prev) => ({
-      ...prev,
-      [newCh.id]: [
-        {
-          id: `m-init-${Date.now()}`,
-          sender: 'TARS (@TARS)',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isAi: true,
-          text: `Channel ${cleanName} created. I am monitoring this discussion thread to ground decisions in institutional context and prevent conflicting commitments.`,
-        },
-      ],
-    }));
-
-    setActiveChannelId(newCh.id);
-    setCreateDialogOpen(false);
-    setNewChannelName('');
-    setNewChannelTopic('');
+    try {
+      const newCh = await chatApi.createChannel(newChannelName.trim(), newChannelTopic.trim());
+      setChannels((prev) => [...prev, newCh]);
+      setActiveChannelId(newCh.id);
+      setCreateDialogOpen(false);
+      setNewChannelName('');
+      setNewChannelTopic('');
+    } catch (err) {
+      console.error('Failed to create channel:', err);
+    }
   };
 
+  // Send Message Handler (with /teach command support & real-time Cortex SLM evaluation)
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isSending) return;
     const userPrompt = inputMessage.trim();
-    const newMsg = {
-      id: `m-${Date.now()}`,
-      sender: 'You',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: userPrompt,
-    };
-
-    setMessages((prev) => ({
-      ...prev,
-      [activeChannelId]: [...(prev[activeChannelId] || []), newMsg],
-    }));
     setInputMessage('');
+    setIsSending(true);
 
-    // TARS monitors threads in real-time and evaluates all messages via live Cortex & SLM
     try {
-      const cleanQuery = newMsg.text.replace(/@TARS/gi, '').trim() || newMsg.text;
+      // 1. Check for explicit /teach slash command
+      if (userPrompt.startsWith('/teach ')) {
+        const fact = userPrompt.replace(/^\/teach\s+/i, '').trim();
+        if (fact) {
+          // Send user message to thread
+          const userMsg = await chatApi.sendMessage({
+            channel_id: activeChannelId,
+            sender: 'You',
+            sender_role: 'ENGINEER',
+            text: userPrompt,
+            is_ai: false
+          });
+          setMessages((prev) => [...prev, userMsg]);
 
-      // 1. Check for institutional decision contradictions
+          // Call backend /teach endpoint to persist institutional memory
+          await chatApi.teachTars({
+            content: fact,
+            title: `Fact: ${fact.slice(0, 36)}...`,
+            category: 'POLICY',
+            clearance: 'ALL_TEAM',
+            user_name: 'You',
+            user_role: 'ENGINEER'
+          });
+
+          // Send confirmation assistant message
+          const aiReply = await chatApi.sendMessage({
+            channel_id: activeChannelId,
+            sender: 'TARS (@TARS)',
+            sender_role: 'ASSISTANT',
+            sender_type: 'AI',
+            text: `Institutional memory successfully updated: "${fact}" recorded and indexed. Accessible in future searches.`,
+            provenance: 'TARS Continuous Memory Engine',
+            is_ai: true
+          });
+          setMessages((prev) => [...prev, aiReply]);
+          setIsSending(false);
+          return;
+        }
+      }
+
+      // 2. Standard user message persistence
+      const userMsg = await chatApi.sendMessage({
+        channel_id: activeChannelId,
+        sender: 'You',
+        sender_role: 'ENGINEER',
+        text: userPrompt,
+        is_ai: false
+      });
+      setMessages((prev) => [...prev, userMsg]);
+
+      // 3. Real-time TARS evaluation via live backend Cortex & SLM
+      const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim() || userPrompt;
+
+      // Check for institutional decision contradictions
       const conflictRes = await api.checkContradiction(cleanQuery);
 
       let aiText = '';
@@ -135,31 +224,78 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           ? `Decision ${conflictRes.conflicting_decision_id} · Local Institutional Graph`
           : 'Institutional Invariant Rule';
       } else {
-        // 2. Query knowledge base for institutional context with local Compound SLM
+        // Query knowledge base with local SLM
         const ragRes = await api.search({ query: cleanQuery });
         aiText = ragRes.answer;
         if (ragRes.citations && ragRes.citations.length > 0) {
-          provenance = ragRes.citations.map((c: SearchCitation) => c.doc_title || c.doc_id).slice(0, 3).join(' · ');
+          provenance = ragRes.citations
+            .map((c: SearchCitation) => c.doc_title || c.doc_id)
+            .slice(0, 3)
+            .join(' · ');
         } else {
           provenance = 'TARS Institutional Cortex Engine';
         }
       }
 
-      const aiMsg = {
-        id: `m-ai-${Date.now()}`,
+      // 4. Persist TARS response to SQLite
+      const aiMsg = await chatApi.sendMessage({
+        channel_id: activeChannelId,
         sender: 'TARS (@TARS)',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isAi: true,
+        sender_role: 'ASSISTANT',
+        sender_type: 'AI',
         text: aiText,
         provenance: provenance || undefined,
-      };
-
-      setMessages((prev) => ({
-        ...prev,
-        [activeChannelId]: [...(prev[activeChannelId] || []), aiMsg],
-      }));
+        is_ai: true
+      });
+      setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
-      console.error('Think Tank TARS evaluation error:', err);
+      console.error('Think Tank message sending error:', err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Edit Message Handlers
+  const handleStartEdit = (msg: ThinkTankMessageDTO) => {
+    setEditingMessageId(msg.id);
+    setEditingText(msg.text);
+  };
+
+  const handleSaveEdit = async (msgId: string) => {
+    if (!editingText.trim()) return;
+    try {
+      const updated = await chatApi.updateMessage(msgId, editingText.trim());
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
+      setEditingMessageId(null);
+      setEditingText('');
+    } catch (err) {
+      console.error('Failed to update message:', err);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  // Delete Message Handler
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      await chatApi.deleteMessage(msgId);
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    } catch (err) {
+      console.error('Failed to delete message:', err);
+    }
+  };
+
+  // Clear Channel Handler
+  const handleClearChannel = async () => {
+    try {
+      await chatApi.clearChannel(activeChannelId);
+      setMessages([]);
+      setClearDialogOpen(false);
+    } catch (err) {
+      console.error('Failed to clear channel:', err);
     }
   };
 
@@ -179,7 +315,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       <PageHeader
         eyebrow="Workspace 4"
         title="Collaborative Think Tank"
-        description="Focused asynchronous topic discussions with instant institutional context injection and an optional relationship canvas."
+        description="Focused asynchronous topic discussions with persistent institutional context injection and an optional relationship canvas."
         actions={
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#6E6E73] dark:text-[#8E8E93] hidden sm:inline">Canvas Mode:</span>
@@ -231,8 +367,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               ))}
             </div>
 
-            <div className="pt-3 border-t border-black/[0.08] dark:border-white/[0.08] px-2 text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
-              Type <code className="text-black dark:text-white font-mono font-semibold">@TARS</code> to query historical context.
+            <div className="pt-3 border-t border-black/[0.08] dark:border-white/[0.08] px-2 text-[11px] text-[#6E6E73] dark:text-[#8E8E93] space-y-1">
+              <div>
+                Type <code className="text-black dark:text-white font-mono font-semibold">@TARS</code> to query historical context.
+              </div>
+              <div>
+                Type <code className="text-[#0071E3] dark:text-[#0A84FF] font-mono font-semibold">/teach &lt;fact&gt;</code> to record new policy directly.
+              </div>
             </div>
           </Surface>
         </div>
@@ -250,45 +391,124 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           <Surface className="p-4 sm:p-5 flex flex-col h-[600px] shadow-subtle">
             {/* Thread Header */}
             <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3 mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-black dark:text-white">
+              <div className="min-w-0 pr-3">
+                <h3 className="text-sm font-semibold text-black dark:text-white truncate">
                   {currentChannel.name}
                 </h3>
                 <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] truncate mt-0.5">
                   {currentChannel.topic}
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Eraser className="w-3.5 h-3.5 text-[#8E8E93]" />}
+                onClick={() => setClearDialogOpen(true)}
+                title="Clear Channel History"
+                className="text-xs shrink-0 text-[#8E8E93] hover:text-[#FF3B30] hover:bg-[#FF3B30]/10"
+              >
+                Clear Channel
+              </Button>
             </div>
 
             {/* Message Stream */}
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
-              {channelMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 ${
-                    msg.isAi
-                      ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
-                      : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
-                    <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                      {msg.isAi && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
-                      {msg.sender}
-                    </span>
-                    <span className="font-mono text-[#8E8E93]">{msg.time}</span>
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                  <div className="w-10 h-10 rounded-full bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center text-[#8E8E93] mb-2">
+                    <MessageSquare className="w-5 h-5" />
                   </div>
-                  <p className="text-xs sm:text-sm text-black dark:text-[#EBEBF5] font-sans leading-relaxed">
-                    {msg.text}
+                  <h4 className="text-sm font-semibold text-black dark:text-white">No Messages Yet</h4>
+                  <p className="text-xs text-[#8E8E93] max-w-sm mt-1">
+                    Start the discussion in {currentChannel.name} or type <code className="font-mono text-black dark:text-white">/teach</code> to teach TARS new facts.
                   </p>
-                  {msg.provenance && (
-                    <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
-                      <span>Evidence Grounding:</span>
-                      <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">{msg.provenance}</span>
-                    </div>
-                  )}
                 </div>
-              ))}
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`group relative p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 transition-all ${
+                      msg.is_ai
+                        ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
+                        : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                      <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
+                        {msg.is_ai && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
+                        {msg.sender}
+                        {msg.is_edited && (
+                          <span className="text-[10px] text-[#8E8E93] font-normal italic">(edited)</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[#8E8E93]">{formatMessageTime(msg.created_at)}</span>
+                        {/* Hover Actions: Edit / Delete */}
+                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                          {!msg.is_ai && editingMessageId !== msg.id && (
+                            <button
+                              onClick={() => handleStartEdit(msg)}
+                              className="p-1 rounded hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+                              title="Edit Message"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 rounded hover:bg-[#FF3B30]/15 text-[#8E8E93] hover:text-[#FF3B30] transition-colors"
+                            title="Delete Message"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Message Body or Edit Field */}
+                    {editingMessageId === msg.id ? (
+                      <div className="pt-1 space-y-2">
+                        <textarea
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          className="w-full p-2 text-xs sm:text-sm rounded-[8px] border border-black/[0.15] dark:border-white/[0.20] bg-white dark:bg-[#1C1C1E] text-black dark:text-white focus:outline-none focus:ring-1 focus:ring-[#0071E3]"
+                          rows={2}
+                          autoFocus
+                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-2 py-1 text-[11px] rounded bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.10] text-[#6E6E73] dark:text-[#8E8E93] transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(msg.id)}
+                            className="px-2 py-1 text-[11px] rounded bg-[#0071E3] hover:bg-[#0077ED] text-white flex items-center gap-1 transition-colors"
+                          >
+                            <Check className="w-3 h-3" /> Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs sm:text-sm text-black dark:text-[#EBEBF5] font-sans leading-relaxed whitespace-pre-wrap">
+                        {msg.text}
+                      </p>
+                    )}
+
+                    {msg.provenance && (
+                      <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
+                        <span>Evidence Grounding:</span>
+                        <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">
+                          {msg.provenance}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+              {/* Invisible anchor for smooth auto-scroll */}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Message Composer */}
@@ -303,11 +523,18 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Discuss topic or type @TARS to cite past decisions..."
-                className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all"
+                placeholder="Discuss topic, @TARS for context, or '/teach Our payment provider is Stripe'..."
+                disabled={isSending}
+                className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all disabled:opacity-50"
               />
-              <Button type="submit" variant="primary" size="sm" icon={<Send className="w-3.5 h-3.5" />}>
-                Send
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                icon={<Send className="w-3.5 h-3.5" />}
+                disabled={!inputMessage.trim() || isSending}
+              >
+                {isSending ? 'Sending...' : 'Send'}
               </Button>
             </form>
           </Surface>
@@ -442,6 +669,36 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           </div>
         )}
       </div>
+
+      {/* Clear Channel Confirmation Dialog */}
+      <Dialog
+        isOpen={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        title="Clear Discussion Channel"
+        description={`Are you sure you want to clear all message history in ${currentChannel.name}? This action cannot be undone.`}
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setClearDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClearChannel}
+            >
+              Clear Messages
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93]">
+          All discussions and AI syntheses in this channel will be purged from the active database.
+        </p>
+      </Dialog>
 
       {/* Create New Channel Dialog */}
       <Dialog
