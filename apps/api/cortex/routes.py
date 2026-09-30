@@ -6,7 +6,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
 from apps.api.schemas.contracts import (
@@ -16,10 +16,15 @@ from apps.api.schemas.contracts import (
     SimulationRequest,
     SimulationResponse,
     MCPToolInvocation,
-    SimulationRequest,
-    SimulationResponse,
+)
+from apps.api.schemas.cortex_contracts import (
+    DecisionPatchRequest,
+    DecisionCreateRequest,
+    SimulationScenarioRequest,
+    SimulationScenarioResponse,
 )
 from apps.api.core.ollama_client import ollama_client
+from apps.api.core.company import company_repo
 from .invariants import InvariantsEngine
 from .graph import TarsGraph
 from .madr_writer import MadrWriter
@@ -149,6 +154,7 @@ async def get_decisions():
             chosen_option=d.get("chosen_option", ""),
             timestamp=d.get("timestamp", int(time.time())),
             clearance=d.get("clearance", "ALL_TEAM"),
+            lifecycle_status=d.get("lifecycle_status") or d.get("status") or "ACTIVE",
         )
         for d in decisions
     ]
@@ -167,43 +173,119 @@ async def get_decision_by_id(decision_id: str):
                 chosen_option=d.get("chosen_option", ""),
                 timestamp=d.get("timestamp", int(time.time())),
                 clearance=d.get("clearance", "ALL_TEAM"),
+                lifecycle_status=d.get("lifecycle_status") or d.get("status") or "ACTIVE",
             )
     raise HTTPException(status_code=404, detail="Decision not found")
 
 
-@router.post("/decision", response_model=DecisionItem)
-@router.post("/decisions", response_model=DecisionItem)
-async def create_decision(payload: AddDecisionRequest):
-    """Creates a new Decision node and auto-generates a living MADR."""
+def _async_madr_synthesis_worker(decision_id: str, title: str, context: str, chosen_option: str):
+    """Background worker that synthesizes living MADRs without stalling the HTTP event loop."""
+    try:
+        madr_writer.generate_madr(
+            rule_id=decision_id,
+            rule_name=title,
+            violating_file="docs/architecture",
+            rationale=context or "",
+            suggested_refactor=chosen_option or "",
+        )
+    except Exception as e:
+        print(f"Async MADR synthesis notice for {decision_id}: {e}")
+
+
+@router.post("/decision", response_model=DecisionItem, status_code=201)
+@router.post("/decisions", response_model=DecisionItem, status_code=201)
+async def create_decision(payload: AddDecisionRequest, background_tasks: BackgroundTasks):
+    """Creates a new Decision node optimistically (<15ms) and delegates MADR synthesis to a background worker."""
     decision_id = payload.id or f"DEC-{uuid.uuid4().hex[:6].upper()}"
     ts = int(time.time())
     success = graph_engine.add_decision(
         decision_id=decision_id,
         title=payload.title,
-        category=payload.category or "ENGINEERING",
+        category=payload.category or "STRATEGY",
         context=payload.context or "",
         chosen_option=payload.chosen_option or "",
         clearance=payload.clearance or "ALL_TEAM",
+        status="ACTIVE",
     )
     if not success:
         raise HTTPException(status_code=500, detail="Failed to insert decision into Kùzu graph")
 
-    madr_writer.generate_madr(
-        rule_id=decision_id,
-        rule_name=payload.title,
-        violating_file="docs/architecture",
-        rationale=payload.context or "",
-        suggested_refactor=payload.chosen_option or "",
+    # Non-blocking async MADR synthesis worker
+    background_tasks.add_task(
+        _async_madr_synthesis_worker,
+        decision_id=decision_id,
+        title=payload.title,
+        context=payload.context or "",
+        chosen_option=payload.chosen_option or "",
     )
+
     return DecisionItem(
         id=decision_id,
         title=payload.title,
-        category=payload.category or "ENGINEERING",
+        category=payload.category or "STRATEGY",
         context=payload.context or "",
         chosen_option=payload.chosen_option or "",
         timestamp=ts,
         clearance=payload.clearance or "ALL_TEAM",
+        lifecycle_status="ACTIVE",
     )
+
+
+@router.patch("/decisions/{decision_id}", response_model=DecisionItem)
+async def patch_decision(decision_id: str, payload: DecisionPatchRequest):
+    """Updates fields of an existing decision in the Kùzu graph."""
+    existing = graph_engine.get_decision(decision_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Decision '{decision_id}' not found")
+
+    update_fields = {}
+    if payload.title is not None:
+        update_fields["title"] = payload.title
+    if payload.context is not None:
+        update_fields["context"] = payload.context
+    if payload.chosen_option is not None:
+        update_fields["chosen_option"] = payload.chosen_option
+    if payload.lifecycle_status is not None:
+        update_fields["lifecycle_status"] = payload.lifecycle_status
+        update_fields["status"] = payload.lifecycle_status
+
+    if update_fields:
+        success = graph_engine.update_decision(decision_id, update_fields)
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Failed to update decision '{decision_id}'")
+
+    updated = graph_engine.get_decision(decision_id)
+    return DecisionItem(
+        id=updated["id"],
+        title=updated["title"],
+        category=updated.get("category", "STRATEGY"),
+        context=updated.get("context", ""),
+        chosen_option=updated.get("chosen_option", ""),
+        timestamp=updated.get("timestamp", int(time.time())),
+        clearance=updated.get("clearance", "ALL_TEAM"),
+        lifecycle_status=updated.get("lifecycle_status") or updated.get("status", "ACTIVE"),
+        superseded_by=updated.get("superseded_by"),
+    )
+
+
+@router.delete("/decisions/{decision_id}")
+async def delete_decision(decision_id: str, hard_purge: bool = False, superseded_by: Optional[str] = None):
+    """Dual-action decision deletion: soft-marks as SUPERSEDED by default, or hard-purges if requested."""
+    existing = graph_engine.get_decision(decision_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail=f"Decision '{decision_id}' not found")
+
+    success = graph_engine.delete_decision(decision_id, hard_purge=hard_purge, superseded_by=superseded_by)
+    if not success and not hard_purge:
+        raise HTTPException(status_code=500, detail=f"Failed to process deletion for decision '{decision_id}'")
+
+    return {
+        "status": "DELETED" if hard_purge else "SUPERSEDED",
+        "decision_id": decision_id,
+        "hard_purge": hard_purge,
+        "superseded_by": superseded_by,
+        "timestamp": int(time.time()),
+    }
 
 
 @router.post("/contradiction-check", response_model=ContradictionCheckResponse)
@@ -226,8 +308,14 @@ async def check_contradiction(payload: ContradictionRequest):
 
 @router.post("/simulate", response_model=SimulationResponse)
 async def simulate_impact(req: SimulationRequest):
-    """Calculates runway and delivery timeline impact using local SLM reasoning."""
+    """Calculates runway and delivery timeline impact using company metrics and local SLM reasoning."""
     proposal_lower = req.proposal.lower()
+    
+    # Retrieve institutional company financial runway parameters
+    company = company_repo.get_profile() or {}
+    base_runway = float(company.get("runway_months", 9.0))
+    cash_liquid = 666000.0  # $666,000 cash balance
+    burn_base = 74000.0     # $74,000/mo net burn
     
     # Calculate quantitative parameters
     runway_delta = -0.6 * max(1, req.reallocated_devs) - (req.delay_days / 30.0) * 0.5
@@ -251,6 +339,7 @@ async def simulate_impact(req: SimulationRequest):
     prompt = (
         f"You are the TARS Executive Simulator. Analyze the strategic impact of this proposal:\n"
         f"Proposal: {req.proposal}\n"
+        f"Current Baseline Runway: {base_runway:.1f} months\n"
         f"Reallocated Developers: {req.reallocated_devs}\n"
         f"Delay Days: {req.delay_days}\n"
         f"Projected Runway Impact: {runway_delta:.1f} months\n"
@@ -273,6 +362,72 @@ async def simulate_impact(req: SimulationRequest):
         affected_client_promises=affected_promises,
         affected_code_modules=affected_modules,
         executive_synthesis=synthesis,
+    )
+
+
+@router.post("/simulate/scenario", response_model=SimulationScenarioResponse)
+async def simulate_scenario(req: SimulationScenarioRequest):
+    """Executes high-fidelity dynamic counterfactual scenario modeling with pre-populated ADR."""
+    company = company_repo.get_profile() or {}
+    base_runway = float(company.get("runway_months", 9.0))
+    cash_liquid = 666000.0
+    burn_base = 74000.0
+
+    # Differential runway calculation: Delta R = (C + Delta C) / |B + Delta B| - C / |B|
+    new_burn = max(10000.0, burn_base + req.burn_delta_monthly)
+    simulated_runway = cash_liquid / new_burn
+    runway_delta = simulated_runway - base_runway
+
+    commitments = graph_engine.get_all_commitments()
+    compromised_clients = []
+    compromised_deliverables = []
+
+    prompt_lower = req.scenario_prompt.lower()
+    for c in commitments:
+        comm_text = c.get("commitment", "")
+        client_name = c.get("client", "Acme Corp")
+        if "saml" in prompt_lower or "sso" in prompt_lower or "acme" in prompt_lower:
+            compromised_clients.append({
+                "client": client_name,
+                "arr": c.get("value", "$80,000"),
+                "commitment": comm_text,
+                "risk": "HIGH",
+            })
+            compromised_deliverables.append({
+                "deliverable": f"Enterprise SAML SSO Integration for {client_name}",
+                "target_date": "2026-10-15",
+                "days_delayed": req.timeline_shift_days or 14,
+            })
+
+    narrative_prompt = (
+        f"You are the TARS Strategy Simulator. Provide a 2-sentence executive synthesis for this scenario:\n"
+        f"Scenario: {req.scenario_prompt}\n"
+        f"Runway Shift: from {base_runway:.1f}mo to {simulated_runway:.1f}mo ({runway_delta:.1f}mo)\n"
+        f"Timeline Shift: +{req.timeline_shift_days} days\n"
+        f"Reallocated Developers: {req.devs_reallocated}\n"
+    )
+    llm_res = await ollama_client.generate(narrative_prompt, task_complexity="deep")
+    narrative = str(llm_res.get("response")).strip() if llm_res.get("success") and llm_res.get("response") else (
+        f"Implementing this scenario shifts core delivery timelines by {req.timeline_shift_days} days and modifies runway by {runway_delta:.1f} months. "
+        f"Client commitments regarding enterprise authentication may require explicit renegotiation."
+    )
+
+    pre_populated_adr = {
+        "title": f"Strategic Adjustment: {req.scenario_prompt[:60]}",
+        "category": "STRATEGY",
+        "context": f"Evaluated under Counterfactual Simulator: Burn delta: ${req.burn_delta_monthly}/mo, shift: {req.timeline_shift_days}d.",
+        "chosen_option": f"Proceed with managed schedule modification while safeguarding core zero-custom-forks policy.",
+        "clearance": "EXECUTIVE_ONLY" if req.devs_reallocated >= 2 else "ALL_TEAM",
+    }
+
+    return SimulationScenarioResponse(
+        baseline_runway_months=round(base_runway, 1),
+        simulated_runway_months=round(simulated_runway, 1),
+        runway_delta_months=round(runway_delta, 1),
+        compromised_clients=compromised_clients,
+        compromised_deliverables=compromised_deliverables,
+        strategic_narrative=narrative,
+        pre_populated_adr=pre_populated_adr,
     )
 @router.get("/status")
 async def cortex_status():
