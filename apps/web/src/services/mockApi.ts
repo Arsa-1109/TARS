@@ -395,8 +395,16 @@ export class MockTarsApi implements TarsApi {
     { id: 'usr-liam', name: 'Liam Patel', email: 'liam@aetherflow.ai', role: 'ENGINEER', department: 'Engineering', clearance: 'ALL_TEAM', created_at: Date.now() - 40000000, company_name: 'AetherFlow Technologies, Inc.', company_id: 'CMP-GENESIS-01' },
   ];
 
-  async getUsers(): Promise<import('../types/contracts').UserDTO[]> {
+  async getUsers(companyIdOrName?: string): Promise<import('../types/contracts').UserDTO[]> {
     await sleep(30);
+    if (companyIdOrName) {
+      const lower = companyIdOrName.toLowerCase();
+      return this.mockUsers.filter(
+        (u) =>
+          u.company_id?.toLowerCase() === lower ||
+          u.company_name?.toLowerCase().includes(lower)
+      );
+    }
     return [...this.mockUsers];
   }
 

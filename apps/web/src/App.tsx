@@ -254,7 +254,7 @@ export function App() {
             setAuthModalOpen(true);
           }}
           onLaunchDemo={() => {
-            login('FOUNDER');
+            login('FOUNDER', true);
             setWorkspace('knowledge');
             transitionToApp();
           }}
@@ -373,7 +373,7 @@ export function App() {
 
         {workspace === 'thinktank' && (
           <ThinkTankWorkspace
-            currentUserName={profile?.name || 'Alex Vance'}
+            currentUserName={profile?.name || 'User'}
             currentUserRole={currentRole || 'FOUNDER'}
             onNavigateDecision={(decId) => {
               setActiveDecisionId(decId);
@@ -403,6 +403,7 @@ export function App() {
         isOpen={actionHubOpen}
         onClose={() => setActionHubOpen(false)}
         actionItems={actionItems}
+        currentUser={profile}
         onStatusChange={handleStatusChange}
         onNavigateSource={navigateToSource}
         onAddItem={handleCreateTask}
@@ -501,7 +502,7 @@ export function App() {
             department: 'Executive',
             clearance: 'EXECUTIVE_ONLY',
             company_name: newProfile.company_name || profile?.company_name || '',
-            company_id: newProfile.id || 'CMP-GENESIS-01',
+            company_id: newProfile.id || profile?.company_id || undefined,
           }).catch(() => {});
 
           // Refresh tasks with freshly configured role-based flight-plans

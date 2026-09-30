@@ -59,7 +59,7 @@ function formatMessageTime(isoString?: string): string {
 
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
-  currentUserName = 'Alex Vance',
+  currentUserName = 'Team Member',
   currentUserRole = 'FOUNDER',
 }) => {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);

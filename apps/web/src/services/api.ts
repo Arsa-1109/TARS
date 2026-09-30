@@ -53,7 +53,7 @@ export interface TarsApi {
   createActionItem(item: Omit<ActionItemDTO, 'id'>): Promise<ActionItemDTO>;
 
   // User & Identity Registry
-  getUsers(): Promise<import('../types/contracts').UserDTO[]>;
+  getUsers(companyIdOrName?: string): Promise<import('../types/contracts').UserDTO[]>;
   createUser(payload: import('../types/contracts').UserCreateDTO): Promise<import('../types/contracts').UserDTO>;
 
   // Sovereign Workspace Management & Data Isolation

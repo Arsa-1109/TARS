@@ -133,10 +133,15 @@ class UserManager:
             company_name=company_name,
         )
 
-    def list_users(self) -> List[UserDTO]:
+    def list_users(self, company_id: Optional[str] = None, company_name: Optional[str] = None) -> List[UserDTO]:
         conn = db.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM users ORDER BY created_at ASC")
+        if company_id and company_id.strip():
+            cursor.execute("SELECT * FROM users WHERE company_id = ? ORDER BY created_at ASC", (company_id.strip(),))
+        elif company_name and company_name.strip():
+            cursor.execute("SELECT * FROM users WHERE LOWER(company_name) = LOWER(?) ORDER BY created_at ASC", (company_name.strip(),))
+        else:
+            cursor.execute("SELECT * FROM users ORDER BY created_at ASC")
         rows = cursor.fetchall()
         return [UserDTO(**dict(r)) for r in rows]
 

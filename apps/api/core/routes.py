@@ -114,7 +114,7 @@ async def search_knowledge(req: SearchRequest):
         elapsed_ms = (time.perf_counter() - start_time) * 1000
         return SearchResponse(
             query=req.query,
-            answer="Access restricted. Cap table, founder equity distributions, and Series Seed valuations are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team (Alex Vance) for authorized access.",
+            answer="Access restricted. Cap table, founder equity distributions, and Series Seed valuations are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team for authorized access.",
             citations=[],
             latency_ms=round(elapsed_ms, 2)
         )
@@ -272,9 +272,19 @@ async def get_action_item(item_id: str):
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
+def _is_aetherflow_tenant(comp_name: Optional[str]) -> bool:
+    if not comp_name:
+        return False
+    return "aetherflow" in comp_name.strip().lower()
+
 @router.get("/action_hub", response_model=List[ActionItemDTO])
-async def list_action_items():
-    return action_hub_repo.list_all()
+async def list_action_items(
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    items = action_hub_repo.list_all()
+    if x_company_name and not _is_aetherflow_tenant(x_company_name):
+        items = [i for i in items if not (i.id and (i.id.startswith("ACT-DEMO") or i.id.startswith("ACT-00")))]
+    return items
 
 @router.patch("/action_hub/{item_id}", response_model=ActionItemDTO)
 async def update_action_item(item_id: str, updates: Dict[str, Any]):
@@ -317,8 +327,13 @@ async def create_user(payload: UserCreateDTO):
         raise HTTPException(status_code=500, detail=f"Failed to create user: {err}")
 
 @router.get("/users", response_model=List[UserDTO])
-async def list_users():
-    return user_manager.list_users()
+async def list_users(
+    company_id: Optional[str] = None,
+    company_name: Optional[str] = None,
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    target_comp = company_name or x_company_name
+    return user_manager.list_users(company_id=company_id, company_name=target_comp)
 
 @router.get("/users/{user_id}", response_model=UserDTO)
 async def get_user(user_id: str):

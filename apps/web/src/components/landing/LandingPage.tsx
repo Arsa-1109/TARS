@@ -100,7 +100,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex items-center justify-between p-3 rounded-[14px] bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.08] dark:border-white/[0.10]">
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#FF3B30] animate-pulse" />
-              <span className="font-semibold text-black dark:text-white">Acme Corp Enterprise Call</span>
+              <span className="font-semibold text-black dark:text-white">Enterprise Customer Discovery</span>
             </div>
             <span className="font-mono text-[11px] text-[#8E8E93]">03:42 • Diarized</span>
           </div>
@@ -183,7 +183,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
           <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] shadow-sm">
             <div className="text-black dark:text-white font-bold mb-1">IN PROGRESS</div>
-            <div className="text-black dark:text-white font-medium">Acme SSO Assessment</div>
+            <div className="text-black dark:text-white font-medium">Enterprise SSO Assessment</div>
             <div className="text-[#8E8E93] mt-1">Aryan • Due 3d</div>
           </div>
           <div className="p-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.08] dark:border-white/[0.10] shadow-sm">

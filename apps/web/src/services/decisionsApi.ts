@@ -13,11 +13,26 @@ import {
 const API_BASE = '/api';
 
 export class DecisionsApi {
+  private _getActiveCompanyName(): string | undefined {
+    try {
+      const stored = localStorage.getItem('tars_current_user_profile');
+      if (stored) {
+        const prof = JSON.parse(stored);
+        return prof?.company_name || undefined;
+      }
+    } catch {
+      // Silently skip
+    }
+    return undefined;
+  }
+
   private async fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+    const companyName = this._getActiveCompanyName();
     const res = await fetch(`${API_BASE}${url}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...(companyName ? { 'X-Company-Name': companyName } : {}),
         ...(options?.headers || {}),
       },
     });
@@ -32,7 +47,9 @@ export class DecisionsApi {
    */
   async getDecisions(signal?: AbortSignal): Promise<DecisionItem[]> {
     try {
-      const data = await this.fetchJson<DecisionItem[]>('/cortex/decisions', { signal });
+      const compName = this._getActiveCompanyName();
+      const url = compName ? `/cortex/decisions?company_name=${encodeURIComponent(compName)}` : '/cortex/decisions';
+      const data = await this.fetchJson<DecisionItem[]>(url, { signal });
       return Array.isArray(data) ? data : [];
     } catch (err) {
       console.warn('Failed to fetch decisions from Cortex API:', err);
@@ -99,9 +116,10 @@ export class DecisionsApi {
    */
   async checkContradiction(proposal: string, category = 'ALL', sensitivity = 'BALANCED'): Promise<ContradictionCheckResponse> {
     try {
+      const compName = this._getActiveCompanyName();
       return await this.fetchJson<ContradictionCheckResponse>('/cortex/decisions/check', {
         method: 'POST',
-        body: JSON.stringify({ proposal, category, severity_threshold: sensitivity }),
+        body: JSON.stringify({ proposal, category, severity_threshold: sensitivity, company_name: compName }),
       });
     } catch {
       return {
@@ -117,9 +135,10 @@ export class DecisionsApi {
    * Runs dynamic What-If Counterfactual Simulation against real runway metrics and commitments.
    */
   async simulateScenario(req: SimulationScenarioRequest): Promise<SimulationScenarioResponse> {
+    const compName = this._getActiveCompanyName();
     return await this.fetchJson<SimulationScenarioResponse>('/cortex/simulate/scenario', {
       method: 'POST',
-      body: JSON.stringify(req),
+      body: JSON.stringify({ company_name: compName, ...req }),
     });
   }
 
@@ -127,9 +146,10 @@ export class DecisionsApi {
    * Impact simulation wrapper.
    */
   async simulateImpact(req: SimulationRequest): Promise<SimulationResponse> {
+    const compName = this._getActiveCompanyName();
     return await this.fetchJson<SimulationResponse>('/cortex/simulate', {
       method: 'POST',
-      body: JSON.stringify(req),
+      body: JSON.stringify({ company_name: compName, ...req }),
     });
   }
 

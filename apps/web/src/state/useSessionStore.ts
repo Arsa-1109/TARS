@@ -55,7 +55,7 @@ export const ROLE_WORKSPACES: Record<UserRole, WorkspaceId[]> = {
   NEW_HIRE: ['knowledge', 'thinktank', 'onboarding'],
 };
 
-export const ROLES: Record<UserRole, UserProfile> = {
+export const DEMO_ROLES: Record<UserRole, UserProfile> = {
   FOUNDER: {
     name: 'Alex Vance',
     role: 'FOUNDER',
@@ -98,6 +98,26 @@ export const ROLES: Record<UserRole, UserProfile> = {
   },
 };
 
+export const ROLES = DEMO_ROLES;
+
+export const ROLE_DEFAULTS_MAP: Record<UserRole, { department: string; clearance: 'ALL_TEAM' | 'EXECUTIVE_ONLY' }> = {
+  FOUNDER: { department: 'Executive', clearance: 'EXECUTIVE_ONLY' },
+  PRODUCT: { department: 'Product', clearance: 'ALL_TEAM' },
+  SALES: { department: 'Sales & Growth', clearance: 'ALL_TEAM' },
+  ENGINEER: { department: 'Engineering', clearance: 'ALL_TEAM' },
+  NEW_HIRE: { department: 'Engineering', clearance: 'ALL_TEAM' },
+};
+
+export const DEFAULT_CLEAN_PROFILE: UserProfile = {
+  id: '',
+  name: 'Workspace User',
+  role: 'FOUNDER',
+  department: 'Executive',
+  clearance: 'EXECUTIVE_ONLY',
+  company_name: '',
+  company_id: '',
+};
+
 const STORAGE_ROLE_KEY = 'tars_current_role';
 const STORAGE_DOMAIN_KEY = 'tars_current_domain';
 const STORAGE_AUTH_KEY = 'tars_is_authenticated';
@@ -122,7 +142,7 @@ export function useSessionStore() {
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     const saved = localStorage.getItem(STORAGE_ROLE_KEY) as UserRole;
-    return saved && ROLES[saved] ? saved : 'FOUNDER';
+    return saved && ROLE_WORKSPACES[saved] ? saved : 'FOUNDER';
   });
 
   const [customProfile, setCustomProfile] = useState<UserProfile | null>(() => {
@@ -144,15 +164,15 @@ export function useSessionStore() {
     setCurrentRole(role);
     // If user has a custom profile, update its role rather than discarding company details
     if (customProfile) {
-      const updatedProfile = { ...customProfile, role };
+      const roleMeta = ROLE_DEFAULTS_MAP[role] || { department: 'General', clearance: 'ALL_TEAM' };
+      const updatedProfile: UserProfile = {
+        ...customProfile,
+        role,
+        department: customProfile.department || roleMeta.department,
+        clearance: role === 'FOUNDER' ? 'EXECUTIVE_ONLY' : roleMeta.clearance,
+      };
       setCustomProfile(updatedProfile);
       localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedProfile));
-    } else {
-      const defaultProfile = ROLES[role];
-      if (defaultProfile) {
-        setCustomProfile(defaultProfile);
-        localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(defaultProfile));
-      }
     }
 
     // Auto-adjust default domain if role doesn't belong to current domain
@@ -198,11 +218,16 @@ export function useSessionStore() {
     setActiveDomain(domain);
   };
 
-  const login = (roleOrProfile: UserRole | UserProfile = 'FOUNDER') => {
+  const login = (roleOrProfile: UserRole | UserProfile = 'FOUNDER', isDemo = false) => {
     localStorage.setItem(STORAGE_AUTH_KEY, 'true');
     setIsAuthenticated(true);
     if (typeof roleOrProfile === 'string') {
-      setRole(roleOrProfile);
+      if (isDemo) {
+        const demoProf = DEMO_ROLES[roleOrProfile] || DEMO_ROLES.FOUNDER;
+        setUserProfile(demoProf);
+      } else {
+        setRole(roleOrProfile);
+      }
     } else {
       setUserProfile(roleOrProfile);
     }
@@ -215,7 +240,12 @@ export function useSessionStore() {
     setIsAuthenticated(false);
   };
 
-  const profile: UserProfile = customProfile || (ROLES[currentRole] || ROLES.FOUNDER);
+  const profile: UserProfile = customProfile || {
+    ...DEFAULT_CLEAN_PROFILE,
+    role: currentRole,
+    department: ROLE_DEFAULTS_MAP[currentRole]?.department || 'Executive',
+    clearance: currentRole === 'FOUNDER' ? 'EXECUTIVE_ONLY' : 'ALL_TEAM',
+  };
 
   const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain];
 

@@ -33,6 +33,17 @@ export interface IngestedDocument {
   created_at?: string;
 }
 
+function _getActiveCompanyName(): string {
+  try {
+    const raw = localStorage.getItem('tars_session_storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed?.state?.profile?.company_name || '';
+    }
+  } catch {}
+  return '';
+}
+
 export const ingestionApi = {
   /**
    * Uploads a document with determinate XHR progress tracking (Bug 12)
@@ -75,9 +86,15 @@ export const ingestionApi = {
    */
   async getCalls(signal?: AbortSignal): Promise<VoiceToSpecResponse[]> {
     try {
-      const res = await fetch(`${API_BASE}/ingestion/calls`, {
+      const activeCompany = _getActiveCompanyName();
+      const params = activeCompany ? `?company_name=${encodeURIComponent(activeCompany)}` : '';
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(activeCompany ? { 'X-Company-Name': activeCompany } : {}),
+      };
+      const res = await fetch(`${API_BASE}/ingestion/calls${params}`, {
         signal,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
       });
       if (!res.ok) throw new Error(`API error ${res.status}: ${res.statusText}`);
       const data = await res.json();
@@ -208,7 +225,10 @@ export const ingestionApi = {
    */
   async getLakeDocuments(signal?: AbortSignal): Promise<IngestedDocument[]> {
     try {
-      const res = await fetch(`${API_BASE}/ingestion/documents`, { signal });
+      const activeCompany = _getActiveCompanyName();
+      const params = activeCompany ? `?company_name=${encodeURIComponent(activeCompany)}` : '';
+      const headers: Record<string, string> = activeCompany ? { 'X-Company-Name': activeCompany } : {};
+      const res = await fetch(`${API_BASE}/ingestion/documents${params}`, { signal, headers });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data?.documents) ? data.documents : [];

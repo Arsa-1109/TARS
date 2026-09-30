@@ -197,3 +197,54 @@ class TestGoldenDemoPreservation:
         resp = client.get("/api/cortex/status")
         assert resp.status_code == 200
         assert resp.json()["status"] == "ONLINE"
+
+
+# ─────────────────────────────────────────────
+# 5. User, Call, and Action Hub Isolation
+# ─────────────────────────────────────────────
+
+class TestUserAndDataIsolation:
+    def test_fresh_company_does_not_see_demo_users(self):
+        """Fresh companies must not see Aetherflow demo personas (Alex Vance, Elena Rostova)."""
+        resp = client.get("/api/core/users", headers=_fresh_company_headers())
+        assert resp.status_code == 200
+        users = resp.json()
+        names = [u.get("name") for u in users]
+        assert "Alex Vance" not in names, f"Alex Vance leaked into fresh company users: {names}"
+        assert "Dr. Elena Rostova" not in names, f"Elena Rostova leaked into fresh company users: {names}"
+
+    def test_aetherflow_sees_demo_users(self):
+        """Aetherflow tenant must see Alex Vance and Elena Rostova."""
+        resp = client.get("/api/core/users", headers=_aetherflow_headers())
+        assert resp.status_code == 200
+        users = resp.json()
+        names = [u.get("name") for u in users]
+        assert "Alex Vance" in names, f"Alex Vance missing from Aetherflow users: {names}"
+
+    def test_fresh_company_does_not_see_demo_calls(self):
+        """Fresh companies must receive clean empty calls without demo calls (CALL-ACME-01)."""
+        resp = client.get("/api/ingestion/calls", headers=_fresh_company_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        calls = data.get("calls", [])
+        call_ids = [c.get("call_id") for c in calls]
+        assert "CALL-ACME-01" not in call_ids, f"Demo call CALL-ACME-01 leaked: {call_ids}"
+        assert "CALL-NEXUS-02" not in call_ids, f"Demo call CALL-NEXUS-02 leaked: {call_ids}"
+
+    def test_aetherflow_sees_demo_calls(self):
+        """Aetherflow golden-demo tenant must see CALL-ACME-01."""
+        resp = client.get("/api/ingestion/calls", headers=_aetherflow_headers())
+        assert resp.status_code == 200
+        data = resp.json()
+        calls = data.get("calls", [])
+        call_ids = [c.get("call_id") for c in calls]
+        assert "CALL-ACME-01" in call_ids, f"Demo call CALL-ACME-01 missing from Aetherflow: {call_ids}"
+
+    def test_fresh_company_does_not_see_demo_action_items(self):
+        """Fresh companies must not see Aetherflow demo action items."""
+        resp = client.get("/api/core/action_hub", headers=_fresh_company_headers())
+        assert resp.status_code == 200
+        items = resp.json()
+        demo_items = [i for i in items if i.get("is_demo") == 1]
+        assert len(demo_items) == 0, f"Demo action items leaked to fresh company: {demo_items}"
+

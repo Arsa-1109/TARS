@@ -65,10 +65,10 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   // What-If Simulation Drawer State
   const [simulationOpen, setSimulationOpen] = useState(false);
-  const [simScenarioPrompt, setSimScenarioPrompt] = useState('What if Acme Corp delays SAML SSO delivery by 30 days?');
-  const [simBurnDelta, setSimBurnDelta] = useState(15000);
-  const [simTimelineShift, setSimTimelineShift] = useState(30);
-  const [simDevsReallocated, setSimDevsReallocated] = useState(2);
+  const [simScenarioPrompt, setSimScenarioPrompt] = useState('');
+  const [simBurnDelta, setSimBurnDelta] = useState(0);
+  const [simTimelineShift, setSimTimelineShift] = useState(0);
+  const [simDevsReallocated, setSimDevsReallocated] = useState(0);
   const [simResult, setSimResult] = useState<SimulationScenarioResponse | null>(null);
   const [simulating, setSimulating] = useState(false);
 
@@ -543,7 +543,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 runContradictionCheck();
               }
             }}
-            placeholder="Test a pending strategic proposal (e.g. 'Build bespoke SAML auth for Acme Corp')..."
+            placeholder="Test a pending strategic proposal (e.g. 'Build bespoke enterprise integration')..."
             className="flex-1 px-4 py-2.5 text-[13px] rounded-full border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all"
           />
           <Button
@@ -880,7 +880,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 type="text"
                 value={simScenarioPrompt}
                 onChange={(e) => setSimScenarioPrompt(e.target.value)}
-                placeholder="e.g. What if Acme Corp delays SAML SSO delivery by 30 days?"
+                placeholder="e.g. What if key enterprise deployment is delayed by 30 days?"
                 className="w-full px-3.5 py-2.5 text-[13px] rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 transition-all"
               />
             </div>

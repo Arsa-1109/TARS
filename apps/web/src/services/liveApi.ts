@@ -496,9 +496,11 @@ export class LiveTarsApi implements TarsApi {
   }
 
   // --- User & Identity Registry ---
-  async getUsers(): Promise<import('../types/contracts').UserDTO[]> {
+  async getUsers(companyIdOrName?: string): Promise<import('../types/contracts').UserDTO[]> {
     try {
-      const data = await this.fetchJson<import('../types/contracts').UserDTO[]>('/core/users');
+      const targetComp = companyIdOrName || this._getActiveCompanyName();
+      const query = targetComp ? `?company_name=${encodeURIComponent(targetComp)}` : '';
+      const data = await this.fetchJson<import('../types/contracts').UserDTO[]>(`/core/users${query}`);
       return Array.isArray(data) ? data : [];
     } catch (err) {
       console.warn('Notice: Failed to fetch users from backend:', err);

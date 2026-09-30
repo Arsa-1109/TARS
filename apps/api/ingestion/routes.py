@@ -18,7 +18,7 @@ import time
 import uuid
 from typing import List, Optional, Dict, Any
 
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status, Body
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status, Body, Header
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 
@@ -33,6 +33,15 @@ from apps.api.ingestion.action_hub import action_hub_repo
 
 logger = logging.getLogger("tars.ingestion.routes")
 router = APIRouter()
+
+_AETHERFLOW_NAMES = {"aetherflow", "aetherflow ai", "aetherflow technologies", "aetherflow technologies, inc.", "cmp-genesis-01"}
+
+def _is_aetherflow_company(company_name: Optional[str]) -> bool:
+    """Returns True only when the active company is AetherFlow/Genesis demo tenant."""
+    if not company_name:
+        return False
+    clean = company_name.strip().lower()
+    return clean in _AETHERFLOW_NAMES or "aetherflow" in clean
 
 _deleted_call_ids: set = set()
 
@@ -351,14 +360,25 @@ async def upload_document(
 
 
 @router.get("/documents")
-def list_ingested_documents():
-    """Lists all documents processed by Markitdown, queried from persistent SQLite storage."""
+def list_ingested_documents(
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Lists all documents processed by Markitdown, queried from persistent SQLite storage.
+    Filters out demo documents for fresh non-Aetherflow company accounts.
+    """
+    active_company = company_name or x_company_name
+    is_aetherflow = not active_company or _is_aetherflow_company(active_company)
+
     docs = []
     try:
         from apps.api.core.db import db
         conn = db.get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM documents ORDER BY ingested_at DESC")
+        if is_aetherflow:
+            cursor.execute("SELECT * FROM documents ORDER BY ingested_at DESC")
+        else:
+            cursor.execute("SELECT * FROM documents WHERE is_demo = 0 AND doc_id NOT LIKE 'DOC-GEN-%' ORDER BY ingested_at DESC")
         rows = cursor.fetchall()
         for r in rows:
             docs.append(dict(r))
@@ -367,7 +387,10 @@ def list_ingested_documents():
 
     # Fall back to or merge in-memory documents
     if not docs:
-        docs = list(markitdown_parser.ingested_hashes.values())
+        if is_aetherflow:
+            docs = list(markitdown_parser.ingested_hashes.values())
+        else:
+            docs = [d for d in markitdown_parser.ingested_hashes.values() if not d.get("is_demo") and not str(d.get("doc_id", "")).startswith("DOC-GEN-")]
     else:
         # Ensure in-memory parser cache also stays warm
         for d in docs:
@@ -520,8 +543,16 @@ def get_call_task_status(task_id: str):
 
 
 @router.get("/calls")
-def list_call_tasks():
-    """Lists all queued, processing, and completed audio calls."""
+def list_call_tasks(
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Lists all queued, processing, and completed audio calls.
+    Demo calls (Acme Corp, Nexus Labs) are isolated to AetherFlow/Genesis demo accounts.
+    """
+    active_company = company_name or x_company_name
+    is_aetherflow = not active_company or _is_aetherflow_company(active_company)
+
     tasks = whisper_transcriber.list_tasks()
     task_calls = []
     for t in tasks:
@@ -614,7 +645,7 @@ def list_call_tasks():
         }
     ]
 
-    active_default_calls = [d for d in default_calls if d["call_id"] not in _deleted_call_ids]
+    active_default_calls = [d for d in default_calls if d["call_id"] not in _deleted_call_ids] if is_aetherflow else []
     if not task_calls:
         task_calls = active_default_calls
     else:

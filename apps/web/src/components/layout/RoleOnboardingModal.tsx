@@ -59,10 +59,10 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     icon: <Shield className="w-4 h-4 text-amber-400" />,
     audioTour: {
       title: 'Founding Thesis: Why Startups Die of Context Decay',
-      speaker: 'Alex Vance (CEO & Co-Founder)',
+      speaker: 'Founder & Executive',
       duration: '3m 45s',
       summary:
-        'Alex Vance debriefs the 4 silent killers of early-stage velocity: context dispersion across Slack, unrecorded strategic trade-offs, catastrophic onboarding lag, and cloud IP leakage.',
+        'Executive briefing on the 4 silent killers of early-stage velocity: context dispersion across Slack, unrecorded strategic trade-offs, catastrophic onboarding lag, and cloud IP leakage.',
     },
     modules: [
       {
@@ -85,7 +85,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
           'Calibrate the Contradiction Radar sensitivity to prevent custom enterprise forks from destroying cash runway.',
         tasks: [
           'Review BDR-014: Banning bespoke customer branches before Q4',
-          'Simulate Acme Corp $80k custom SAML proposal impact (+28 days runway vs 60-day delay)',
+          'Simulate enterprise custom integration proposal impact (+28 days runway vs 60-day delay)',
           'Lock Contradiction Radar sensitivity to Strict for all customer commitments',
         ],
       },
@@ -108,8 +108,8 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Issue clearance tokens (Level 1, Level 2, Level 3) for upcoming engineering and product hires.',
         tasks: [
-          'Assign Dr. Elena Rostova to CTO & Lead Architect (Clearance Level 2)',
-          'Assign Marcus Chen to Head of Product (Clearance Level 2)',
+          'Assign Engineering Lead to CTO & Lead Architect (Clearance Level 2)',
+          'Assign Product Lead to Head of Product (Clearance Level 2)',
           'Review Unified Action Hub daily standup memo export',
         ],
       },
@@ -122,10 +122,10 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     icon: <Code2 className="w-4 h-4 text-blue-400" />,
     audioTour: {
       title: 'The 4 Killer Invariants that Protect Codebase Velocity',
-      speaker: 'Alex Vance & Dr. Elena Rostova',
+      speaker: 'Executive & Engineering Leads',
       duration: '4m 12s',
       summary:
-        'Dr. Elena Rostova explains why deterministic Tree-sitter AST queries in pre-commit hooks replace endless code-review friction and prevent catastrophic production outages.',
+        'Engineering briefing on why deterministic Tree-sitter AST queries in pre-commit hooks replace endless code-review friction and prevent catastrophic production outages.',
     },
     modules: [
       {
@@ -185,7 +185,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     icon: <Briefcase className="w-4 h-4 text-purple-400" />,
     audioTour: {
       title: 'Compiling Customer Words into Hard Specifications',
-      speaker: 'Marcus Chen & Sarah Jenkins',
+      speaker: 'Product & GTM Leads',
       duration: '3m 20s',
       summary:
         'Learn how TARS transcribes customer calls locally via Faster-Whisper, diarizes speakers, and extracts structured specs and commitments directly into the Unified Action Hub.',
@@ -198,8 +198,8 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Learn how audio recordings are parsed locally with zero egress and converted into time-indexed transcripts.',
         tasks: [
-          'Listen to Call #CALL-2026-09-22-ACME-001 with interactive waveform scrubber',
-          'Filter transcript by speaker (David Sterling vs. Sarah Jenkins)',
+          'Listen to Call #CALL-DISCOVERY-001 with interactive waveform scrubber',
+          'Filter transcript by speaker (Enterprise Prospect vs. Account Exec)',
           'Inspect 4-tier Voice-to-Spec extraction (Summary, Pains, Features, Commitments)',
         ],
       },
@@ -210,7 +210,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Transform unverified customer commitments into trackable engineering and GTM action items with 1-click provenance.',
         tasks: [
-          'Promote Call #ACME-01 SAML SSO commitment into the Action Hub',
+          'Promote enterprise integration commitment into the Action Hub',
           'Switch Action Hub between List View and 3-Column Kanban Board',
           'Generate 1-click daily standup clipboard memo',
         ],
@@ -222,7 +222,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Check feature requests against historical ADRs and Decision #14 to ensure roadmap alignment.',
         tasks: [
-          'Review Contradiction Radar warning on Acme custom SSO request',
+          'Review Contradiction Radar warning on bespoke integration request',
           'Link customer feature request to Document Lake PRD-2026-03',
           'Tag client commitments with provenance timestamps',
         ],
@@ -248,10 +248,10 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     icon: <Users className="w-4 h-4 text-emerald-400" />,
     audioTour: {
       title: 'Operating with Uncompromising Intellectual Honesty',
-      speaker: 'Alex Vance (CEO & Co-Founder)',
+      speaker: 'Founder & Executive',
       duration: '3m 50s',
       summary:
-        'Alex Vance introduces company operating principles, the sovereign air-gap pledge, and how to use the Socratic Mentor to ramp up in 14 days without interrupting senior developers.',
+        'Executive briefing introducing company operating principles, the sovereign air-gap pledge, and how to use the Socratic Mentor to ramp up in 14 days without interrupting senior developers.',
     },
     modules: [
       {
@@ -261,7 +261,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Understand our mission to eliminate startup context decay and why privacy and intellectual honesty guide every decision.',
         tasks: [
-          'Listen to Alex Vance founding thesis audio tour',
+          'Listen to founding thesis audio tour',
           'Review the 14-day flight-plan checklist overview',
           'Sign the Local Sovereign Air-Gap Operating Pledge',
         ],
@@ -285,7 +285,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Participate in company discussions and observe how TARS automatically injects relevant context to prevent redundant debates.',
         tasks: [
-          'Read the #pricing-strategy thread discussing Acme Corp trade-offs',
+          'Read the #pricing-strategy thread discussing customer trade-offs',
           'Inspect the 2D SVG topology graph showing claims and constraints',
           'Ask the Socratic Mentor about why BDR-014 was ratified',
         ],
@@ -311,7 +311,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     icon: <Briefcase className="w-4 h-4 text-amber-400" />,
     audioTour: {
       title: 'Selling Data Sovereignty to Enterprise Buyers',
-      speaker: 'Alex Vance & Sarah Jenkins',
+      speaker: 'Executive & GTM Leads',
       duration: '3m 15s',
       summary:
         'How to pitch the zero-cloud-egress hardware appliance to enterprise infosec officers who reject SaaS AI tools.',
@@ -324,7 +324,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Learn why Fortune 500 infosec officers veto cloud LLMs and how TARS wins contracts by guaranteeing on-prem execution.',
         tasks: [
-          'Review Acme Corp call transcript and infosec veto reasons',
+          'Review enterprise prospect call transcript and infosec veto reasons',
           'Verify socket monitor telemetry showing 0.00 KB egress',
           'Memorize the 3-point sovereign hardware appliance pitch',
         ],
@@ -336,7 +336,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
         description:
           'Ensure sales commitments match engineering realities by cross-referencing Decision #14.',
         tasks: [
-          'Review Call #ACME-01 audio recording and extracted commitments',
+          'Review enterprise discovery call recording and extracted commitments',
           'Verify Contradiction Radar prevents unauthorized custom feature promises',
           'Draft standard enterprise SLA with air-gap guarantee',
         ],
@@ -671,7 +671,7 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 sm:p-5 border-t border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between shrink-0 bg-zinc-50/60 dark:bg-zinc-950/60 text-xs">
           <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
-            <span>AetherFlow Founder Guarantee: Zero Context Loss</span>
+            <span>Sovereign Workspace Guarantee: Zero Context Loss</span>
           </div>
           <Button
             variant="primary"

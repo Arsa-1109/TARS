@@ -326,9 +326,12 @@ class LocalDB:
         now_ts = int(_t.time())
         for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
             cursor.execute('''
-                INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts))
+                INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
+
+        # Isolate legacy demo users to Aetherflow
+        cursor.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
 
         # Seed default Think Tank channels
         default_channels = [
@@ -359,10 +362,10 @@ class LocalDB:
                 1
             ))
 
-        # Seed unredacted Cap Table memory with EXECUTIVE_ONLY clearance
+        # Seed unredacted Cap Table memory with EXECUTIVE_ONLY clearance and is_demo=1
         cursor.execute('''
-            INSERT OR IGNORE INTO memories (id, record_type, title, content, source, timestamp, tags, clearance)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO memories (id, record_type, title, content, source, timestamp, tags, clearance, is_demo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             "MEM-CAP-TABLE-SEED",
             "DOCUMENT",
@@ -371,8 +374,10 @@ class LocalDB:
             "CAP_TABLE_UNREDACTED",
             now_ts,
             "equity,cap_table,shares,executive,valuation",
-            "EXECUTIVE_ONLY"
+            "EXECUTIVE_ONLY",
+            1
         ))
+        cursor.execute("UPDATE memories SET is_demo = 1 WHERE id = 'MEM-CAP-TABLE-SEED' OR title LIKE '%AetherFlow%';")
         
         conn.commit()
 
@@ -456,9 +461,10 @@ class LocalDB:
                 ''')
                 for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
                     vault_conn.execute('''
-                        INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts))
+                        INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
+                vault_conn.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
                 vault_conn.commit()
                 vault_conn.close()
         except Exception as vault_err:
