@@ -153,7 +153,8 @@ html, body {
 .apple-specular::after {
   content: '';
   position: absolute;
-  inset-x: 0;
+  left: 0;
+  right: 0;
   top: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
