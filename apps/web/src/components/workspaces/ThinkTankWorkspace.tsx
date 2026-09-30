@@ -30,6 +30,8 @@ import {
 
 interface ThinkTankWorkspaceProps {
   onNavigateDecision: (decId: string) => void;
+  currentUserName?: string;
+  currentUserRole?: string;
 }
 
 type ViewMode = 'document' | 'split' | 'canvas';
@@ -57,6 +59,8 @@ function formatMessageTime(isoString?: string): string {
 
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
+  currentUserName = 'Alex Vance',
+  currentUserRole = 'FOUNDER',
 }) => {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [channels, setChannels] = useState<ThinkTankChannelDTO[]>([]);
@@ -169,6 +173,9 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     setIsSending(true);
 
     try {
+      const activeSender = currentUserName || 'Team Member';
+      const activeRole = currentUserRole || 'ENGINEER';
+
       // 1. Check for explicit /teach slash command
       if (userPrompt.startsWith('/teach ')) {
         const fact = userPrompt.replace(/^\/teach\s+/i, '').trim();
@@ -176,8 +183,9 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           // Send user message to thread
           const userMsg = await chatApi.sendMessage({
             channel_id: activeChannelId,
-            sender: 'You',
-            sender_role: 'ENGINEER',
+            sender: activeSender,
+            sender_name: activeSender,
+            sender_role: activeRole,
             text: userPrompt,
             is_ai: false
           });
@@ -189,8 +197,8 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
             title: `Fact: ${fact.slice(0, 36)}...`,
             category: 'POLICY',
             clearance: 'ALL_TEAM',
-            user_name: 'You',
-            user_role: 'ENGINEER'
+            user_name: activeSender,
+            user_role: activeRole
           });
 
           // Send confirmation assistant message
@@ -209,21 +217,29 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         }
       }
 
-      // 2. Standard user message persistence
+      // 2. Standard user message persistence with real user identity
       const userMsg = await chatApi.sendMessage({
         channel_id: activeChannelId,
-        sender: 'You',
-        sender_role: 'ENGINEER',
+        sender: activeSender,
+        sender_name: activeSender,
+        sender_role: activeRole,
         text: userPrompt,
         is_ai: false
       });
       setMessages((prev) => [...prev, userMsg]);
 
       // 3. Real-time TARS evaluation via live backend Cortex & SLM
+      const hasMention = /@tars\b/i.test(userPrompt);
       const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim() || userPrompt;
 
       // Check for institutional decision contradictions
       const conflictRes = await api.checkContradiction(cleanQuery);
+
+      // Gate: Only respond if explicit @TARS tag OR contradiction detected!
+      if (!hasMention && !conflictRes.has_conflict) {
+        setIsSending(false);
+        return;
+      }
 
       let aiText = '';
       let provenance = '';
@@ -233,7 +249,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         provenance = conflictRes.conflicting_decision_id
           ? `Decision ${conflictRes.conflicting_decision_id} · Local Institutional Graph`
           : 'Institutional Invariant Rule';
-      } else {
+      } else if (hasMention) {
         // Query knowledge base with local SLM
         const ragRes = await api.search({ query: cleanQuery });
         aiText = ragRes.answer;
@@ -402,9 +418,14 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
             {/* Thread Header */}
             <div className="flex items-center justify-between border-b border-black/[0.08] dark:border-white/[0.08] pb-3 mb-3">
               <div className="min-w-0 pr-3">
-                <h3 className="text-sm font-semibold text-black dark:text-white truncate">
-                  {currentChannel.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-black dark:text-white truncate">
+                    {currentChannel.name}
+                  </h3>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93] font-mono shrink-0">
+                    Logged in as: <strong className="text-black dark:text-white font-medium">{currentUserName}</strong> ({currentUserRole})
+                  </span>
+                </div>
                 <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] truncate mt-0.5">
                   {currentChannel.topic}
                 </p>
@@ -434,46 +455,79 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                   </p>
                 </div>
               ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`group relative p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 transition-all ${
-                      msg.is_ai
-                        ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
-                        : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
-                      <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                        {msg.is_ai && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
-                        {msg.sender}
-                        {msg.is_edited && (
-                          <span className="text-[10px] text-[#8E8E93] font-normal italic">(edited)</span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[#8E8E93]">{formatMessageTime(msg.created_at)}</span>
-                        {/* Hover Actions: Edit / Delete */}
-                        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
-                          {!msg.is_ai && editingMessageId !== msg.id && (
-                            <button
-                              onClick={() => handleStartEdit(msg)}
-                              className="p-1 rounded hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
-                              title="Edit Message"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
+                messages.map((msg) => {
+                  const isAi = !!msg.is_ai;
+                  const isOwn = !isAi && Boolean(
+                    (currentUserName && msg.sender.trim().toLowerCase() === currentUserName.trim().toLowerCase()) ||
+                    msg.sender === 'You'
+                  );
+                  const isContradiction = isAi && (msg.text.includes('Contradiction') || msg.text.startsWith('⚠️'));
+
+                  let displayName = msg.sender;
+                  if (isAi) {
+                    displayName = isContradiction ? 'TARS Policy Sentinel' : 'TARS (@TARS)';
+                  } else if (isOwn) {
+                    displayName = 'You';
+                  } else {
+                    const roleSuffix = msg.sender_role && !msg.sender.includes('(') ? ` (${msg.sender_role})` : '';
+                    displayName = `${msg.sender}${roleSuffix}`;
+                  }
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`group relative p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 transition-all ${
+                        isContradiction
+                          ? 'bg-amber-500/[0.08] dark:bg-amber-500/[0.12] border border-amber-500/30 text-black dark:text-white'
+                          : isAi
+                          ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
+                          : isOwn
+                          ? 'bg-[#0071E3]/[0.05] dark:bg-[#0071E3]/[0.10] border border-[#0071E3]/20 text-black dark:text-white'
+                          : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                        <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
+                          {isContradiction ? (
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : isAi ? (
+                            <Sparkles className="w-3.5 h-3.5 text-black dark:text-white shrink-0" />
+                          ) : (
+                            <User className="w-3.5 h-3.5 text-[#8E8E93] shrink-0" />
                           )}
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1 rounded hover:bg-[#FF3B30]/15 text-[#8E8E93] hover:text-[#FF3B30] transition-colors"
-                            title="Delete Message"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          <span>{displayName}</span>
+                          {isOwn && currentUserRole && (
+                            <span className="text-[10px] text-[#8E8E93] font-normal font-mono">({currentUserRole})</span>
+                          )}
+                          {msg.is_edited && (
+                            <span className="text-[10px] text-[#8E8E93] font-normal italic">(edited)</span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[#8E8E93]">{formatMessageTime(msg.created_at)}</span>
+                          {/* Hover Actions: Edit / Delete */}
+                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                            {isOwn && editingMessageId !== msg.id && (
+                              <button
+                                onClick={() => handleStartEdit(msg)}
+                                className="p-1 rounded hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors"
+                                title="Edit Message"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                            {(isOwn || currentUserRole === 'FOUNDER') && (
+                              <button
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="p-1 rounded hover:bg-[#FF3B30]/15 text-[#8E8E93] hover:text-[#FF3B30] transition-colors"
+                                title="Delete Message"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
                     {/* Message Body or Edit Field */}
                     {editingMessageId === msg.id ? (
@@ -515,7 +569,8 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                       </div>
                     )}
                   </div>
-                ))
+                );
+              })
               )}
               {/* Invisible anchor for smooth auto-scroll */}
               <div ref={messagesEndRef} />

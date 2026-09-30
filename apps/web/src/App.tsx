@@ -373,6 +373,8 @@ export function App() {
 
         {workspace === 'thinktank' && (
           <ThinkTankWorkspace
+            currentUserName={profile?.name || 'Alex Vance'}
+            currentUserRole={currentRole || 'FOUNDER'}
             onNavigateDecision={(decId) => {
               setActiveDecisionId(decId);
               setWorkspace('decisions');
