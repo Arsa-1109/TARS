@@ -63,7 +63,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F7] dark:bg-black text-black dark:text-white antialiased font-sans">
+    <div className="h-screen overflow-hidden flex flex-col bg-[#F5F5F7] dark:bg-black text-black dark:text-white antialiased font-sans">
       {/* Top Application Bar */}
       <TopBar
         currentWorkspace={currentWorkspace}
@@ -90,7 +90,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
 
       {/* Main Viewport */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-10">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 overflow-y-auto pb-24 md:pb-8">
         {children}
       </main>
 

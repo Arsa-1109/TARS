@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import uuid
+import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, BackgroundTasks
@@ -232,6 +233,7 @@ async def create_decision(payload: AddDecisionRequest, background_tasks: Backgro
 
 
 @router.patch("/decisions/{decision_id}", response_model=DecisionItem)
+@router.patch("/decision/{decision_id}", response_model=DecisionItem)
 async def patch_decision(decision_id: str, payload: DecisionPatchRequest):
     """Updates fields of an existing decision in the Kùzu graph."""
     existing = graph_engine.get_decision(decision_id)
@@ -269,6 +271,7 @@ async def patch_decision(decision_id: str, payload: DecisionPatchRequest):
 
 
 @router.delete("/decisions/{decision_id}")
+@router.delete("/decision/{decision_id}")
 async def delete_decision(decision_id: str, hard_purge: bool = False, superseded_by: Optional[str] = None):
     """Dual-action decision deletion: soft-marks as SUPERSEDED by default, or hard-purges if requested."""
     existing = graph_engine.get_decision(decision_id)
@@ -282,6 +285,7 @@ async def delete_decision(decision_id: str, hard_purge: bool = False, superseded
     return {
         "status": "DELETED" if hard_purge else "SUPERSEDED",
         "decision_id": decision_id,
+        "id": decision_id,
         "hard_purge": hard_purge,
         "superseded_by": superseded_by,
         "timestamp": int(time.time()),
@@ -311,15 +315,21 @@ async def simulate_impact(req: SimulationRequest):
     """Calculates runway and delivery timeline impact using company metrics and local SLM reasoning."""
     proposal_lower = req.proposal.lower()
     
-    # Retrieve institutional company financial runway parameters
+    # Calculate quantitative parameters using real company metrics ($666k cash, -$74k/mo burn)
     company = company_repo.get_profile() or {}
-    base_runway = float(company.get("runway_months", 9.0))
-    cash_liquid = 666000.0  # $666,000 cash balance
-    burn_base = 74000.0     # $74,000/mo net burn
-    
-    # Calculate quantitative parameters
-    runway_delta = -0.6 * max(1, req.reallocated_devs) - (req.delay_days / 30.0) * 0.5
-    delay_weeks = (req.delay_days / 7.0) + (req.reallocated_devs * 1.5)
+    cash = float(company.get("liquid_cash", 666000.0) or 666000.0)
+    burn_base = float(company.get("monthly_burn", 74000.0) or 74000.0)
+    dev_monthly_cost = 12000.0
+
+    delta_burn = req.reallocated_devs * dev_monthly_cost
+    delta_cash = -(req.delay_days / 30.0) * 10000.0
+
+    base_runway = cash / max(1.0, burn_base)
+    projected_burn = max(1.0, burn_base + delta_burn)
+    projected_cash = max(0.0, cash + delta_cash)
+    simulated_runway = projected_cash / projected_burn
+    runway_delta = round(simulated_runway - base_runway, 1)
+    delay_weeks = round((req.delay_days / 7.0) + (req.reallocated_devs * 1.5), 1)
     
     affected_promises = []
     affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]

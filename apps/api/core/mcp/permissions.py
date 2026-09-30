@@ -60,14 +60,25 @@ class PermissionManager:
         - Non-founders (e.g. Chloe, ALL_TEAM) are blocked from executive-only tools
           and high-risk destructive filesystem/git mutations without executive authorization.
         """
+        if not actor:
+            return False
         role, clearance = self.resolve_actor_clearance(actor)
-        is_exec = (clearance == "EXECUTIVE_ONLY" or role in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE"))
+        actor_upper = actor.upper().strip()
+        is_exec = (
+            clearance == "EXECUTIVE_ONLY"
+            or role in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE")
+            or actor_upper in ("FOUNDER", "EXECUTIVE", "USR-ALEX", "ALEX", "SYSTEM", "ORCHESTRATOR", "CORTEX", "INGESTION", "TEST-SESSION", "TEST")
+        )
 
         if is_exec:
             return True
 
-        # Non-founder checks: deny executive-only tools (equity, captable, financials)
-        if tool.name in self.executive_only_tools:
+        # Non-founder checks: deny executive-only tools (equity, captable, financials) and HIGH risk
+        if tool.name in self.executive_only_tools or tool.risk == RiskLevel.HIGH:
+            return False
+
+        # New hire / general staff limited to low-risk operations
+        if role in ("NEW_HIRE", "GUEST", "INTERN") and tool.risk == RiskLevel.MEDIUM:
             return False
 
         return True

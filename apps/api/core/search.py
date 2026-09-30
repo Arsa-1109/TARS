@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from apps.api.core.db import db
 from apps.api.schemas.contracts import SearchCitation
 from apps.api.core.concurrency import search_governor, Priority
@@ -15,8 +15,12 @@ class UnifiedSearchService:
         limit: int = 5,
         priority: int = Priority.INTERACTIVE,
         user_clearance: str = "ALL_TEAM",
-        user_role: str = "ENGINEER"
+        user_role: str = "ENGINEER",
+        clearance: Optional[str] = None
     ) -> List[SearchCitation]:
+        if clearance and (not user_clearance or user_clearance == "ALL_TEAM"):
+            user_clearance = clearance
+
         await search_governor.acquire(priority)
         try:
             # 1. Clean and tokenize query

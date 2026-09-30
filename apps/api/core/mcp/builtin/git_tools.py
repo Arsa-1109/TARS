@@ -6,7 +6,7 @@ from apps.api.core.mcp.schemas import ToolMetadata, RiskLevel, ExecutionResult
 def run_subprocess(cmd: list) -> ExecutionResult:
     try:
         # Prevent arbitrary shell execution by using shell=False and strict command lists
-        res = subprocess.run(cmd, check=True, capture_output=True, text=True, shell=False)
+        res = subprocess.run(cmd, check=True, capture_output=True, text=True, shell=False, stdin=subprocess.DEVNULL)
         return ExecutionResult(success=True, data=res.stdout)
     except subprocess.CalledProcessError as e:
         return ExecutionResult(success=False, error=e.stderr)

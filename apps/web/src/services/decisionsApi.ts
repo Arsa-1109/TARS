@@ -29,9 +29,9 @@ export class DecisionsApi {
   /**
    * Fetches all registered Decision nodes from the Kùzu graph store.
    */
-  async getDecisions(): Promise<DecisionItem[]> {
+  async getDecisions(signal?: AbortSignal): Promise<DecisionItem[]> {
     try {
-      const data = await this.fetchJson<DecisionItem[]>('/cortex/decisions');
+      const data = await this.fetchJson<DecisionItem[]>('/cortex/decisions', { signal });
       return Array.isArray(data) ? data : [];
     } catch (err) {
       console.warn('Failed to fetch decisions from Cortex API:', err);
@@ -71,6 +71,13 @@ export class DecisionsApi {
   }
 
   /**
+   * Alias for patchDecision for compatibility.
+   */
+  async updateDecision(id: string, updates: Partial<DecisionItem>): Promise<any> {
+    return this.patchDecision(id, updates as DecisionPatchRequest);
+  }
+
+  /**
    * Dual-action deletion: soft-marks as SUPERSEDED (default) or hard-purges if hardPurge is true.
    */
   async deleteDecision(id: string, hardPurge = false, supersededBy?: string): Promise<{ status: string; decision_id: string; hard_purge: boolean; superseded_by?: string }> {
@@ -89,11 +96,11 @@ export class DecisionsApi {
   /**
    * Checks for semantic graph contradictions against historical decisions.
    */
-  async checkContradiction(proposal: string, sensitivity = 'BALANCED'): Promise<ContradictionCheckResponse> {
+  async checkContradiction(proposal: string, category = 'ALL', sensitivity = 'BALANCED'): Promise<ContradictionCheckResponse> {
     try {
       return await this.fetchJson<ContradictionCheckResponse>('/cortex/decisions/check', {
         method: 'POST',
-        body: JSON.stringify({ proposal, severity_threshold: sensitivity }),
+        body: JSON.stringify({ proposal, category, severity_threshold: sensitivity }),
       });
     } catch {
       return {
@@ -116,13 +123,20 @@ export class DecisionsApi {
   }
 
   /**
-   * Legacy impact simulation wrapper.
+   * Impact simulation wrapper.
    */
   async simulateImpact(req: SimulationRequest): Promise<SimulationResponse> {
     return await this.fetchJson<SimulationResponse>('/cortex/simulate', {
       method: 'POST',
       body: JSON.stringify(req),
     });
+  }
+
+  /**
+   * Alias for simulateImpact.
+   */
+  async simulate(req: SimulationRequest): Promise<SimulationResponse> {
+    return this.simulateImpact(req);
   }
 }
 

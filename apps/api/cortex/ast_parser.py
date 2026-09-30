@@ -16,24 +16,40 @@ class TarsASTParser:
     """Polyglot Tree-sitter AST parser and query engine."""
 
     def __init__(self):
-        # Initialize Language bindings
-        self.py_lang = tree_sitter.Language(tree_sitter_python.language())
-        self.ts_lang = tree_sitter.Language(tree_sitter_typescript.language_typescript())
-        self.js_lang = tree_sitter.Language(tree_sitter_javascript.language())
+        self.py_parser = None
+        self.ts_parser = None
+        self.js_parser = None
 
-        # Initialize Parsers
-        self.py_parser = tree_sitter.Parser(self.py_lang)
-        self.ts_parser = tree_sitter.Parser(self.ts_lang)
-        self.js_parser = tree_sitter.Parser(self.js_lang)
+        # Initialize Language bindings and Parsers with graceful fallbacks
+        try:
+            self.py_lang = tree_sitter.Language(tree_sitter_python.language())
+            self.py_parser = tree_sitter.Parser(self.py_lang)
+        except Exception as e:
+            self.py_lang = None
+            self.py_parser = None
+
+        try:
+            self.ts_lang = tree_sitter.Language(tree_sitter_typescript.language_typescript())
+            self.ts_parser = tree_sitter.Parser(self.ts_lang)
+        except Exception as e:
+            self.ts_lang = None
+            self.ts_parser = None
+
+        try:
+            self.js_lang = tree_sitter.Language(tree_sitter_javascript.language())
+            self.js_parser = tree_sitter.Parser(self.js_lang)
+        except Exception as e:
+            self.js_lang = None
+            self.js_parser = None
 
     def parse_code(self, code: str, file_path: str) -> Optional[tree_sitter.Tree]:
         """Parses source code into a Tree-sitter AST based on file extension."""
         encoded = code.encode("utf-8")
-        if file_path.endswith(".py"):
+        if file_path.endswith(".py") and self.py_parser:
             return self.py_parser.parse(encoded)
-        elif file_path.endswith((".ts", ".tsx")):
+        elif file_path.endswith((".ts", ".tsx")) and self.ts_parser:
             return self.ts_parser.parse(encoded)
-        elif file_path.endswith((".js", ".jsx")):
+        elif file_path.endswith((".js", ".jsx")) and self.js_parser:
             return self.js_parser.parse(encoded)
         return None
 
@@ -57,8 +73,8 @@ class TarsASTParser:
         if file_path.endswith(".py"):
             def traverse(node, in_tx=False):
                 current_in_tx = in_tx
-                # Check for "with transaction.atomic():" or "with db.transaction():"
-                if node.type == "with_statement":
+                # Check for "with transaction.atomic():", "with db.transaction():", or "async with db.transaction():"
+                if node.type in ("with_statement", "async_with_statement"):
                     with_clause = ""
                     for child in node.children:
                         if child.type in ("with_item", "with_clause"):

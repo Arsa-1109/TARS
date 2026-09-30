@@ -7,6 +7,11 @@ from .schemas import ExecutionResult
 
 class MCPExecutor:
     async def execute(self, tool_name: str, arguments: Dict[str, Any], session_id: str, approval_granted: bool = False) -> ExecutionResult:
+        # 0. Ensure builtin tools registered
+        if not registry.list_tools():
+            from .builtin import register_all_builtin_tools
+            register_all_builtin_tools()
+
         # 1. Registry lookup
         tool = registry.get_tool(tool_name)
         if not tool:

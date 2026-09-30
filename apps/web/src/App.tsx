@@ -477,6 +477,12 @@ export function App() {
         onClose={() => setGenesisWizardOpen(false)}
         initialProfile={companyProfile}
         onComplete={(newProfile) => {
+          const compName = newProfile?.company_name || profile?.company_name;
+          const key = compName
+            ? `tars_genesis_completed_${compName.toLowerCase().trim().replace(/\s+/g, '_')}`
+            : 'tars_genesis_completed';
+          localStorage.setItem(key, 'true');
+          localStorage.setItem('tars_genesis_completed', 'true');
           setCompanyProfile(newProfile);
           setGenesisWizardOpen(false);
           // Refresh tasks with freshly configured role-based flight-plans

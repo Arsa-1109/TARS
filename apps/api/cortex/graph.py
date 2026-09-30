@@ -130,6 +130,17 @@ class EmbeddedGraphConn:
                 del self.decisions[target_id]
             return EmbeddedQueryResult([])
 
+        if "MATCH (d:Decision {id: $id}) SET" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                for k, v in params.items():
+                    if k != "id":
+                        self.decisions[target_id][k] = v
+                if "SUPERSEDED" in q:
+                    self.decisions[target_id]["status"] = "SUPERSEDED"
+                    self.decisions[target_id]["lifecycle_status"] = "SUPERSEDED"
+            return EmbeddedQueryResult([[target_id]])
+
         if "MATCH (d:Decision) DETACH DELETE d" in q:
             self.decisions.clear()
             return EmbeddedQueryResult([])
@@ -330,7 +341,9 @@ class TarsGraph:
         query = f"MATCH (d:Decision {{id: $id}}) SET {', '.join(set_clauses)} RETURN d.id"
         try:
             res = self.conn.execute(query, params)
-            return res.has_next()
+            if hasattr(res, "has_next"):
+                return res.has_next()
+            return True
         except Exception as e:
             print(f"Error updating decision {decision_id}: {e}")
             return False
@@ -349,7 +362,7 @@ class TarsGraph:
             res = self.conn.execute(query, params)
             if hard_purge:
                 return True
-            has_res = res.has_next()
+            has_res = res.has_next() if hasattr(res, "has_next") else True
             if has_res and superseded_by:
                 try:
                     self.link_supersedes(superseded_by, decision_id)
@@ -366,7 +379,6 @@ class TarsGraph:
             if d["id"] == decision_id:
                 return d
         return None
-
     def add_invariant(self, inv_id: str, name: str, category: str, severity: str, rationale: str, adr_ref: str = "") -> bool:
         """Adds or updates an Invariant node in the graph."""
         query = """

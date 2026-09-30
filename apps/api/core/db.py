@@ -31,9 +31,13 @@ class LocalDB:
             db_dir = os.path.dirname(os.path.abspath(target_path))
             if db_dir:
                 os.makedirs(db_dir, exist_ok=True)
-            conn = sqlite3.connect(target_path, check_same_thread=False, timeout=30.0)
+            conn = sqlite3.connect(target_path, check_same_thread=False, timeout=60.0)
             conn.row_factory = sqlite3.Row
-            conn.execute('PRAGMA busy_timeout=30000;')
+            try:
+                conn.execute('PRAGMA journal_mode=WAL;')
+                conn.execute('PRAGMA busy_timeout=60000;')
+            except Exception:
+                pass
             self.local.conn = conn
             self.local.conn_path = target_path
             # Try loading sqlite-vec extension if available
@@ -80,6 +84,23 @@ class LocalDB:
                 clearance TEXT NOT NULL DEFAULT 'ALL_TEAM'
             )
         ''')
+        
+        # Chat Messages table (Think Tank Persistent Discussions compatibility)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_messages (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT NOT NULL,
+                sender_id TEXT NOT NULL,
+                sender_name TEXT NOT NULL,
+                sender_role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                reply_to_id TEXT,
+                is_edited INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                extracted_to_graph INTEGER DEFAULT 0
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_channel_created ON chat_messages(channel_id, created_at ASC);")
         
         # Audit Log table
         cursor.execute('''
@@ -178,6 +199,9 @@ class LocalDB:
 
         cursor.execute("PRAGMA table_info(memories)")
         mem_cols = [row[1] for row in cursor.fetchall()]
+        if "clearance" not in mem_cols:
+            cursor.execute("ALTER TABLE memories ADD COLUMN clearance TEXT NOT NULL DEFAULT 'ALL_TEAM'")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_clearance ON memories(clearance);")
         if "is_demo" not in mem_cols:
             cursor.execute("ALTER TABLE memories ADD COLUMN is_demo INTEGER DEFAULT 0")
         if "clearance" not in mem_cols:
@@ -231,6 +255,10 @@ class LocalDB:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        # Mark cap table rows as EXECUTIVE_ONLY
+        cursor.execute("UPDATE documents SET clearance = 'EXECUTIVE_ONLY' WHERE filename LIKE '%cap_table%' OR filename LIKE '%equity%';")
+        cursor.execute("UPDATE memories SET clearance = 'EXECUTIVE_ONLY' WHERE title LIKE '%cap_table%' OR title LIKE '%equity%' OR source LIKE '%cap_table%';")
 
         # Company Profile table (Genesis Onboarding Institutional Memory)
         cursor.execute('''

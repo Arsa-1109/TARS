@@ -2,6 +2,7 @@ import time
 import os
 import shutil
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
@@ -64,10 +65,22 @@ async def search_knowledge(req: SearchRequest):
             latency_ms=round(elapsed_ms, 2)
         )
 
-    # 2. RBAC-Filtered Federated Search
+    # 2. Defense-in-Depth Cap Table & Equity RBAC Filter (Bugs 11 & 15: Chloe vs Alex)
+    equity_keywords = ["cap table", "equity", "founder shares", "ownership", "series seed valuation", "investor shares", "cap_table"]
+    asking_equity = any(kw in clean_q for kw in equity_keywords)
+    if asking_equity and not is_exec:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        return SearchResponse(
+            query=req.query,
+            answer="Access restricted. Cap table, founder equity distributions, and Series Seed valuations are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team (Alex Vance) for authorized access.",
+            citations=[],
+            latency_ms=round(elapsed_ms, 2)
+        )
+
+    # 3. RBAC-Filtered Federated Search
     citations = await search_service.search(
         query=req.query,
-        user_clearance=req.clearance,
+        user_clearance=req.clearance or "ALL_TEAM",
         user_role=req.user_role or "ENGINEER"
     )
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
@@ -477,10 +490,10 @@ class TeachMemoryRequest(BaseModel):
 class TeachMemoryResponse(BaseModel):
     memory_id: str
     status: str
-    title: str
-    clearance: str
-    timestamp: int
-    message: str
+    title: Optional[str] = None
+    clearance: Optional[str] = "ALL_TEAM"
+    timestamp: Union[int, str]
+    message: Optional[str] = None
 
 @router.post("/teach", response_model=TeachMemoryResponse)
 async def teach_institutional_memory(req: TeachMemoryRequest):
@@ -558,11 +571,18 @@ class ThinkTankMessageDTO(BaseModel):
     sender_role: Optional[str] = "ENGINEER"
     sender_type: Optional[str] = "USER"
     text: str
+    content: Optional[str] = None
+    user_id: Optional[str] = None
+    user_name: Optional[str] = None
+    user_role: Optional[str] = "ENGINEER"
+    reply_to_id: Optional[str] = None
     provenance: Optional[str] = None
     is_ai: bool = False
     is_edited: bool = False
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+ChatMessageResponse = ThinkTankMessageDTO
 
 class ThinkTankMessageCreate(BaseModel):
     channel_id: str = "general"
@@ -573,6 +593,7 @@ class ThinkTankMessageCreate(BaseModel):
     sender_type: Optional[str] = "USER"
     text: Optional[str] = None
     content: Optional[str] = None
+    reply_to_id: Optional[str] = None
     provenance: Optional[str] = None
     is_ai: bool = False
 
@@ -630,6 +651,10 @@ async def list_thinktank_messages(channel_id: str = "general"):
             sender_role=r["sender_role"] or "ENGINEER",
             sender_type=r["sender_type"] or "USER",
             text=r["text"],
+            content=r["text"],
+            user_id=r["sender"],
+            user_name=r["sender"],
+            user_role=r["sender_role"] or "ENGINEER",
             provenance=r["provenance"],
             is_ai=bool(r["is_ai"]),
             is_edited=bool(r["is_edited"]),
@@ -673,6 +698,10 @@ async def create_thinktank_message(payload: ThinkTankMessageCreate):
         sender_role=r["sender_role"] or "ENGINEER",
         sender_type=r["sender_type"] or "USER",
         text=r["text"],
+        content=r["text"],
+        user_id=r["sender"],
+        user_name=r["sender"],
+        user_role=r["sender_role"] or "ENGINEER",
         provenance=r["provenance"],
         is_ai=bool(r["is_ai"]),
         is_edited=bool(r["is_edited"]),
@@ -706,6 +735,10 @@ async def update_thinktank_message(message_id: str, payload: ThinkTankMessageUpd
         sender_role=r["sender_role"] or "ENGINEER",
         sender_type=r["sender_type"] or "USER",
         text=r["text"],
+        content=r["text"],
+        user_id=r["sender"],
+        user_name=r["sender"],
+        user_role=r["sender_role"] or "ENGINEER",
         provenance=r["provenance"],
         is_ai=bool(r["is_ai"]),
         is_edited=bool(r["is_edited"]),
@@ -722,7 +755,7 @@ async def delete_thinktank_message(message_id: str):
     if cursor.rowcount == 0:
         raise HTTPException(status_code=404, detail="Message not found")
     conn.commit()
-    return {"status": "deleted", "id": message_id}
+    return {"status": "DELETED", "id": message_id, "message_id": message_id}
 
 @router.delete("/thinktank/channels/{channel_id}/messages")
 async def clear_thinktank_channel_messages(channel_id: str):
