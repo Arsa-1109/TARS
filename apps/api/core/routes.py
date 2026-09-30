@@ -4,9 +4,10 @@ import re
 import shutil
 import uuid
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Header, Query
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
+import json
 from apps.api.schemas.contracts import (
     ActionItemDTO,
     SystemStatus,
@@ -21,6 +22,11 @@ from apps.api.schemas.contracts import (
     UserDTO,
     WorkspaceResetRequest,
     WorkspaceResetResponse,
+    ChatSessionDTO,
+    ChatSessionCreate,
+    ChatSessionUpdate,
+    ChatMessageDTO,
+    ChatMessageCreate,
 )
 from apps.api.core.action_hub import action_hub_repo
 from apps.api.core.session import session_manager, SessionData, user_manager
@@ -816,4 +822,538 @@ async def clear_thinktank_channel_messages(channel_id: str):
     return {"status": "cleared", "channel_id": channel_id, "cleared_count": count}
 
 
+# ============================================================
+# PERSISTENT COMPANY KNOWLEDGE CHATBOT (WORKSPACE 1)
+# ============================================================
 
+def derive_chat_title(query: str) -> str:
+    """
+    Derives a short deterministic title from the first meaningful user message.
+    Does NOT call an LLM.
+    Examples:
+      'What is our payment provider?' -> 'Payment Provider'
+      'What did we promise Acme about SAML?' -> 'Acme SAML'
+      'Architecture decisions' -> 'Architecture Decisions'
+    """
+    cleaned = query.strip()
+    cleaned = re.sub(r"[?!.,;:]+$", "", cleaned).strip()
+    if not cleaned:
+        return "New conversation"
+
+    # Specific common pattern matchers
+    patterns = [
+        (r"^(?:what\s+(?:is|was|are|were)\s+our\s+)(.+)$", r"\1"),
+        (r"^(?:what\s+did\s+we\s+promise\s+)(.+?)(?:\s+about\s+(.+))?$", lambda m: f"{m.group(1).title()} {m.group(2).upper() if m.group(2) else ''}".strip()),
+        (r"^(?:tell\s+me\s+about\s+)(.+)$", r"\1"),
+        (r"^(?:how\s+(?:do|does|can)\s+we\s+)(.+)$", r"\1"),
+        (r"^(?:what\s+is\s+the\s+policy\s+on\s+)(.+)$", r"\1 Policy"),
+        (r"^(?:what\s+is\s+our\s+policy\s+on\s+)(.+)$", r"\1 Policy"),
+    ]
+
+    for pat, repl in patterns:
+        match = re.match(pat, cleaned, re.IGNORECASE)
+        if match:
+            if callable(repl):
+                derived = repl(match)
+            else:
+                derived = match.expand(repl)
+            derived = derived.strip()
+            if derived:
+                words = derived.split()
+                formatted = []
+                for w in words:
+                    w_upper = re.sub(r"[^\w-]", "", w).upper()
+                    if w_upper in ("SAML", "SSO", "ADR", "API", "MRR", "ARR", "BDR", "INV", "AWS", "FTE", "RBAC"):
+                        formatted.append(w_upper)
+                    else:
+                        formatted.append(w.capitalize())
+                return " ".join(formatted)[:40]
+
+    # Strip generic stop-prefixes
+    stop_prefixes = [
+        r"^(?:what\s+is|what\s+are|what\s+was|who\s+is|who\s+are|where\s+is|how\s+do|how\s+does|can\s+you|please\s+explain|tell\s+me\s+about|do\s+we\s+have|what\s+did\s+we)\s+",
+        r"^(?:our|the|a|an)\s+"
+    ]
+    trimmed = cleaned
+    for sp in stop_prefixes:
+        trimmed = re.sub(sp, "", trimmed, flags=re.IGNORECASE).strip()
+
+    words = trimmed.split()
+    if not words:
+        return "New conversation"
+
+    chosen = words[:4]
+    formatted = []
+    for w in chosen:
+        w_clean = re.sub(r"[^\w-]", "", w)
+        if not w_clean:
+            continue
+        w_upper = w_clean.upper()
+        if w_upper in ("SAML", "SSO", "ADR", "API", "MRR", "ARR", "BDR", "INV", "AWS", "FTE", "RBAC"):
+            formatted.append(w_upper)
+        elif w_clean.lower() in ("about", "with", "for", "and", "or", "in", "on", "at", "to"):
+            continue
+        else:
+            formatted.append(w_clean.capitalize())
+
+    res = " ".join(formatted).strip()
+    return res[:40] if res else cleaned[:30].title()
+
+
+def _resolve_user_id(
+    query_user_id: Optional[str] = None,
+    header_user_id: Optional[str] = None,
+    body_user_id: Optional[str] = None
+) -> str:
+    """Determines the active user ID with sovereign fallback."""
+    uid = query_user_id or body_user_id or header_user_id
+    if not uid or uid.strip() in ("", "undefined", "null"):
+        return "usr-alex"
+    return uid.strip()
+
+
+@router.get("/chats", response_model=List[ChatSessionDTO])
+@router.get("/chat/sessions", response_model=List[ChatSessionDTO])
+async def list_chats(
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Lists all active chat sessions owned by the requesting user."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, user_id, title, created_at, updated_at, is_deleted
+        FROM chat_sessions
+        WHERE user_id = ? AND is_deleted = 0
+        ORDER BY updated_at DESC
+    """, (uid,))
+    rows = cursor.fetchall()
+    return [
+        ChatSessionDTO(
+            id=r["id"],
+            user_id=r["user_id"],
+            title=r["title"],
+            created_at=str(r["created_at"]),
+            updated_at=str(r["updated_at"]),
+            is_deleted=bool(r["is_deleted"])
+        )
+        for r in rows
+    ]
+
+
+@router.post("/chats", response_model=ChatSessionDTO)
+@router.post("/chat/sessions", response_model=ChatSessionDTO)
+async def create_chat(
+    payload: Optional[ChatSessionCreate] = None,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Creates a new persistent company knowledge chat session."""
+    body_uid = payload.user_id if payload else None
+    title = (payload.title if payload and payload.title else "New conversation").strip()
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id, body_user_id=body_uid)
+    cs_id = f"chat-{uuid.uuid4().hex[:8]}"
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO chat_sessions (id, user_id, title, created_at, updated_at, is_deleted)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)
+    """, (cs_id, uid, title))
+    conn.commit()
+
+    cursor.execute("""
+        SELECT id, user_id, title, created_at, updated_at, is_deleted
+        FROM chat_sessions
+        WHERE id = ?
+    """, (cs_id,))
+    r = cursor.fetchone()
+    return ChatSessionDTO(
+        id=r["id"],
+        user_id=r["user_id"],
+        title=r["title"],
+        created_at=str(r["created_at"]),
+        updated_at=str(r["updated_at"]),
+        is_deleted=bool(r["is_deleted"])
+    )
+
+
+@router.get("/chats/{chat_id}", response_model=ChatSessionDTO)
+@router.get("/chat/sessions/{chat_id}", response_model=ChatSessionDTO)
+async def get_chat(
+    chat_id: str,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Retrieves a single chat session with ownership enforcement."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, user_id, title, created_at, updated_at, is_deleted
+        FROM chat_sessions
+        WHERE id = ? AND is_deleted = 0
+    """, (chat_id,))
+    r = cursor.fetchone()
+    if not r:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if r["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    return ChatSessionDTO(
+        id=r["id"],
+        user_id=r["user_id"],
+        title=r["title"],
+        created_at=str(r["created_at"]),
+        updated_at=str(r["updated_at"]),
+        is_deleted=bool(r["is_deleted"])
+    )
+
+
+@router.patch("/chats/{chat_id}", response_model=ChatSessionDTO)
+@router.patch("/chat/sessions/{chat_id}", response_model=ChatSessionDTO)
+async def rename_chat(
+    chat_id: str,
+    payload: ChatSessionUpdate,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Renames an existing chat session with ownership verification."""
+    new_title = payload.title.strip()
+    if not new_title:
+        raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    r = cursor.fetchone()
+    if not r:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if r["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    cursor.execute("""
+        UPDATE chat_sessions
+        SET title = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (new_title, chat_id))
+    conn.commit()
+
+    cursor.execute("""
+        SELECT id, user_id, title, created_at, updated_at, is_deleted
+        FROM chat_sessions
+        WHERE id = ?
+    """, (chat_id,))
+    updated = cursor.fetchone()
+    return ChatSessionDTO(
+        id=updated["id"],
+        user_id=updated["user_id"],
+        title=updated["title"],
+        created_at=str(updated["created_at"]),
+        updated_at=str(updated["updated_at"]),
+        is_deleted=bool(updated["is_deleted"])
+    )
+
+
+@router.delete("/chats/{chat_id}")
+@router.delete("/chat/sessions/{chat_id}")
+async def delete_chat(
+    chat_id: str,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Soft-deletes a chat session with ownership verification."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    r = cursor.fetchone()
+    if not r:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if r["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    cursor.execute("UPDATE chat_sessions SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (chat_id,))
+    cursor.execute("UPDATE chat_messages SET is_deleted = 1 WHERE chat_id = ?", (chat_id,))
+    conn.commit()
+    return {"status": "deleted", "id": chat_id}
+
+
+@router.get("/chats/{chat_id}/messages", response_model=List[ChatMessageDTO])
+async def list_chat_messages(
+    chat_id: str,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Retrieves all active messages in a chat conversation."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    r = cursor.fetchone()
+    if not r:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if r["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    cursor.execute("""
+        SELECT id, chat_id, role, content, citations, created_at, is_deleted
+        FROM chat_messages
+        WHERE chat_id = ? AND is_deleted = 0
+        ORDER BY created_at ASC
+    """, (chat_id,))
+    rows = cursor.fetchall()
+    messages: List[ChatMessageDTO] = []
+    for row in rows:
+        citations: List[SearchCitation] = []
+        raw_cits = row["citations"]
+        if raw_cits:
+            try:
+                parsed = json.loads(raw_cits)
+                if isinstance(parsed, list):
+                    citations = [SearchCitation(**c) for c in parsed]
+            except Exception:
+                pass
+        messages.append(ChatMessageDTO(
+            id=row["id"],
+            chat_id=row["chat_id"],
+            role=row["role"],
+            content=row["content"],
+            citations=citations,
+            created_at=str(row["created_at"]),
+            is_deleted=bool(row["is_deleted"])
+        ))
+    return messages
+
+
+@router.post("/chats/{chat_id}/messages", response_model=ChatMessageDTO)
+async def send_chat_message(
+    chat_id: str,
+    payload: ChatMessageCreate,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None),
+    x_user_role: Optional[str] = Header(None),
+    x_user_clearance: Optional[str] = Header(None)
+):
+    """
+    Core Company Knowledge Chat Interaction:
+    1. Authenticates session ownership
+    2. Persists user prompt
+    3. Auto-derives deterministic title on first message
+    4. Intercepts lightweight greetings without expensive search
+    5. Enforces RBAC clearance before LLM synthesis
+    6. Conducts federated search across memories, Kùzu decisions, and documents
+    7. Synthesizes answer with local Ollama / Qwen model (or truthful offline fallback)
+    8. Persists assistant reply with grounded citations
+    """
+    raw_content = payload.content.strip()
+    if not raw_content:
+        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id, body_user_id=payload.user_id)
+    u_role = payload.user_role or x_user_role or "ENGINEER"
+    u_clearance = payload.clearance or x_user_clearance or "ALL_TEAM"
+    u_name = payload.user_name or uid
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, title FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    session = cursor.fetchone()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if session["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    # 1. Persist user message
+    msg_user_id = f"msg-{uuid.uuid4().hex[:8]}"
+    cursor.execute("""
+        INSERT INTO chat_messages (id, chat_id, role, content, citations, created_at, is_deleted)
+        VALUES (?, ?, 'user', ?, '[]', CURRENT_TIMESTAMP, 0)
+    """, (msg_user_id, chat_id, raw_content))
+
+    # 2. Derive deterministic title if still default
+    curr_title = session["title"]
+    if curr_title in ("New conversation", "New Chat", "Untitled conversation", ""):
+        derived = derive_chat_title(raw_content)
+        cursor.execute("UPDATE chat_sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (derived, chat_id))
+    else:
+        cursor.execute("UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (chat_id,))
+    conn.commit()
+
+    # 3. Intercept Greetings (Feature 15)
+    clean_q = raw_content.lower()
+    is_exec = (
+        u_clearance == "EXECUTIVE_ONLY" or
+        (u_role and u_role.upper() in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE"))
+    )
+    is_greeting = clean_q in GREETINGS or _is_lightweight_query(raw_content)
+
+    citations: List[SearchCitation] = []
+    answer = ""
+
+    if is_greeting:
+        user_display = u_name if u_name and u_name != uid else ("Alex" if is_exec else "Team Member")
+        if is_exec:
+            answer = (
+                f"Hello {user_display}! Founder clearance active. I am TARS, your strategic & institutional intelligence co-pilot. "
+                f"How can I assist you with corporate memory, architecture radar, or active client commitments today?"
+            )
+        else:
+            answer = (
+                f"Hello {user_display}! I am TARS, your startup institutional second brain. "
+                f"How can I assist you today with company policies, client commitments, or architectural decisions?"
+            )
+        citations = []
+    else:
+        # 4. RBAC / Clearance Guardrail (Feature 12)
+        equity_keywords = ["cap table", "equity", "founder shares", "ownership", "series seed valuation", "investor shares", "cap_table"]
+        asking_equity = any(kw in clean_q for kw in equity_keywords)
+        if asking_equity and not is_exec:
+            answer = (
+                "Access restricted. Cap table, founder equity distributions, and Series Seed valuations "
+                "are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team (Alex Vance) for authorized access."
+            )
+            citations = []
+        else:
+            # 5. Federated Search across SQLite memories, Kùzu decisions, MarkItDown documents (Feature 11)
+            citations = await search_service.search(
+                query=raw_content,
+                user_clearance=u_clearance,
+                user_role=u_role
+            )
+
+            # Retrieve company profile facts for grounding
+            company = company_repo.get_profile() or {}
+            comp_name = company.get("company_name", "AetherFlow Technologies, Inc.")
+            team_size = company.get("team_size", "12 FTE")
+            runway_m = company.get("runway_months", 9.0)
+
+            company_facts = (
+                f"Company Name: {comp_name}\n"
+                f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
+                f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
+                f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
+                f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
+                f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+                f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
+            )
+            user_context = f"\nActive User Context: The current user is '{u_name}' with the assigned role '{u_role}' and clearance level '{u_clearance}'.\n"
+
+            # 6. Local Ollama Synthesis & Outage Handling (Feature 14)
+            ollama_ok = await ollama_client.is_available()
+            if not ollama_ok:
+                if citations:
+                    snippets_summary = "\n\n".join([f"• **{c.doc_title}**: {c.snippet}" for c in citations])
+                    answer = (
+                        f"Local AI unavailable — Ollama is not running. Showing retrieval-only results.\n\n"
+                        f"{snippets_summary}"
+                    )
+                else:
+                    answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{raw_content}' in the local knowledge lake."
+            else:
+                system_prompt = (
+                    f"You are TARS, the autonomous startup second brain for {comp_name}. "
+                    "Answer questions directly, accurately, and professionally based strictly on verified company facts, decisions, and internal documents. "
+                    "Do NOT output internal thinking or scratchpad notes. "
+                    "Provide a polished, complete answer with actionable points."
+                )
+                prompt = (
+                    f"Company Institutional Knowledge Facts:\n{company_facts}\n"
+                    f"{user_context}"
+                )
+                if not is_exec:
+                    prompt += "SECURITY POLICY: Refuse cap table or confidential executive finances disclosures.\n"
+
+                prompt += f"Query: {raw_content}\n"
+                if citations:
+                    context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
+                    prompt += f"\nRelevant Internal Sources:\n{context_str}\n"
+
+                prompt += (
+                    f"\nUser Query: {raw_content}\n\n"
+                    "Provide a structured, refined, concise, and complete response addressing this query directly based on the sources above."
+                )
+
+                llm_res = await ollama_client.generate(prompt, task_complexity="deep", max_tokens=1536, system=system_prompt)
+                if llm_res.get("success") and llm_res.get("response"):
+                    answer = str(llm_res.get("response")).strip()
+                elif citations:
+                    snippets_summary = "\n\n".join([f"• **{c.doc_title}**: {c.snippet}" for c in citations])
+                    answer = f"Found {len(citations)} relevant citations matching '{raw_content}':\n\n{snippets_summary}"
+                else:
+                    answer = f"Found 0 relevant citations matching '{raw_content}' in the local knowledge lake."
+
+    # 7. Persist assistant message
+    msg_assistant_id = f"msg-{uuid.uuid4().hex[:8]}"
+    citations_json = json.dumps([c.model_dump() for c in citations])
+    cursor.execute("""
+        INSERT INTO chat_messages (id, chat_id, role, content, citations, created_at, is_deleted)
+        VALUES (?, ?, 'assistant', ?, ?, CURRENT_TIMESTAMP, 0)
+    """, (msg_assistant_id, chat_id, answer, citations_json))
+    conn.commit()
+
+    cursor.execute("SELECT created_at FROM chat_messages WHERE id = ?", (msg_assistant_id,))
+    ts_row = cursor.fetchone()
+    created_at_str = str(ts_row["created_at"]) if ts_row else datetime.now(timezone.utc).isoformat()
+
+    return ChatMessageDTO(
+        id=msg_assistant_id,
+        chat_id=chat_id,
+        role="assistant",
+        content=answer,
+        citations=citations,
+        created_at=created_at_str,
+        is_deleted=False
+    )
+
+
+@router.delete("/chats/{chat_id}/messages")
+async def clear_chat_messages(
+    chat_id: str,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Clears all messages from a chat session while keeping the conversation itself (Feature 8)."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    session = cursor.fetchone()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if session["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    cursor.execute("SELECT COUNT(*) FROM chat_messages WHERE chat_id = ? AND is_deleted = 0", (chat_id,))
+    count = cursor.fetchone()[0]
+    cursor.execute("UPDATE chat_messages SET is_deleted = 1 WHERE chat_id = ?", (chat_id,))
+    cursor.execute("UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (chat_id,))
+    conn.commit()
+    return {"status": "cleared", "chat_id": chat_id, "cleared_count": count}
+
+
+@router.delete("/chats/{chat_id}/messages/{message_id}")
+async def delete_single_chat_message(
+    chat_id: str,
+    message_id: str,
+    user_id: Optional[str] = Query(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    """Soft-deletes an individual message from a chat conversation."""
+    uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id)
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id FROM chat_sessions WHERE id = ? AND is_deleted = 0", (chat_id,))
+    session = cursor.fetchone()
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if session["user_id"] != uid:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this chat session")
+
+    cursor.execute("UPDATE chat_messages SET is_deleted = 1 WHERE id = ? AND chat_id = ?", (message_id, chat_id))
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Message not found")
+    conn.commit()
+    return {"status": "deleted", "message_id": message_id}

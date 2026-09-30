@@ -85,22 +85,42 @@ class LocalDB:
             )
         ''')
         
-        # Chat Messages table (Think Tank Persistent Discussions compatibility)
+        # Chat Sessions table (Persistent Company Knowledge Chatbot)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chat_sessions (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_deleted INTEGER DEFAULT 0
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id, updated_at DESC);")
+
+        # Chat Messages table (Persistent Company Knowledge Chatbot)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id TEXT PRIMARY KEY,
-                channel_id TEXT NOT NULL,
-                sender_id TEXT NOT NULL,
-                sender_name TEXT NOT NULL,
-                sender_role TEXT NOT NULL,
+                chat_id TEXT NOT NULL,
+                role TEXT NOT NULL,
                 content TEXT NOT NULL,
-                reply_to_id TEXT,
-                is_edited INTEGER DEFAULT 0,
+                citations TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                extracted_to_graph INTEGER DEFAULT 0
+                is_deleted INTEGER DEFAULT 0
             )
         ''')
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_channel_created ON chat_messages(channel_id, created_at ASC);")
+        cursor.execute("PRAGMA table_info(chat_messages)")
+        msg_cols = [row[1] for row in cursor.fetchall()]
+        if "chat_id" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN chat_id TEXT")
+        if "role" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN role TEXT")
+        if "citations" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN citations TEXT")
+        if "is_deleted" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id, created_at ASC);")
         
         # Audit Log table
         cursor.execute('''

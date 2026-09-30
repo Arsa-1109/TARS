@@ -267,3 +267,36 @@ class WorkspaceResetResponse(BaseModel):
     timestamp: int
 
 
+# ==========================================
+# COMPANY KNOWLEDGE CHATBOT (PERSISTENT SESSIONS)
+# ==========================================
+class ChatSessionDTO(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    created_at: str
+    updated_at: str
+    is_deleted: bool = False
+
+class ChatSessionCreate(BaseModel):
+    user_id: Optional[str] = "usr-alex"
+    title: Optional[str] = "New conversation"
+
+class ChatSessionUpdate(BaseModel):
+    title: str
+
+class ChatMessageDTO(BaseModel):
+    id: str
+    chat_id: str
+    role: str
+    content: str
+    citations: Optional[List[SearchCitation]] = Field(default_factory=list)
+    created_at: str
+    is_deleted: bool = False
+
+class ChatMessageCreate(BaseModel):
+    content: str
+    user_id: Optional[str] = None
+    user_role: Optional[str] = "ENGINEER"
+    user_name: Optional[str] = None
+    clearance: Optional[str] = "ALL_TEAM"

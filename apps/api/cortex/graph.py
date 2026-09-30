@@ -355,9 +355,7 @@ class TarsGraph:
             params = {"id": decision_id}
         else:
             query = "MATCH (d:Decision {id: $id}) SET d.status = 'SUPERSEDED' RETURN d.id"
-            params = {"id": decision_id, "status": "SUPERSEDED", "lifecycle_status": "SUPERSEDED"}
-            if superseded_by:
-                params["superseded_by"] = superseded_by
+            params = {"id": decision_id}
         try:
             res = self.conn.execute(query, params)
             if hard_purge:

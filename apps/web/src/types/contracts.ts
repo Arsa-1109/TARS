@@ -25,6 +25,26 @@ export interface SearchResponse {
   latency_ms: number;
 }
 
+// Persistent Company Knowledge Chatbot
+export interface ChatSessionDTO {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted?: boolean;
+}
+
+export interface ChatMessageDTO {
+  id: string;
+  chat_id: string;
+  role: 'user' | 'assistant' | 'system' | string;
+  content: string;
+  citations?: SearchCitation[];
+  created_at: string;
+  is_deleted?: boolean;
+}
+
 // Workspace 2: Client Call Studio
 export interface VoiceToSpecResponse {
   call_id: string;

@@ -215,3 +215,5 @@ export const chatApi = {
     return this.teachTars(data);
   },
 };
+
+export { knowledgeChatApi } from './knowledgeChatApi';
