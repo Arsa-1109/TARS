@@ -81,6 +81,8 @@ scratch/
 Thumbs.db
 desktop.ini
 *.bak
+.agents/
+.agents
 
 # Coverage and test artifacts
 coverage/
