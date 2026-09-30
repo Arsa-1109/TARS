@@ -1032,7 +1032,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                     </span>
                   </div>
                   <div className="text-[#6E6E73] dark:text-[#8E8E93] mt-0.5 leading-relaxed">
-                    Pre-seeds the Q4 Financial Runway Model (<span className="font-mono text-[10px]">demo_runway_q4.xlsx</span>) and Acme Enterprise Discovery Call (<span className="font-mono text-[10px]">acme_nda_call_sample.vtt</span>) for immediate testing.
+                    Pre-seeds the Q4 Financial Runway Model (<span className="font-mono text-[10px]">demo_runway_q4.xlsx</span>) and Enterprise Client Discovery Call (<span className="font-mono text-[10px]">enterprise_call_sample.vtt</span>) for immediate testing.
                   </div>
                 </label>
               </div>

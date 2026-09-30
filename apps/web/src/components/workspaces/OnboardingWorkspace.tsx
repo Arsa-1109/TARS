@@ -5,6 +5,7 @@ import { Drawer } from '../primitives/Drawer';
 import { EmptyState } from '../primitives/EmptyState';
 import { UserRole, CompanyProfile } from '../../types/contracts';
 import { api } from '../../services/client';
+import { useSessionStore } from '../../state/useSessionStore';
 import {
   CheckCircle2,
   Circle,
@@ -48,66 +49,85 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     }
   }, [propProfile]);
 
-  const companyName = profile?.company_name || 'Sovereign Startup';
+  const { profile: sessionProfile } = useSessionStore();
+  const founderName = sessionProfile?.name || 'Founder';
+  const companyName = profile?.company_name || sessionProfile?.company_name || 'Sovereign Startup';
   const techStack = profile?.tech_stack || 'Python, TypeScript, SQLite';
   const enterprisePolicy = profile?.enterprise_policy || 'Strict Rejection of Bespoke Forks';
+  const teamSize = profile?.team_size || 'core team';
+
+  const rawModules = [
+    {
+      day: 1,
+      title: `Sovereignty & The Air-Gap Invariant (${companyName})`,
+      description: `Understand why ${companyName} enforces zero cloud egress ($E_{net} = 0.00\\text{ KB}$) and how local on-premise execution protects company IP.`,
+      tasks: [
+        `Inspect ${companyName} institutional identity and core thesis in Knowledge Base`,
+        `Verify .tars/invariants.yaml and install local pre-commit AST guards`,
+        `Run airplane-mode verification script in local terminal with 0.00 KB egress`,
+      ],
+      milestone_tour: {
+        title: `Founding Thesis: Why Startups Die of Context Decay`,
+        audio_duration: '3m 45s',
+        speaker: `${founderName} (${companyName})`,
+      },
+    },
+    {
+      day: 2,
+      title: `Deterministic AST Enforcement & ${techStack}`,
+      description: `Learn how Tree-sitter parses staged Git diffs in <50ms to enforce ${companyName}'s architectural standards before commits land in main.`,
+      tasks: [
+        `Review architectural invariants in Architecture Workspace`,
+        `Test local AST query runner against staged diffs in <50ms`,
+        `Inspect living MADR generator output in docs/adr/`,
+      ],
+    },
+    {
+      day: 3,
+      title: `Institutional Memory & Strategic Policies`,
+      description: `Explore the sovereign graph connecting ADR decisions, customer commitments, and code entities.`,
+      tasks: [
+        `Review policy decisions regarding ${enterprisePolicy}`,
+        `Trace customer commitments into the Unified Action Hub`,
+        `Ask the Socratic Mentor about architectural boundaries and cash runway`,
+      ],
+    },
+    {
+      day: 4,
+      title: `First Compliant Pull Request`,
+      description: `Author and commit your first feature passing all invariant gates for ${companyName}.`,
+      tasks: [
+        `Implement new service component adhering to Hexagonal architecture`,
+        `Verify sub-50ms pre-commit hook execution without regressions`,
+        `Submit PR with automated institutional executive summary`,
+      ],
+    },
+  ];
+
+  const modules = rawModules.map((mod) => {
+    const isAllTasksDone = mod.tasks.length > 0 && mod.tasks.every((_, idx) => !!completedTasks[`${mod.day}-${idx}`]);
+    let status: 'COMPLETED' | 'CURRENT' | 'UPCOMING';
+    if (isAllTasksDone) {
+      status = 'COMPLETED';
+    } else if (mod.day === activeDay) {
+      status = 'CURRENT';
+    } else if (mod.day < activeDay) {
+      status = 'COMPLETED';
+    } else {
+      status = 'UPCOMING';
+    }
+    return {
+      ...mod,
+      status,
+    };
+  });
 
   const data = {
     role: userRole,
     title: `${companyName} Flight-Plan`,
     total_days: 14,
-    current_day: 1,
-    modules: [
-      {
-        day: 1,
-        title: `Sovereignty & The Air-Gap Invariant (${companyName})`,
-        status: 'COMPLETED',
-        description: `Understand why ${companyName} enforces zero cloud egress ($E_{net} = 0.00\\text{ KB}$) and how local on-premise execution protects company IP.`,
-        tasks: [
-          `Inspect ${companyName} institutional identity and core thesis in Knowledge Base`,
-          `Verify .tars/invariants.yaml and install local pre-commit AST guards`,
-          `Run airplane-mode verification script in local terminal with 0.00 KB egress`,
-        ],
-        milestone_tour: {
-          title: `Founding Thesis: Why Startups Die of Context Decay`,
-          audio_duration: '3m 45s',
-          speaker: `Founder (${companyName})`,
-        },
-      },
-      {
-        day: 2,
-        title: `Deterministic AST Enforcement & ${techStack}`,
-        status: 'COMPLETED',
-        description: `Learn how Tree-sitter parses staged Git diffs in <50ms to enforce ${companyName}'s architectural standards before commits land in main.`,
-        tasks: [
-          `Review architectural invariants in Architecture Workspace`,
-          `Test local AST query runner against staged diffs in <50ms`,
-          `Inspect living MADR generator output in docs/adr/`,
-        ],
-      },
-      {
-        day: 3,
-        title: `Institutional Memory & Strategic Policies`,
-        status: 'CURRENT',
-        description: `Explore the sovereign graph connecting ADR decisions, customer commitments, and code entities.`,
-        tasks: [
-          `Review policy decisions regarding ${enterprisePolicy}`,
-          `Trace customer commitments into the Unified Action Hub`,
-          `Ask the Socratic Mentor about architectural boundaries and cash runway`,
-        ],
-      },
-      {
-        day: 4,
-        title: `First Compliant Pull Request`,
-        status: 'UPCOMING',
-        description: `Author and commit your first feature passing all invariant gates for ${companyName}.`,
-        tasks: [
-          `Implement new service component adhering to Hexagonal architecture`,
-          `Verify sub-50ms pre-commit hook execution without regressions`,
-          `Submit PR with automated institutional executive summary`,
-        ],
-      },
-    ],
+    current_day: activeDay,
+    modules,
   };
 
   const [mentorDrawerOpen, setMentorDrawerOpen] = useState(false);
@@ -150,19 +170,19 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
         FOUNDER: {
           roleTitle: 'Founder & Sovereign Admin (Executive Track)',
           responsibilities:
-            'Your primary role is executive governance, company runway management, and architectural discipline. You enforce Decision #14 (banning custom enterprise branches to preserve runway) and guarantee 100% data sovereignty (zero cloud egress).',
+            `Your primary role is executive governance, company runway management, and architectural discipline. You enforce our institutional operating policy (${enterprisePolicy}) and guarantee 100% data sovereignty (zero cloud egress).`,
           cite: 'Founder Flight-Plan · Executive Track P.1',
         },
         ENGINEER: {
           roleTitle: 'Lead Software & Systems Engineer (Engineering Track)',
           responsibilities:
-            'Your primary role is architecting and building the sovereign offline platform adhering to our 4 killer invariants (such as INV-017 Transactional Outbox pattern, local cookie auth, and parameter validation), ensuring all AST pre-commit checks pass deterministically in <50ms.',
+            `Your primary role is architecting and building the sovereign offline platform adhering to our core architectural invariants in ${techStack} (such as Transactional Outbox pattern, local cookie auth, and parameter validation), ensuring all AST pre-commit checks pass deterministically in <50ms.`,
           cite: 'Engineering Architecture Playbook · Section 2',
         },
         PRODUCT: {
           roleTitle: 'Product & Customer Intelligence Lead (Product Track)',
           responsibilities:
-            'Your primary role is compiling unstructured customer audio debriefs and call recordings into structured 4-part specs (pains, features, commitments), promoting deliverables to the Unified Action Hub, and ensuring commitments align with Decision #14.',
+            `Your primary role is compiling unstructured customer audio debriefs and call recordings into structured 4-part specs (pains, features, commitments), promoting deliverables to the Unified Action Hub, and ensuring commitments align with ${enterprisePolicy}.`,
           cite: 'Product Spec Flight-Plan · Section 1',
         },
         NEW_HIRE: {
@@ -193,23 +213,23 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     }
 
     const getFallbackAnswer = () => {
-      let reply = 'All company operations are designed for deterministic execution.';
+      let reply = `All ${companyName} operations are designed for deterministic execution.`;
       let cite = 'Founding Manifesto P.1';
 
-      if (userMsg.toLowerCase().includes('bdr-014') || userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom')) {
+      if (userMsg.toLowerCase().includes('bdr-014') || userMsg.toLowerCase().includes('decision 14') || userMsg.toLowerCase().includes('custom') || userMsg.toLowerCase().includes('policy')) {
         reply =
-          'BDR-014 was ratified 2026-09-12 to protect cash runway and prevent Bus Factor = 1 amnesia. With a 12-person team, maintaining bespoke forks diverts senior engineering capacity and delays the core self-serve product. SAML SSO is the sole exception under BDR-018.';
-        cite = 'BDR-014 (Ratified 2026-09-12) · BDR-018 (Exception Log)';
+          `${companyName}'s strategic operating policy enforces ${enterprisePolicy} to protect cash runway and maintain engineering focus. For a ${teamSize} team, maintaining bespoke branches diverts core capacity and introduces technical debt.`;
+        cite = `Institutional Governance Policy (${enterprisePolicy})`;
       } else if (userMsg.toLowerCase().includes('inv-017') || userMsg.toLowerCase().includes('transaction')) {
         reply =
           'INV-017 strictly prevents wrapping outbound HTTP calls inside database transactions. If external APIs experience latency, database row locks remain open, exhausting connection pools.';
         cite = 'ADR-017: Outbox Pattern & Transaction Isolation';
       } else if (userMsg.toLowerCase().includes('sovereign') || userMsg.toLowerCase().includes('air-gap')) {
         reply =
-          'Sovereignty guarantees zero cloud egress (0.00 KB). All Qwen 8B, Whisper, and Tree-sitter models execute on your local hardware so customer code and NDA recordings are never leaked.';
+          `Sovereignty guarantees zero cloud egress (0.00 KB). All AI, Whisper, and Tree-sitter models execute on ${companyName}'s local hardware so proprietary code and recordings are never leaked.`;
         cite = 'PRD Section 3.1: Local Host Architecture';
       } else {
-        reply = `Evaluated across verified institutional memory: All architectural contracts and operational policies are enforced deterministically in <50ms without cloud egress.`;
+        reply = `Evaluated across verified institutional memory for ${companyName}: All architectural contracts and operational policies are enforced deterministically in <50ms without cloud egress.`;
         cite = "Engineering Architecture Playbook P.4";
       }
       return { reply, cite };
@@ -480,7 +500,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
             <div className="p-3.5 rounded-[14px] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 border border-black/[0.06] dark:border-white/[0.08] space-y-2.5">
               <div className="text-[13px] font-semibold text-black dark:text-white">Why Startups Die of Context Decay</div>
               <p className="text-[12px] text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
-                Founder Aryan debriefs the 4 frictions that destroy early-stage engineering velocity.
+                {founderName} debriefs the 4 frictions that destroy early-stage engineering velocity.
               </p>
               <div className="flex items-center justify-between pt-1">
                 <span className="font-mono text-[11px] text-[#8E8E93]">{tourPlaying ? 'Playing audio... (3m 45s)' : '3m 45s'}</span>
