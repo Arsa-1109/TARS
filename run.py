@@ -10,5 +10,5 @@ import uvicorn
 from apps.api.main import app
 
 if __name__ == "__main__":
-    # Local-only startup mounting all track routers (Core, Cortex, MCP, Ingestion)
-    uvicorn.run("apps.api.main:app", host="127.0.0.1", port=7777, reload=True, app_dir=str(root_dir))
+    # Multi-system LAN & local-only startup mounting all track routers (Core, Cortex, MCP, Ingestion)
+    uvicorn.run("apps.api.main:app", host="0.0.0.0", port=7777, reload=True, app_dir=str(root_dir))

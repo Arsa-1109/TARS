@@ -10,6 +10,7 @@ import { DocumentReaderModal } from './DocumentReaderModal';
 import { SearchCitation, SearchResponse, UserRole } from '../../types/contracts';
 import { api } from '../../services/client';
 import { ingestionApi } from '../../services/ingestionApi';
+import { realtimeBus } from '../../services/realtime';
 import {
   Search,
   FileText,
@@ -187,6 +188,17 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
   useEffect(() => {
     fetchLakeDocuments();
+    const unsub = realtimeBus.subscribe((evt) => {
+      if (
+        evt.event === 'DOCUMENT_UPLOADED' ||
+        evt.event === 'DOCUMENT_PROCESSED' ||
+        evt.event === 'DROP_EVENT' ||
+        evt.event === 'CALL_DELETED'
+      ) {
+        fetchLakeDocuments();
+      }
+    });
+    return unsub;
   }, [uploadSuccess]);
 
   const handleSearch = async (searchQuery: string) => {
