@@ -128,9 +128,10 @@ async def search_knowledge(req: SearchRequest):
 
     prompt += (
         f"\nUser Query: {req.query}\n\n"
-        "Provide a structured, refined, and complete response addressing this query directly. "
+        "Provide a structured, refined, concise, and complete response addressing this query directly. "
+        "Focus on 4 to 5 high-impact, actionable recommendations or key points. "
         f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
-        "Ensure all points are distinct, actionable, and the answer concludes cleanly without trailing off."
+        "Ensure every point is fully articulated, and conclude cleanly without trailing off."
     )
 
     # 3. Honest Local Ollama Generation & Outage Behavior
@@ -143,7 +144,7 @@ async def search_knowledge(req: SearchRequest):
             answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
     else:
         print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
-        llm_res = await ollama_client.generate(prompt, task_complexity="deep", max_tokens=1024, system=system_prompt)
+        llm_res = await ollama_client.generate(prompt, task_complexity="deep", max_tokens=1536, system=system_prompt)
         print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
         if llm_res.get("success") and llm_res.get("response"):
             answer = str(llm_res.get("response")).strip()

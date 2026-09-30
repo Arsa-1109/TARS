@@ -34,7 +34,7 @@ class OllamaClient:
             if "localhost" not in OLLAMA_URL and "127.0.0.1" not in OLLAMA_URL:
                  return {"success": False, "error": "Zero-egress violation: OLLAMA_BASE_URL must be local."}
 
-            num_predict = max_tokens or (1024 if task_complexity in ("deep", "reasoning", "heavy", "complex") else 512)
+            num_predict = max_tokens or (1536 if task_complexity in ("deep", "reasoning", "heavy", "complex") else 512)
 
             payload = {
                 "model": chosen_model,

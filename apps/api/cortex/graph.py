@@ -502,7 +502,7 @@ class TarsGraph:
         
         # Heuristic semantic keyword conflict graph matching
         conflict_keywords = {
-            "localstorage": ["cookie", "httponly", "session"],
+            "localstorage": ["cookie", "httponly"],
             "raw sql": ["prisma", "orm", "repository"],
             "http": ["transaction", "atomic", "database lock"],
             "stripe": ["transaction", "outbox", "sync dispatch"],

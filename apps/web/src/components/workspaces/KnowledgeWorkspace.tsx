@@ -33,6 +33,104 @@ interface KnowledgeWorkspaceProps {
   clearance: string;
 }
 
+const FormattedAnswer: React.FC<{ content: string }> = ({ content }) => {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let currentList: React.ReactNode[] = [];
+  let listType: 'ol' | 'ul' | null = null;
+
+  const renderInline = (text: string) => {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={i} className="font-semibold text-black dark:text-white">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+  };
+
+  const flushList = (keyPrefix: string | number) => {
+    if (currentList.length > 0 && listType) {
+      if (listType === 'ol') {
+        elements.push(
+          <ol key={`list-${keyPrefix}`} className="space-y-3 my-3 list-none">
+            {currentList}
+          </ol>
+        );
+      } else {
+        elements.push(
+          <ul key={`list-${keyPrefix}`} className="space-y-1.5 my-2 list-none pl-2">
+            {currentList}
+          </ul>
+        );
+      }
+      currentList = [];
+      listType = null;
+    }
+  };
+
+  lines.forEach((rawLine, idx) => {
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      flushList(idx);
+      return;
+    }
+
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    const bulletMatch = trimmed.match(/^[-*]\s+(.*)/);
+
+    if (numMatch) {
+      if (listType !== 'ol') flushList(idx);
+      listType = 'ol';
+      currentList.push(
+        <li key={idx} className="flex items-start gap-3 text-[14px] sm:text-[15px] text-[#1D1D1F] dark:text-[#F5F5F7] leading-relaxed">
+          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-black/[0.06] dark:bg-white/[0.1] text-[11px] font-bold text-black dark:text-white shrink-0 mt-0.5">
+            {numMatch[1]}
+          </span>
+          <div className="flex-1 space-y-1">{renderInline(numMatch[2])}</div>
+        </li>
+      );
+    } else if (bulletMatch) {
+      if (listType !== 'ul') flushList(idx);
+      listType = 'ul';
+      currentList.push(
+        <li key={idx} className="flex items-start gap-2.5 text-[14px] sm:text-[15px] text-[#3A3A3C] dark:text-[#D1D1D6] leading-relaxed pl-6">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#8E8E93] dark:bg-[#636366] shrink-0 mt-2.5" />
+          <div className="flex-1">{renderInline(bulletMatch[1])}</div>
+        </li>
+      );
+    } else {
+      flushList(idx);
+      if (trimmed.startsWith('### ')) {
+        elements.push(
+          <h4 key={idx} className="text-[15px] font-semibold text-black dark:text-white mt-4 mb-1">
+            {renderInline(trimmed.slice(4))}
+          </h4>
+        );
+      } else if (trimmed.startsWith('## ')) {
+        elements.push(
+          <h3 key={idx} className="text-[16px] font-bold text-black dark:text-white mt-4 mb-2">
+            {renderInline(trimmed.slice(3))}
+          </h3>
+        );
+      } else {
+        elements.push(
+          <p key={idx} className="text-[14px] sm:text-[15px] text-[#1D1D1F] dark:text-[#F5F5F7] leading-relaxed">
+            {renderInline(trimmed)}
+          </p>
+        );
+      }
+    }
+  });
+
+  flushList('final');
+  return <div className="space-y-3">{elements}</div>;
+};
+
 export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   onOpenCitation,
   userRole,
@@ -381,9 +479,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                   </div>
                 ) : result ? (
                   <div className="space-y-5">
-                    <p className="text-[14px] sm:text-[15px] text-black dark:text-white leading-relaxed font-normal">
-                      {result.answer}
-                    </p>
+                    <FormattedAnswer content={result.answer} />
 
                     {/* Evidence Citations Section */}
                     <div className="pt-4 border-t border-black/[0.07] dark:border-white/[0.07] space-y-3">

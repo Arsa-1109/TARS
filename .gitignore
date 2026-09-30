@@ -107,4 +107,5 @@ drop/*
 *.pdf
 *.md
 !README.md
+!TRACK_1_DOCUMENTATION.md
 docs/
