@@ -350,22 +350,39 @@ class MarkitdownParser:
         return "\n".join(sections), 1
 
     def _parse_pdf(self, file_path: str) -> Tuple[str, int]:
-        """Extracts text from PDF with page demarcations."""
-        if _PYPDF_AVAILABLE:
-            try:
-                reader = pypdf.PdfReader(file_path)
-                pages_text = []
-                for i, page in enumerate(reader.pages):
-                    text = page.extract_text() or ""
-                    pages_text.append(f"### Page {i + 1}\n\n{text.strip()}")
-                return f"# PDF Document: {os.path.basename(file_path)}\n\n" + "\n\n".join(pages_text), len(reader.pages)
-            except Exception as e:
-                logger.warning(f"pypdf extraction failed for {file_path}: {e}")
+        """Extracts text from PDF with page demarcations using pypdf or PyPDF2."""
+        try:
+            import pypdf
+            reader = pypdf.PdfReader(file_path)
+            pages_text = []
+            for i, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
+                pages_text.append(f"### Page {i + 1}\n\n{text.strip()}")
+            return f"# PDF Document: {os.path.basename(file_path)}\n\n" + "\n\n".join(pages_text), len(reader.pages)
+        except Exception as e:
+            logger.warning(f"pypdf extraction failed for {file_path}: {e}")
 
-        # Fallback basic scan
+        try:
+            import PyPDF2 as pypdf_fallback
+            reader = pypdf_fallback.PdfReader(file_path)
+            pages_text = []
+            for i, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
+                pages_text.append(f"### Page {i + 1}\n\n{text.strip()}")
+            return f"# PDF Document: {os.path.basename(file_path)}\n\n" + "\n\n".join(pages_text), len(reader.pages)
+        except Exception:
+            pass
+
+        # Fallback regex extraction of text string tokens from PDF stream
         with open(file_path, "rb") as f:
-            raw = f.read()
-        extracted = "".join(chr(b) for b in raw if 32 <= b < 127 or b in (10, 13))
+            raw = f.read().decode("latin1", errors="ignore")
+        # Extract text literals within PDF text objects
+        text_tokens = re.findall(r"\(([^\(\)\\]*(?:\\.[^\(\)\\]*)*)\)", raw)
+        clean_text = "\n".join(t.replace(r"\(", "(").replace(r"\)", ")").strip() for t in text_tokens if len(t.strip()) > 3)
+        if clean_text:
+            return f"# PDF Document: {os.path.basename(file_path)}\n\n{clean_text[:6000]}", 1
+
+        extracted = "".join(c for c in raw if 32 <= ord(c) < 127 or c in ('\n', '\r', '\t'))
         return f"# PDF Document: {os.path.basename(file_path)}\n\n{extracted[:4000]}", 1
 
     def _parse_docx(self, file_path: str) -> Tuple[str, int]:

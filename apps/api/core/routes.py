@@ -122,6 +122,7 @@ async def search_knowledge(req: SearchRequest):
     # 3. RBAC-Filtered Federated Search
     citations = await search_service.search(
         query=req.query,
+        limit=8,
         user_clearance=req.clearance or "ALL_TEAM",
         user_role=req.user_role or "ENGINEER"
     )
@@ -181,7 +182,7 @@ async def search_knowledge(req: SearchRequest):
         prompt += f"Query: {req.query}\n"
 
         if citations:
-            context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
+            context_str = "\n\n".join([f"--- Source: [{c.doc_title}] ---\n{c.snippet}" for c in citations])
             prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
 
         prompt += (

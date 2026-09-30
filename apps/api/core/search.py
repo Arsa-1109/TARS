@@ -185,15 +185,18 @@ class UnifiedSearchService:
 
             deduped: List[SearchCitation] = []
             seen_ids = set()
-            seen_titles = set()
+            title_counts: Dict[str, int] = {}
 
             for item in scored_results:
                 cit = item[2]
                 title_key = cit.doc_title.strip().lower()
-                if cit.doc_id in seen_ids or title_key in seen_titles:
+                if cit.doc_id in seen_ids:
+                    continue
+                # Allow up to 3 complementary chunks from the same document
+                if title_counts.get(title_key, 0) >= 3:
                     continue
                 seen_ids.add(cit.doc_id)
-                seen_titles.add(title_key)
+                title_counts[title_key] = title_counts.get(title_key, 0) + 1
                 deduped.append(cit)
                 if len(deduped) >= limit:
                     break
@@ -202,23 +205,31 @@ class UnifiedSearchService:
         finally:
             await search_governor.release()
 
-    def _extract_snippet(self, content: str, kw_patterns: List[re.Pattern], max_chars: int = 280) -> str:
+    def _extract_snippet(self, content: str, kw_patterns: List[re.Pattern], max_chars: int = 500) -> str:
         if not content:
             return ""
         
-        # Split into sentences or lines
-        sentences = [s.strip() for s in re.split(r"[.\n]+", content) if len(s.strip()) > 10]
-        best_sentence = ""
+        cleaned = content.strip()
+        if len(cleaned) <= max_chars:
+            return cleaned
+
+        # Split into lines to find best matching focal point
+        lines = [ln.strip() for ln in cleaned.split("\n") if ln.strip()]
+        best_idx = 0
         max_hits = -1
 
-        for sent in sentences:
-            hits = sum(len(p.findall(sent)) for p in kw_patterns)
+        for idx, line in enumerate(lines):
+            hits = sum(len(p.findall(line)) for p in kw_patterns)
             if hits > max_hits:
                 max_hits = hits
-                best_sentence = sent
+                best_idx = idx
 
-        if best_sentence:
-            return best_sentence[:max_chars] + ("..." if len(best_sentence) > max_chars else "")
-        return content[:max_chars] + ("..." if len(content) > max_chars else "")
+        # Build window around best line
+        start_idx = max(0, best_idx - 2)
+        end_idx = min(len(lines), best_idx + 4)
+        window = "\n".join(lines[start_idx:end_idx])
+        if len(window) > max_chars:
+            return window[:max_chars].rsplit(" ", 1)[0] + "..."
+        return window
 
 search_service = UnifiedSearchService()
