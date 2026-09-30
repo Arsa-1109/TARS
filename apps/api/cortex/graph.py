@@ -493,9 +493,11 @@ class TarsGraph:
         except Exception:
             return []
 
-    def check_contradiction(self, proposal: str, category: str = "ALL", severity_threshold: str = "STRICT") -> Dict[str, Any]:
+    def check_contradiction(self, proposal: str, category: str = "ALL", severity_threshold: str = "STRICT", include_demo_decisions: bool = True) -> Dict[str, Any]:
         """Performs graph-based semantic conflict search against existing architectural decisions."""
         decisions = self.get_all_decisions()
+        if not include_demo_decisions:
+            decisions = [d for d in decisions if d.get("id") != "DEC-014"]
         proposal_lower = proposal.lower()
         
         # Heuristic semantic keyword conflict graph matching

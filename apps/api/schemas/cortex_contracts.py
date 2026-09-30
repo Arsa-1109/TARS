@@ -32,6 +32,7 @@ class SimulationScenarioRequest(BaseModel):
     burn_delta_monthly: float = Field(default=0.0, description="Monthly burn change in USD")
     timeline_shift_days: int = Field(default=0, description="Delay in days")
     devs_reallocated: int = Field(default=0, description="Headcount shifted")
+    company_name: Optional[str] = None
 
 
 class SimulationScenarioResponse(BaseModel):

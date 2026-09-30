@@ -83,6 +83,8 @@ desktop.ini
 *.bak
 .agents/
 .agents
+.freebuff
+
 
 # Coverage and test artifacts
 coverage/
@@ -107,5 +109,8 @@ drop/*
 *.pdf
 *.md
 !README.md
-!TRACK_1_DOCUMENTATION.md
 docs/
+verdant_assets/*
+/app/
+TRACK_1_DOCUMENTATION.md
+track_1*

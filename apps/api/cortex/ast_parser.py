@@ -102,7 +102,7 @@ class TarsASTParser:
                 if current_in_tx and node.type == "call":
                     fn_node = node.child_by_field_name("function")
                     call_target = code_bytes[fn_node.start_byte:fn_node.end_byte].decode("utf-8", errors="ignore").lower() if fn_node else ""
-                    if any(h in call_target for h in http_indicators):
+                    if any(h in call_target for h in http_indicators if not (h == "fetch" and any(k in call_target for k in ("fetchone", "fetchall")))):
                         line_no = node.start_point[0] + 1
                         violations.append({
                             "rule_id": "INV-017",
@@ -130,7 +130,7 @@ class TarsASTParser:
                 if current_in_tx and node.type == "call_expression":
                     fn_node = node.child_by_field_name("function")
                     call_target = code_bytes[fn_node.start_byte:fn_node.end_byte].decode("utf-8", errors="ignore").lower() if fn_node else ""
-                    if any(h in call_target for h in http_indicators) and "transaction" not in call_target:
+                    if any(h in call_target for h in http_indicators if not (h == "fetch" and any(k in call_target for k in ("fetchone", "fetchall")))) and "transaction" not in call_target:
                         line_no = node.start_point[0] + 1
                         violations.append({
                             "rule_id": "INV-017",

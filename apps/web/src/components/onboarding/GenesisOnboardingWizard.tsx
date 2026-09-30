@@ -80,32 +80,31 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
   const [currentStep, setCurrentStep] = useState<StepId>(1);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
+  // Detect if this is the Aetherflow golden-demo profile (pre-fill only for demo)
+  const isAetherflowDemo = (initialProfile?.company_name || '').toLowerCase().includes('aetherflow');
+
   // Step 1: Startup Identity & Stage
-  const [companyName, setCompanyName] = useState(initialProfile?.company_name || 'AetherFlow AI');
-  const [website, setWebsite] = useState(initialProfile?.website || 'https://aetherflow.ai');
-  const [industry, setIndustry] = useState(initialProfile?.industry || 'AI / DevTools');
+  const [companyName, setCompanyName] = useState(
+    initialProfile?.company_name || (isAetherflowDemo ? 'AetherFlow AI' : '')
+  );
+  const [website, setWebsite] = useState(
+    initialProfile?.website || (isAetherflowDemo ? 'https://aetherflow.ai' : '')
+  );
+  const [industry, setIndustry] = useState(initialProfile?.industry || '');
   const [stage, setStage] = useState(initialProfile?.stage || 'Seed');
-  const [teamSize, setTeamSize] = useState(initialProfile?.team_size || '6–15');
-  const [runwayMonths, setRunwayMonths] = useState<number>(initialProfile?.runway_months || 24);
+  const [teamSize, setTeamSize] = useState(initialProfile?.team_size || '1–5');
+  const [runwayMonths, setRunwayMonths] = useState<number>(initialProfile?.runway_months || 18);
 
   // Step 2: Core Mission & Problem Space
-  const [oneLiner, setOneLiner] = useState(
-    initialProfile?.one_liner ||
-      'Autonomous self-healing streaming pipelines for distributed data architectures.'
-  );
-  const [coreThesis, setCoreThesis] = useState(
-    initialProfile?.core_thesis ||
-      'Modern data teams spend 40% of sprint capacity maintaining fragile ETL and Kafka pipelines. We automate pipeline recovery with zero downtime.'
-  );
-  const [icp, setIcp] = useState(
-    initialProfile?.icp ||
-      'VP Engineering, Head of Infrastructure, and Staff Data Engineers at Series A–C scale-ups.'
-  );
+  const [oneLiner, setOneLiner] = useState(initialProfile?.one_liner || '');
+  const [coreThesis, setCoreThesis] = useState(initialProfile?.core_thesis || '');
+  const [icp, setIcp] = useState(initialProfile?.icp || '');
   const [selectedTechStack, setSelectedTechStack] = useState<string[]>(() => {
     if (initialProfile?.tech_stack) {
       return initialProfile.tech_stack.split(',').map((s) => s.trim()).filter(Boolean);
     }
-    return ['Python', 'TypeScript', 'FastAPI', 'React', 'SQLite', 'Kùzu Graph'];
+    // Demo-only pre-fill; fresh accounts start empty
+    return isAetherflowDemo ? ['Python', 'TypeScript', 'FastAPI', 'React', 'SQLite', 'Kùzu Graph'] : [];
   });
   const [customTechInput, setCustomTechInput] = useState('');
 
@@ -130,7 +129,8 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
   // Step 4: Seed Document & Knowledge Ingestion
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const [loadSampleAssets, setLoadSampleAssets] = useState(true);
+  // Sample assets only pre-checked for the Aetherflow golden-demo; fresh accounts start clean
+  const [loadSampleAssets, setLoadSampleAssets] = useState(isAetherflowDemo);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,15 +147,16 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
     { title: 'Configuring role-based flight-plans...', detail: 'Initialising 14-day induction schedules across 6 sovereign workspaces' },
   ];
 
-  // Reset or initialize state from profile
+  // Reset or initialize state from profile (also used on profile switch)
   useEffect(() => {
     if (initialProfile) {
-      setCompanyName(initialProfile.company_name || 'AetherFlow AI');
-      setWebsite(initialProfile.website || 'https://aetherflow.ai');
-      setIndustry(initialProfile.industry || 'AI / DevTools');
+      const isDemo = (initialProfile.company_name || '').toLowerCase().includes('aetherflow');
+      setCompanyName(initialProfile.company_name || '');
+      setWebsite(initialProfile.website || (isDemo ? 'https://aetherflow.ai' : ''));
+      setIndustry(initialProfile.industry || '');
       setStage(initialProfile.stage || 'Seed');
-      setTeamSize(initialProfile.team_size || '6–15');
-      setRunwayMonths(initialProfile.runway_months || 24);
+      setTeamSize(initialProfile.team_size || '1–5');
+      setRunwayMonths(initialProfile.runway_months || 18);
       setOneLiner(initialProfile.one_liner || '');
       setCoreThesis(initialProfile.core_thesis || '');
       setIcp(initialProfile.icp || '');
@@ -167,6 +168,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
       if (initialProfile.tars_tone) setTarsTone(initialProfile.tars_tone);
     }
   }, [initialProfile]);
+
 
   // Handle keyboard navigation (Escape to dismiss, Enter to progress on non-textareas)
   useEffect(() => {
@@ -266,7 +268,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
     setBloomPhaseIndex(0);
 
     const payload: GenesisBloomPayload = {
-      company_name: companyName.trim() || 'AetherFlow AI',
+      company_name: companyName.trim(),
       website: website.trim(),
       industry,
       stage,
@@ -462,7 +464,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="e.g. AetherFlow AI"
+                      placeholder="e.g. NovaCorp"
                       className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
                       autoFocus
                     />
@@ -479,12 +481,13 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
                       type="text"
                       value={website}
                       onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="https://aetherflow.ai"
+                      placeholder="https://yourcompany.com"
                       className="w-full h-10 px-3 rounded-[12px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.16] focus:border-[#0071E3] dark:focus:border-[#0A84FF] focus:outline-none text-sm text-black dark:text-white transition-all shadow-sm"
                     />
                   </div>
                 </div>
               </div>
+
 
               {/* Industry Vertical */}
               <div className="space-y-2">

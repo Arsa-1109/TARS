@@ -72,6 +72,7 @@ class SimulationRequest(BaseModel):
     proposal: str
     delay_days: int = 0
     reallocated_devs: int = 0
+    company_name: Optional[str] = None
 
 class SimulationResponse(BaseModel):
     runway_impact_months: float

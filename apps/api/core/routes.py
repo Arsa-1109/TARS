@@ -127,12 +127,14 @@ async def search_knowledge(req: SearchRequest):
         user_role=req.user_role or "ENGINEER"
     )
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
-    
     # Retrieve and format institutional company facts
     company = company_repo.get_profile() or {}
-    comp_name = company.get("company_name", "AetherFlow Technologies, Inc.")
-    team_size = company.get("team_size", "12 FTE")
-    runway_m = company.get("runway_months", 9.0)
+    comp_name = company.get("company_name", "Your Company")
+    team_size = company.get("team_size", "Unknown")
+    runway_m = company.get("runway_months", "N/A")
+
+    # Detect Aetherflow golden-demo tenant
+    _is_aetherflow = "aetherflow" in comp_name.lower()
 
     is_light = _is_lightweight_query(req.query)
 
@@ -152,15 +154,37 @@ async def search_knowledge(req: SearchRequest):
         task_complexity = "light"
         max_tokens = 160
     else:
-        company_facts = (
-            f"Company Name: {comp_name}\n"
-            f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
-            f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
-            f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
-            f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
-            f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
-            f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
-        )
+        if _is_aetherflow:
+            # Golden-demo: inject the full known Aetherflow facts
+            company_facts = (
+                f"Company Name: {comp_name}\n"
+                f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
+                f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
+                f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
+                f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
+                f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+                f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
+            )
+        else:
+            # Fresh/new account: use only real data from the bloomed profile
+            core_thesis = company.get("core_thesis", "")
+            tech_stack_raw = company.get("tech_stack", "")
+            tech_stack = tech_stack_raw if isinstance(tech_stack_raw, str) else ", ".join(tech_stack_raw or [])
+            icp = company.get("icp", "")
+            monthly_burn = company.get("monthly_burn", "N/A")
+            liquid_cash = company.get("liquid_cash", "N/A")
+            company_facts = (
+                f"Company Name: {comp_name}\n"
+                + (f"Team Size: {team_size}\n" if team_size and team_size != "Unknown" else "")
+                + (f"Core Thesis: {core_thesis}\n" if core_thesis else "")
+                + (f"Ideal Customer Profile: {icp}\n" if icp else "")
+                + (f"Tech Stack: {tech_stack}\n" if tech_stack else "")
+                + (f"Financial Runway: {runway_m} months remaining\n" if runway_m and runway_m != "N/A" else "")
+                + (f"Monthly Burn: ${monthly_burn}/mo\n" if monthly_burn and monthly_burn != "N/A" else "")
+                + (f"Liquid Cash: ${liquid_cash}\n" if liquid_cash and liquid_cash != "N/A" else "")
+                + "Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+            )
+
         user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}' and clearance level '{req.clearance}'.\n"
         system_prompt = (
             f"You are TARS, the autonomous startup second brain for {comp_name}. "

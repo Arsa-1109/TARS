@@ -20,11 +20,28 @@ import {
 const API_BASE = '/api';
 
 export class LiveTarsApi implements TarsApi {
+  /** Resolve the active tenant company name from localStorage (set after Genesis bloom). */
+  private _getActiveCompanyName(): string | undefined {
+    try {
+      const stored = localStorage.getItem('tars_current_user_profile');
+      if (stored) {
+        const prof = JSON.parse(stored);
+        return prof?.company_name || undefined;
+      }
+    } catch {
+      // Silently skip — localStorage may be unavailable in sandboxed contexts
+    }
+    return undefined;
+  }
+
   private async fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+    const companyName = this._getActiveCompanyName();
     const res = await fetch(`${API_BASE}${url}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        // Tenant header: backend uses this to scope data to the active company
+        ...(companyName ? { 'X-Company-Name': companyName } : {}),
         ...(options?.headers || {}),
       },
     });
@@ -33,6 +50,7 @@ export class LiveTarsApi implements TarsApi {
     }
     return res.json();
   }
+
 
   // --- Genesis Onboarding & Sovereign Company Profile ---
   async getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null> {

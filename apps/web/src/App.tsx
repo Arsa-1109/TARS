@@ -495,14 +495,15 @@ export function App() {
           setGenesisWizardOpen(false);
           // Persist user onboarding status to SQLite
           api.createUser({
-            name: profile.name || 'Alex Vance',
-            email: profile.email || 'alex@aetherflow.io',
+            name: profile?.name || '',
+            email: profile?.email || '',
             role: 'FOUNDER',
             department: 'Executive',
             clearance: 'EXECUTIVE_ONLY',
-            company_name: newProfile.company_name || 'AetherFlow Technologies, Inc.',
+            company_name: newProfile.company_name || profile?.company_name || '',
             company_id: newProfile.id || 'CMP-GENESIS-01',
           }).catch(() => {});
+
           // Refresh tasks with freshly configured role-based flight-plans
           api.getActionItems().then((items) => setActionItems(items));
         }}

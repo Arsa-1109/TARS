@@ -5,9 +5,10 @@ import sys
 import time
 import uuid
 import asyncio
+import shutil
 from pathlib import Path
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Query
 from pydantic import BaseModel
 
 from apps.api.schemas.contracts import (
@@ -44,6 +45,39 @@ graph_engine = TarsGraph()
 madr_writer = MadrWriter()
 
 
+# ─────────────────────────────────────────────
+# Multi-Tenant Company Isolation Helpers
+# ─────────────────────────────────────────────
+
+_AETHERFLOW_NAMES = {"aetherflow", "aetherflow ai", "aetherflow technologies", "aetherflow technologies, inc."}
+
+
+def _is_aetherflow_company(company_name: Optional[str]) -> bool:
+    """Returns True only when the active company is Aetherflow (golden demo tenant)."""
+    if not company_name:
+        return False
+    return company_name.strip().lower() in _AETHERFLOW_NAMES or "aetherflow" in company_name.strip().lower()
+
+
+def _resolve_company_profile(
+    request_company_name: Optional[str] = None,
+    header_company_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Resolves the active company profile with priority:
+      1. Explicit request body `company_name`
+      2. `X-Company-Name` HTTP header
+      3. Active bloomed profile in SQLite vault
+    Returns an empty dict for unregistered/unbloomed companies.
+    """
+    name = request_company_name or header_company_name
+    if name:
+        profile = company_repo.get_profile(company_name=name) or {}
+    else:
+        profile = company_repo.get_profile() or {}
+    return profile
+
+
 class CodeCheckRequest(BaseModel):
     file_path: str = "src/main.py"
     code: str = ""
@@ -63,6 +97,7 @@ class ContradictionRequest(BaseModel):
     category: Optional[str] = "ALL"
     severity: Optional[str] = None
     severity_threshold: Optional[str] = "BALANCED"
+    company_name: Optional[str] = None
 
 
 # In-memory refactor state tracker
@@ -75,6 +110,12 @@ async def check_code_invariants(payload: Optional[CodeCheckRequest] = None):
     """Evaluates submitted code buffer against all active Tree-sitter AST invariants in <20ms."""
     file_path = payload.file_path if payload else "apps/api/core/routes.py"
     code = payload.code if payload else ""
+    if not code and file_path and file_path not in ("apps/api/core/routes.py", "src/main.py") and os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                code = f.read()
+        except Exception:
+            pass
     if code:
         violations = invariants_engine.evaluate_code(file_path, code)
         return {
@@ -101,6 +142,11 @@ async def get_active_invariants():
 async def apply_invariant_refactor(rule_id: str):
     """Applies suggested architectural refactor to the specified invariant rule."""
     _refactored_rules.add(rule_id)
+    if rule_id == "INV-017":
+        repaired_src = Path("mock_data/ws6_tech/app/services/billing_repaired.py")
+        target_dst = Path("app/services/billing.py")
+        if repaired_src.exists() and target_dst.parent.exists():
+            shutil.copy2(repaired_src, target_dst)
     return {
         "success": True,
         "rule_id": rule_id,
@@ -113,6 +159,10 @@ async def apply_invariant_refactor(rule_id: str):
 async def reset_invariant_refactors():
     """Resets all applied refactors back to baseline."""
     _refactored_rules.clear()
+    unrepaired_src = Path("mock_data/ws6_tech/app/services/billing.py")
+    target_dst = Path("app/services/billing.py")
+    if unrepaired_src.exists() and target_dst.parent.exists():
+        shutil.copy2(unrepaired_src, target_dst)
     return {"success": True, "invariants": invariants_engine.get_enriched_invariants(refactored=False)}
 
 
@@ -148,9 +198,30 @@ async def get_graph_topology(active_rule_id: Optional[str] = "INV-017"):
 
 
 @router.get("/decisions", response_model=List[DecisionItem])
-async def get_decisions():
-    """Returns all historical Decision nodes from the Kùzu Graph."""
+async def get_decisions(
+    company_name: Optional[str] = Query(None, description="Company name for tenant isolation"),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Returns historical Decision nodes from the Kùzu Graph, scoped to the active tenant.
+    When no company context is provided (anonymous call), all decisions including DEC-014 are returned
+    for backward compatibility. Fresh non-Aetherflow accounts receive filtered results.
+    """
+    company = _resolve_company_profile(company_name, x_company_name)
+    active_company_name = company.get("company_name") or company_name or x_company_name
+
+    # Isolation rule:
+    #   • No company resolved → include demo decisions (backward-compatible demo mode)
+    #   • Aetherflow identified → include all demo decisions
+    #   • Any other company explicitly identified → exclude DEC-014 (fresh-account isolation)
+    if active_company_name:
+        exclude_demo = not _is_aetherflow_company(active_company_name)
+    else:
+        exclude_demo = False  # No tenant context: default to full demo mode
+
     decisions = graph_engine.get_all_decisions()
+    if exclude_demo:
+        decisions = [d for d in decisions if d.get("id") != "DEC-014"]
+
     return [
         DecisionItem(
             id=d["id"],
@@ -349,13 +420,32 @@ async def delete_decision(decision_id: str, hard_purge: bool = False, superseded
 
 @router.post("/contradiction-check", response_model=ContradictionCheckResponse)
 @router.post("/decisions/check", response_model=ContradictionCheckResponse)
-async def check_contradiction(payload: ContradictionRequest):
-    """Performs graph semantic conflict check against existing architectural decisions."""
+async def check_contradiction(
+    payload: ContradictionRequest,
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Performs graph semantic conflict check against existing architectural decisions.
+    For fresh/non-Aetherflow accounts, Aetherflow golden-demo decisions (DEC-014) are excluded.
+    When no company context is provided (anonymous call), include demo decisions for backward compatibility.
+    """
     severity = payload.severity or payload.severity_threshold or "BALANCED"
+    company = _resolve_company_profile(payload.company_name, x_company_name)
+    active_company_name = company.get("company_name") or payload.company_name or x_company_name
+
+    # Isolation rule:
+    #   • No company resolved → include demo decisions (backward-compatible demo mode)
+    #   • Aetherflow identified → include demo decisions
+    #   • Any other company identified → exclude demo decisions (fresh-account isolation)
+    if active_company_name:
+        include_demo = _is_aetherflow_company(active_company_name)
+    else:
+        include_demo = True  # No tenant context: default to Aetherflow demo mode
+
     result = graph_engine.check_contradiction(
         proposal=payload.proposal,
         category=payload.category or "ALL",
         severity_threshold=severity,
+        include_demo_decisions=include_demo,
     )
     return ContradictionCheckResponse(
         has_conflict=result["has_conflict"],
@@ -366,16 +456,31 @@ async def check_contradiction(payload: ContradictionRequest):
 
 
 @router.post("/simulate", response_model=SimulationResponse)
-async def simulate_impact(req: SimulationRequest):
-    """Calculates runway and delivery timeline impact using company metrics and local SLM reasoning."""
+async def simulate_impact(
+    req: SimulationRequest,
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Calculates runway and delivery timeline impact using company metrics and local SLM reasoning.
+    Metrics are scoped to the active tenant — Aetherflow golden-demo figures do not leak to fresh accounts.
+    """
     proposal_lower = req.proposal.lower()
-    
-    # Calculate quantitative parameters using real company metrics ($666k cash, -$74k/mo burn)
-    company = company_repo.get_profile() or {}
-    cash = float(company.get("liquid_cash", 666000.0) or 666000.0)
-    burn_base = float(company.get("monthly_burn", 74000.0) or 74000.0)
-    dev_monthly_cost = 12000.0
 
+    # Resolve active company and detect tenant
+    company = _resolve_company_profile(req.company_name, x_company_name)
+    active_company_name = company.get("company_name") or req.company_name or x_company_name
+    is_aetherflow = _is_aetherflow_company(active_company_name)
+
+    if is_aetherflow:
+        # Golden demo: fixed Aetherflow financials
+        cash = float(company.get("liquid_cash", 666000.0) or 666000.0)
+        burn_base = float(company.get("monthly_burn", 74000.0) or 74000.0)
+    else:
+        # Fresh account: derive from bloomed profile; fall back to runway-based estimate
+        runway_m = float(company.get("runway_months", 18.0) or 18.0)
+        burn_base = float(company.get("monthly_burn") or 0.0) or 10000.0  # conservative fresh-start burn
+        cash = float(company.get("liquid_cash") or 0.0) or (burn_base * runway_m)
+
+    dev_monthly_cost = 12000.0
     delta_burn = req.reallocated_devs * dev_monthly_cost
     delta_cash = -(req.delay_days / 30.0) * 10000.0
 
@@ -385,13 +490,16 @@ async def simulate_impact(req: SimulationRequest):
     simulated_runway = projected_cash / projected_burn
     runway_delta = round(simulated_runway - base_runway, 1)
     delay_weeks = round((req.delay_days / 7.0) + (req.reallocated_devs * 1.5), 1)
-    
+
     affected_promises = []
     affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]
-    
+
     if "saml" in proposal_lower or "sso" in proposal_lower:
         commitments = graph_engine.get_all_commitments()
         for c in commitments:
+            # Only attach Acme Corp / SAML commitments if this is the Aetherflow golden-demo tenant
+            if not is_aetherflow and c.get("id") == "COM-ACME-001":
+                continue
             comm = c.get("commitment", "")
             client = c.get("client", "Client")
             if "saml" in comm.lower() or "sso" in comm.lower():
@@ -400,7 +508,7 @@ async def simulate_impact(req: SimulationRequest):
     if "db" in proposal_lower or "database" in proposal_lower or "sqlite" in proposal_lower:
         affected_promises.append("SLA Invariant: Sub-50ms query latency budget")
         affected_modules.append("apps/api/core/db.py")
-        
+
     prompt = (
         f"You are the TARS Executive Simulator. Analyze the strategic impact of this proposal:\n"
         f"Proposal: {req.proposal}\n"
@@ -431,12 +539,28 @@ async def simulate_impact(req: SimulationRequest):
 
 
 @router.post("/simulate/scenario", response_model=SimulationScenarioResponse)
-async def simulate_scenario(req: SimulationScenarioRequest):
-    """Executes high-fidelity dynamic counterfactual scenario modeling with pre-populated ADR."""
-    company = company_repo.get_profile() or {}
-    base_runway = float(company.get("runway_months", 9.0))
-    cash_liquid = 666000.0
-    burn_base = 74000.0
+async def simulate_scenario(
+    req: SimulationScenarioRequest,
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Executes high-fidelity dynamic counterfactual scenario modeling with pre-populated ADR.
+    Aetherflow golden-demo financials ($666k / -$74k) and Acme Corp commitments are isolated
+    from fresh accounts which receive clean-slate dynamic metrics from their bloomed profile.
+    """
+    company = _resolve_company_profile(req.company_name, x_company_name)
+    active_company_name = company.get("company_name") or req.company_name or x_company_name
+    is_aetherflow = _is_aetherflow_company(active_company_name)
+
+    if is_aetherflow:
+        # Golden demo fixed Aetherflow financials
+        base_runway = float(company.get("runway_months", 9.0))
+        cash_liquid = float(company.get("liquid_cash", 666000.0) or 666000.0)
+        burn_base = float(company.get("monthly_burn", 74000.0) or 74000.0)
+    else:
+        # Fresh account: use profile metrics or safe defaults
+        base_runway = float(company.get("runway_months", 18.0) or 18.0)
+        burn_base = float(company.get("monthly_burn") or 0.0) or 10000.0
+        cash_liquid = float(company.get("liquid_cash") or 0.0) or (burn_base * base_runway)
 
     # Differential runway calculation: Delta R = (C + Delta C) / |B + Delta B| - C / |B|
     new_burn = max(10000.0, burn_base + req.burn_delta_monthly)
@@ -449,18 +573,21 @@ async def simulate_scenario(req: SimulationScenarioRequest):
 
     prompt_lower = req.scenario_prompt.lower()
     for c in commitments:
+        # Acme Corp commitment COM-ACME-001 is exclusively a golden-demo asset
+        if not is_aetherflow and c.get("id") == "COM-ACME-001":
+            continue
         comm_text = c.get("commitment", "")
-        client_name = c.get("client", "Acme Corp")
+        client_name = c.get("client", "Client")
         if "saml" in prompt_lower or "sso" in prompt_lower or "acme" in prompt_lower:
             compromised_clients.append({
                 "client": client_name,
-                "arr": c.get("value", "$80,000"),
+                "arr": c.get("value", "N/A"),
                 "commitment": comm_text,
                 "risk": "HIGH",
             })
             compromised_deliverables.append({
                 "deliverable": f"Enterprise SAML SSO Integration for {client_name}",
-                "target_date": "2026-10-15",
+                "target_date": "TBD",
                 "days_delayed": req.timeline_shift_days or 14,
             })
 
@@ -474,14 +601,14 @@ async def simulate_scenario(req: SimulationScenarioRequest):
     llm_res = await ollama_client.generate(narrative_prompt, task_complexity="deep")
     narrative = str(llm_res.get("response")).strip() if llm_res.get("success") and llm_res.get("response") else (
         f"Implementing this scenario shifts core delivery timelines by {req.timeline_shift_days} days and modifies runway by {runway_delta:.1f} months. "
-        f"Client commitments regarding enterprise authentication may require explicit renegotiation."
+        f"Review active client commitments for schedule impact."
     )
 
     pre_populated_adr = {
         "title": f"Strategic Adjustment: {req.scenario_prompt[:60]}",
         "category": "STRATEGY",
         "context": f"Evaluated under Counterfactual Simulator: Burn delta: ${req.burn_delta_monthly}/mo, shift: {req.timeline_shift_days}d.",
-        "chosen_option": f"Proceed with managed schedule modification while safeguarding core zero-custom-forks policy.",
+        "chosen_option": "Proceed with managed schedule modification while safeguarding core operating policy.",
         "clearance": "EXECUTIVE_ONLY" if req.devs_reallocated >= 2 else "ALL_TEAM",
     }
 
@@ -494,6 +621,7 @@ async def simulate_scenario(req: SimulationScenarioRequest):
         strategic_narrative=narrative,
         pre_populated_adr=pre_populated_adr,
     )
+
 @router.get("/status")
 async def cortex_status():
     """Returns the operational status of the Cortex engine."""
