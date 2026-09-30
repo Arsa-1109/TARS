@@ -123,8 +123,8 @@ class ModelRouter:
         is_deep = task_complexity in ("deep", "reasoning", "heavy", "complex")
         cascade = DEEP_REASONING_CASCADE if is_deep else SUBSECOND_EXTRACTION_CASCADE
 
-        # Auto-probe if not already populated
-        if not self._installed_models:
+        # Auto-probe if not already probed
+        if not self._is_probed:
             self.probe_installed_models()
 
         # If models have been probed and any are installed, match against cascade
