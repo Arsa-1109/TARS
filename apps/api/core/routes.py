@@ -1386,6 +1386,7 @@ async def send_chat_message(
             # 5. Federated Search across SQLite memories, Kùzu decisions, MarkItDown documents (Feature 11)
             citations = await search_service.search(
                 query=raw_content,
+                limit=8,
                 user_clearance=u_clearance,
                 user_role=u_role
             )
@@ -1434,7 +1435,7 @@ async def send_chat_message(
 
                 prompt += f"Query: {raw_content}\n"
                 if citations:
-                    context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
+                    context_str = "\n\n".join([f"--- Source: [{c.doc_title}] ---\n{c.snippet}" for c in citations])
                     prompt += f"\nRelevant Internal Sources:\n{context_str}\n"
 
                 prompt += (
