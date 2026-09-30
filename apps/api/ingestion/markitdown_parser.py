@@ -189,11 +189,11 @@ class MarkitdownParser:
             # Index document as primary memory
             cursor.execute('''
                 INSERT OR REPLACE INTO memories (
-                    id, record_type, title, content, source, timestamp, tags, related_ids, is_demo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, record_type, title, content, source, timestamp, tags, related_ids, is_demo, clearance
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 doc_id, "doc", filename, preview or markdown_content.strip()[:1000],
-                filename, now_ts, department, doc_id, demo_flag
+                filename, now_ts, department, doc_id, demo_flag, clearance
             ))
 
             # Index semantic chunks into memories table for search retrieval
@@ -203,10 +203,10 @@ class MarkitdownParser:
                 ch_snippet = ch.get("snippet", "")
                 cursor.execute('''
                     INSERT OR REPLACE INTO memories (
-                        id, record_type, title, content, source, timestamp, tags, related_ids, is_demo
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, record_type, title, content, source, timestamp, tags, related_ids, is_demo, clearance
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
-                    chunk_id, "doc", ch_title, ch_snippet, filename, now_ts, department, doc_id, demo_flag
+                    chunk_id, "doc", ch_title, ch_snippet, filename, now_ts, department, doc_id, demo_flag, clearance
                 ))
 
             conn.commit()

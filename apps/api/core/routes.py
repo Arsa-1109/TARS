@@ -2,6 +2,7 @@ import time
 import os
 import shutil
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import List, Dict, Any, Optional
 from apps.api.schemas.contracts import (
@@ -33,8 +34,35 @@ router = APIRouter()
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge(req: SearchRequest):
     start_time = time.perf_counter()
-    print(f"[SEARCH DEBUG] Incoming search query: {req.query}", flush=True)
-    citations = await search_service.search(req.query)
+    clean_q = req.query.strip().lower()
+
+    # 1. Conversational Greeting Interceptor (Bug 18 / Joel's Screenshot Failure)
+    GREETINGS = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "howdy", "sup"}
+    if clean_q in GREETINGS:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        user_name = req.user_name or "there"
+        return SearchResponse(
+            query=req.query,
+            answer=f"Hello {user_name}! I am TARS, your startup institutional second brain. How can I help you today with company policies, client commitments, or architectural decisions?",
+            citations=[],
+            latency_ms=round(elapsed_ms, 2)
+        )
+
+    # 2. Defense-in-Depth Cap Table & Equity RBAC Filter (Bugs 11 & 15: Chloe vs Alex)
+    is_exec = (req.clearance or "").upper() in ("EXECUTIVE_ONLY", "FOUNDER", "EXECUTIVE") or (req.user_role or "").upper() in ("FOUNDER", "EXECUTIVE")
+    equity_keywords = ["cap table", "equity", "founder shares", "ownership", "series seed valuation", "investor shares", "cap_table"]
+    asking_equity = any(kw in clean_q for kw in equity_keywords)
+    if asking_equity and not is_exec:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        return SearchResponse(
+            query=req.query,
+            answer="Access restricted. Cap table, founder equity distributions, and Series Seed valuations are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team (Alex Vance) for authorized access.",
+            citations=[],
+            latency_ms=round(elapsed_ms, 2)
+        )
+
+    print(f"[SEARCH DEBUG] Incoming search query: {req.query}, clearance={req.clearance}", flush=True)
+    citations = await search_service.search(req.query, clearance=req.clearance or "ALL_TEAM")
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
     
     # Retrieve and format institutional company facts
@@ -386,5 +414,167 @@ async def reset_workspace(payload: WorkspaceResetRequest):
         cleared=cleared,
         timestamp=now_ts,
     )
+
+
+# ============================================================
+# TEACH TARS DIRECT KNOWLEDGE INGESTION (Bug 20)
+# ============================================================
+from apps.api.schemas.core_contracts import (
+    TeachMemoryRequest,
+    TeachMemoryResponse,
+    ChatMessageCreate,
+    ChatMessageUpdate,
+    ChatMessageResponse,
+)
+
+@router.post("/teach", response_model=TeachMemoryResponse)
+async def teach_memory_endpoint(payload: TeachMemoryRequest):
+    """
+    Directly commits an institutional fact, policy, or operational guideline into TARS memory.
+    """
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Content cannot be empty.")
+    
+    memory_id = f"MEM-{uuid.uuid4().hex[:8].upper()}"
+    title = payload.title or f"{payload.category}: {payload.content[:50]}"
+    now_ts = int(time.time())
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO memories (
+            id, record_type, title, content, source, timestamp, tags, clearance
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        memory_id,
+        "MANUAL_TEACH",
+        title,
+        payload.content.strip(),
+        "Direct Sovereign Teaching",
+        now_ts,
+        payload.category,
+        payload.clearance or "ALL_TEAM"
+    ))
+    conn.commit()
+
+    return TeachMemoryResponse(
+        memory_id=memory_id,
+        status="COMMITTED",
+        timestamp=datetime.now(timezone.utc).isoformat()
+    )
+
+
+# ============================================================
+# THINK TANK PERSISTENT CHAT MESSAGES (Bugs 6 & 9)
+# ============================================================
+@router.get("/thinktank/messages", response_model=List[ChatMessageResponse])
+async def list_chat_messages(channel_id: str = "general"):
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, channel_id, sender_id, sender_name, sender_role, content, reply_to_id, is_edited, created_at
+        FROM chat_messages
+        WHERE channel_id = ?
+        ORDER BY created_at ASC
+    """, (channel_id,))
+    rows = cursor.fetchall()
+    return [
+        ChatMessageResponse(
+            id=row["id"],
+            channel_id=row["channel_id"],
+            user_id=row["sender_id"],
+            user_name=row["sender_name"],
+            user_role=row["sender_role"],
+            content=row["content"],
+            reply_to_id=row["reply_to_id"],
+            is_edited=bool(row["is_edited"]),
+            created_at=str(row["created_at"])
+        )
+        for row in rows
+    ]
+
+
+@router.post("/thinktank/messages", response_model=ChatMessageResponse)
+async def create_chat_message(payload: ChatMessageCreate):
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Message content cannot be empty.")
+
+    msg_id = f"MSG-{uuid.uuid4().hex[:8].upper()}"
+    sender_id = payload.sender_id or "usr-current"
+    sender_name = payload.sender_name or "Team Member"
+    sender_role = payload.sender_role or "ENGINEER"
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO chat_messages (
+            id, channel_id, sender_id, sender_name, sender_role, content, reply_to_id, is_edited, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
+    """, (
+        msg_id,
+        payload.channel_id,
+        sender_id,
+        sender_name,
+        sender_role,
+        payload.content.strip(),
+        payload.reply_to_id,
+        created_at
+    ))
+    conn.commit()
+
+    return ChatMessageResponse(
+        id=msg_id,
+        channel_id=payload.channel_id,
+        user_id=sender_id,
+        user_name=sender_name,
+        user_role=sender_role,
+        content=payload.content.strip(),
+        reply_to_id=payload.reply_to_id,
+        is_edited=False,
+        created_at=created_at
+    )
+
+
+@router.patch("/thinktank/messages/{message_id}", response_model=ChatMessageResponse)
+async def update_chat_message(message_id: str, payload: ChatMessageUpdate):
+    if not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Updated content cannot be empty.")
+
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM chat_messages WHERE id = ?", (message_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found.")
+
+    cursor.execute("UPDATE chat_messages SET content = ?, is_edited = 1 WHERE id = ?", (payload.content.strip(), message_id))
+    conn.commit()
+
+    return ChatMessageResponse(
+        id=message_id,
+        channel_id=row["channel_id"],
+        user_id=row["sender_id"],
+        user_name=row["sender_name"],
+        user_role=row["sender_role"],
+        content=payload.content.strip(),
+        reply_to_id=row["reply_to_id"],
+        is_edited=True,
+        created_at=str(row["created_at"])
+    )
+
+
+@router.delete("/thinktank/messages/{message_id}")
+async def delete_chat_message(message_id: str):
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM chat_messages WHERE id = ?", (message_id,))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail=f"Message {message_id} not found.")
+
+    cursor.execute("DELETE FROM chat_messages WHERE id = ?", (message_id,))
+    conn.commit()
+    return {"status": "DELETED", "message_id": message_id}
+
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
@@ -6,6 +6,7 @@ import { Dialog } from '../primitives/Dialog';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
 import { api } from '../../services/client';
+import { chatApi, ChatMessage } from '../../services/chatApi';
 import { DecisionItem, SearchCitation } from '../../types/contracts';
 import { MOCK_THINKTANK_CHANNELS, MOCK_THINKTANK_MESSAGES } from '../../mocks/fixtures';
 import {
@@ -20,6 +21,10 @@ import {
   AlertTriangle,
   ExternalLink,
   Plus,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface ThinkTankWorkspaceProps {
@@ -27,6 +32,26 @@ interface ThinkTankWorkspaceProps {
 }
 
 type ViewMode = 'document' | 'split' | 'canvas';
+
+export const formatMessageTime = (rawTime: string | number): string => {
+  if (!rawTime) return 'Just now';
+  if (typeof rawTime === 'string' && (rawTime.toLowerCase() === 'just now' || rawTime.length < 6)) return rawTime;
+  const date = typeof rawTime === 'number'
+    ? new Date(rawTime > 1e11 ? rawTime : rawTime * 1000)
+    : new Date(rawTime);
+  if (isNaN(date.getTime())) return String(rawTime);
+
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (isToday) return `Today, ${timeStr}`;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return `Yesterday, ${timeStr}`;
+
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timeStr}`;
+};
 
 export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   onNavigateDecision,
@@ -42,7 +67,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     { id: 'general', name: '#general', topic: 'Company strategic alignment & cross-functional topics' }
   ]);
   const [activeChannelId, setActiveChannelId] = useState(MOCK_THINKTANK_CHANNELS[0]?.id || 'general');
-  const [messages, setMessages] = useState<Record<string, Array<{ id: string; sender: string; time: string; text: string; isAi?: boolean; provenance?: string }>>>({
+  const [messages, setMessages] = useState<Record<string, Array<{ id: string; sender: string; time: string; text: string; isAi?: boolean; provenance?: string; isEdited?: boolean }>>>({
     ...MOCK_THINKTANK_MESSAGES,
     general: [
       {
@@ -55,8 +80,38 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     ]
   });
   const [inputMessage, setInputMessage] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('document');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom of thread on new messages (Bug 8)
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, activeChannelId]);
+
+  // Load persisted messages from SQLite API (Bug 9)
+  useEffect(() => {
+    const controller = new AbortController();
+    chatApi.getMessages(activeChannelId, controller.signal).then((persisted) => {
+      if (persisted && persisted.length > 0) {
+        const mapped = persisted.map((m) => ({
+          id: m.id,
+          sender: m.user_id === 'tars' || m.user_role === 'SYSTEM' ? 'TARS (@TARS)' : m.user_name || 'You',
+          time: m.created_at,
+          text: m.content,
+          isAi: m.user_id === 'tars' || m.user_role === 'SYSTEM',
+          isEdited: m.is_edited,
+        }));
+        setMessages((prev) => ({
+          ...prev,
+          [activeChannelId]: mapped,
+        }));
+      }
+    });
+    return () => controller.abort();
+  }, [activeChannelId]);
 
   // Create Channel Modal state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -90,7 +145,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         {
           id: `m-init-${Date.now()}`,
           sender: 'TARS (@TARS)',
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          time: new Date().toISOString(),
           isAi: true,
           text: `Channel ${cleanName} created. I am monitoring this discussion thread to ground decisions in institutional context and prevent conflicting commitments.`,
         },
@@ -106,10 +161,43 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
     const userPrompt = inputMessage.trim();
+    setInputMessage('');
+
+    // Check for /teach command (Bug 20: Direct Knowledge Teaching)
+    if (userPrompt.startsWith('/teach ')) {
+      const fact = userPrompt.slice(7).trim();
+      if (fact) {
+        try {
+          const teachRes = await chatApi.teachMemory({
+            content: fact,
+            title: `Direct Fact: ${fact.slice(0, 36)}`,
+            category: 'ORGANIZATIONAL_FACT',
+            clearance: 'ALL_TEAM',
+          });
+          const teachConfirmMsg = {
+            id: `m-teach-${Date.now()}`,
+            sender: 'TARS (@TARS)',
+            time: new Date().toISOString(),
+            isAi: true,
+            text: `🧠 Institutional Fact Committed: "${fact}" (Memory ID: ${teachRes.memory_id}). This rule is now indexed into sovereign organizational memory and will be cited in future discussions.`,
+            provenance: 'Direct Sovereign Teaching (/teach)',
+          };
+          setMessages((prev) => ({
+            ...prev,
+            [activeChannelId]: [...(prev[activeChannelId] || []), teachConfirmMsg],
+          }));
+          return;
+        } catch (teachErr) {
+          console.error('Teach error:', teachErr);
+        }
+      }
+    }
+
+    const tempId = `m-${Date.now()}`;
     const newMsg = {
-      id: `m-${Date.now()}`,
+      id: tempId,
       sender: 'You',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: new Date().toISOString(),
       text: userPrompt,
     };
 
@@ -117,7 +205,21 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       ...prev,
       [activeChannelId]: [...(prev[activeChannelId] || []), newMsg],
     }));
-    setInputMessage('');
+
+    // Persist message to SQLite
+    try {
+      const saved = await chatApi.sendMessage({
+        channel_id: activeChannelId,
+        content: userPrompt,
+        sender_id: 'usr-current',
+        sender_name: 'You',
+        sender_role: 'ENGINEER',
+      });
+      newMsg.id = saved.id;
+      newMsg.time = saved.created_at;
+    } catch (err) {
+      console.warn('Could not persist message:', err);
+    }
 
     // TARS monitors threads in real-time and evaluates all messages via live Cortex & SLM
     try {
@@ -148,7 +250,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       const aiMsg = {
         id: `m-ai-${Date.now()}`,
         sender: 'TARS (@TARS)',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: new Date().toISOString(),
         isAi: true,
         text: aiText,
         provenance: provenance || undefined,
@@ -158,8 +260,46 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         ...prev,
         [activeChannelId]: [...(prev[activeChannelId] || []), aiMsg],
       }));
+
+      // Persist AI reply
+      chatApi.sendMessage({
+        channel_id: activeChannelId,
+        content: aiText,
+        sender_id: 'tars',
+        sender_name: 'TARS (@TARS)',
+        sender_role: 'SYSTEM',
+      }).catch(() => {});
     } catch (err) {
       console.error('Think Tank TARS evaluation error:', err);
+    }
+  };
+
+  const handleEditMessage = async (msgId: string) => {
+    if (!editingText.trim()) return;
+    try {
+      await chatApi.updateMessage(msgId, editingText.trim());
+      setMessages((prev) => ({
+        ...prev,
+        [activeChannelId]: (prev[activeChannelId] || []).map((m) =>
+          m.id === msgId ? { ...m, text: editingText.trim(), isEdited: true } : m
+        ),
+      }));
+      setEditingMessageId(null);
+      setEditingText('');
+    } catch (err) {
+      console.error('Error updating message:', err);
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      await chatApi.deleteMessage(msgId);
+      setMessages((prev) => ({
+        ...prev,
+        [activeChannelId]: (prev[activeChannelId] || []).filter((m) => m.id !== msgId),
+      }));
+    } catch (err) {
+      console.error('Error deleting message:', err);
     }
   };
 
@@ -262,33 +402,102 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
 
             {/* Message Stream */}
             <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
-              {channelMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 ${
-                    msg.isAi
-                      ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
-                      : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
-                    <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                      {msg.isAi && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
-                      {msg.sender}
-                    </span>
-                    <span className="font-mono text-[#8E8E93]">{msg.time}</span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-black dark:text-[#EBEBF5] font-sans leading-relaxed">
-                    {msg.text}
-                  </p>
-                  {msg.provenance && (
-                    <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
-                      <span>Evidence Grounding:</span>
-                      <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">{msg.provenance}</span>
+              {channelMessages.map((msg) => {
+                const isEditing = editingMessageId === msg.id;
+                const canModify = !msg.isAi && msg.sender !== 'TARS (@TARS)';
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={`p-3.5 rounded-[14px] text-xs leading-relaxed space-y-1.5 group transition-all ${
+                      msg.isAi
+                        ? 'bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.12] dark:border-white/[0.16] text-black dark:text-white'
+                        : 'bg-[#F5F5F7] dark:bg-[#2C2C2E] border border-black/[0.06] dark:border-white/[0.08] text-black dark:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
+                      <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
+                        {msg.isAi && <Sparkles className="w-3.5 h-3.5 text-black dark:text-white" />}
+                        {msg.sender}
+                        {msg.isEdited && (
+                          <span className="text-[10px] text-[#8E8E93] font-normal italic">(edited)</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[#8E8E93] text-[10px]">{formatMessageTime(msg.time)}</span>
+                        {canModify && !isEditing && (
+                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingMessageId(msg.id);
+                                setEditingText(msg.text);
+                              }}
+                              className="p-1 rounded text-[#8E8E93] hover:text-black dark:hover:text-white"
+                              title="Edit message"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1 rounded text-[#8E8E93] hover:text-[#FF3B30]"
+                              title="Delete message"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {isEditing ? (
+                      <div className="space-y-2 pt-1">
+                        <input
+                          type="text"
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-xs rounded-[8px] border border-black/[0.15] dark:border-white/[0.20] bg-white dark:bg-[#1C1C1E] text-black dark:text-white focus:outline-none"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleEditMessage(msg.id);
+                            if (e.key === 'Escape') setEditingMessageId(null);
+                          }}
+                        />
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingMessageId(null)}
+                            className="px-2 py-0.5 rounded text-[11px] text-[#8E8E93] hover:text-black dark:hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditMessage(msg.id)}
+                            className="px-2.5 py-0.5 rounded bg-black dark:bg-white text-white dark:text-black text-[11px] font-medium"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs sm:text-sm text-black dark:text-[#EBEBF5] font-sans leading-relaxed">
+                        {msg.text}
+                      </p>
+                    )}
+
+                    {msg.provenance && (
+                      <div className="pt-2 mt-1 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-mono text-black dark:text-white font-medium flex items-center gap-1.5">
+                        <span>Evidence Grounding:</span>
+                        <span className="underline decoration-black/40 dark:decoration-white/40 underline-offset-2">{msg.provenance}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Auto-scroll anchor */}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Message Composer */}
@@ -303,7 +512,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Discuss topic or type @TARS to cite past decisions..."
+                placeholder="Discuss topic, @TARS to cite decisions, or /teach <fact> to record memory..."
                 className="flex-1 px-3.5 py-2.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10 focus:border-black dark:focus:border-white transition-all"
               />
               <Button type="submit" variant="primary" size="sm" icon={<Send className="w-3.5 h-3.5" />}>

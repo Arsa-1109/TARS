@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import uuid
+import asyncio
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException
@@ -174,7 +175,7 @@ async def get_decision_by_id(decision_id: str):
 @router.post("/decision", response_model=DecisionItem)
 @router.post("/decisions", response_model=DecisionItem)
 async def create_decision(payload: AddDecisionRequest):
-    """Creates a new Decision node and auto-generates a living MADR."""
+    """Creates a new Decision node and auto-generates a living MADR in the background."""
     decision_id = payload.id or f"DEC-{uuid.uuid4().hex[:6].upper()}"
     ts = int(time.time())
     success = graph_engine.add_decision(
@@ -188,13 +189,18 @@ async def create_decision(payload: AddDecisionRequest):
     if not success:
         raise HTTPException(status_code=500, detail="Failed to insert decision into Kùzu graph")
 
-    madr_writer.generate_madr(
-        rule_id=decision_id,
-        rule_name=payload.title,
-        violating_file="docs/architecture",
-        rationale=payload.context or "",
-        suggested_refactor=payload.chosen_option or "",
+    # Offload synchronous MADR generation to background thread pool (Bug 1: sub-second response)
+    asyncio.create_task(
+        asyncio.to_thread(
+            madr_writer.generate_madr,
+            rule_id=decision_id,
+            rule_name=payload.title,
+            violating_file="docs/architecture",
+            rationale=payload.context or "",
+            suggested_refactor=payload.chosen_option or "",
+        )
     )
+
     return DecisionItem(
         id=decision_id,
         title=payload.title,
@@ -204,6 +210,43 @@ async def create_decision(payload: AddDecisionRequest):
         timestamp=ts,
         clearance=payload.clearance or "ALL_TEAM",
     )
+
+
+class UpdateDecisionRequest(BaseModel):
+    title: Optional[str] = None
+    category: Optional[str] = None
+    context: Optional[str] = None
+    chosen_option: Optional[str] = None
+    clearance: Optional[str] = None
+    status: Optional[str] = None
+    lifecycle_status: Optional[str] = None
+
+
+@router.patch("/decisions/{id}", response_model=Dict[str, Any])
+@router.patch("/decision/{id}", response_model=Dict[str, Any])
+async def update_decision_endpoint(id: str, payload: UpdateDecisionRequest):
+    """Updates specific fields of an existing Decision node (Bug 10)."""
+    fields = payload.model_dump(exclude_unset=True)
+    if not fields:
+        return {"status": "NOOP", "id": id}
+    success = graph_engine.update_decision(id, fields)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Decision {id} not found in Kùzu graph.")
+    return {"status": "UPDATED", "id": id, "updated_fields": list(fields.keys())}
+
+
+@router.delete("/decisions/{id}", response_model=Dict[str, Any])
+@router.delete("/decision/{id}", response_model=Dict[str, Any])
+async def delete_decision_endpoint(id: str, hard_purge: bool = False):
+    """Deletes or marks superseded a Decision node in Kùzu graph (Bug 10)."""
+    success = graph_engine.delete_decision(id, hard_purge=hard_purge)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Decision {id} not found in Kùzu graph.")
+    return {
+        "status": "PURGED" if hard_purge else "SUPERSEDED",
+        "id": id,
+        "hard_purge": hard_purge,
+    }
 
 
 @router.post("/contradiction-check", response_model=ContradictionCheckResponse)
@@ -229,9 +272,22 @@ async def simulate_impact(req: SimulationRequest):
     """Calculates runway and delivery timeline impact using local SLM reasoning."""
     proposal_lower = req.proposal.lower()
     
-    # Calculate quantitative parameters
-    runway_delta = -0.6 * max(1, req.reallocated_devs) - (req.delay_days / 30.0) * 0.5
-    delay_weeks = (req.delay_days / 7.0) + (req.reallocated_devs * 1.5)
+    # Calculate quantitative parameters using real company metrics ($666k cash, -$74k/mo burn)
+    from apps.api.core.company import company_repo
+    profile = company_repo.get_profile() or {}
+    cash = float(profile.get("liquid_cash", 666000.0) or 666000.0)
+    burn_base = float(profile.get("monthly_burn", 74000.0) or 74000.0)
+    dev_monthly_cost = 12000.0
+
+    delta_burn = req.reallocated_devs * dev_monthly_cost
+    delta_cash = -(req.delay_days / 30.0) * 10000.0
+
+    base_runway = cash / max(1.0, burn_base)
+    projected_burn = max(1.0, burn_base + delta_burn)
+    projected_cash = max(0.0, cash + delta_cash)
+    simulated_runway = projected_cash / projected_burn
+    runway_delta = round(simulated_runway - base_runway, 1)
+    delay_weeks = round((req.delay_days / 7.0) + (req.reallocated_devs * 1.5), 1)
     
     affected_promises = []
     affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]

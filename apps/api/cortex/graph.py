@@ -110,6 +110,17 @@ class EmbeddedGraphConn:
                 del self.decisions[target_id]
             return EmbeddedQueryResult([])
 
+        if "MATCH (d:Decision {id: $id}) SET" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                for k, v in params.items():
+                    if k != "id":
+                        self.decisions[target_id][k] = v
+                if "SUPERSEDED" in q:
+                    self.decisions[target_id]["status"] = "SUPERSEDED"
+                    self.decisions[target_id]["lifecycle_status"] = "SUPERSEDED"
+            return EmbeddedQueryResult([[target_id]])
+
         if "MATCH (d:Decision) DETACH DELETE d" in q:
             self.decisions.clear()
             return EmbeddedQueryResult([])
@@ -289,6 +300,40 @@ class TarsGraph:
             return True
         except Exception as e:
             print(f"Error adding decision: {e}")
+            return False
+
+    def update_decision(self, decision_id: str, fields: Dict[str, Any]) -> bool:
+        """Updates fields of an existing Decision node."""
+        if not fields:
+            return True
+        set_clauses = []
+        params = {"id": decision_id}
+        for k, v in fields.items():
+            params[k] = v
+            set_clauses.append(f"d.{k} = ${k}")
+        query = f"MATCH (d:Decision {{id: $id}}) SET {', '.join(set_clauses)} RETURN d.id"
+        try:
+            res = self.conn.execute(query, params)
+            if hasattr(res, "has_next"):
+                return res.has_next()
+            return True
+        except Exception as e:
+            print(f"Error updating decision {decision_id}: {e}")
+            return False
+
+    def delete_decision(self, decision_id: str, hard_purge: bool = False) -> bool:
+        """Deletes or marks superseded a Decision node."""
+        if hard_purge:
+            query = "MATCH (d:Decision {id: $id}) DETACH DELETE d"
+        else:
+            query = "MATCH (d:Decision {id: $id}) SET d.status = 'SUPERSEDED' RETURN d.id"
+        try:
+            res = self.conn.execute(query, {"id": decision_id})
+            if hasattr(res, "has_next"):
+                return res.has_next()
+            return True
+        except Exception as e:
+            print(f"Error deleting decision {decision_id}: {e}")
             return False
 
     def add_invariant(self, inv_id: str, name: str, category: str, severity: str, rationale: str, adr_ref: str = "") -> bool:

@@ -6,6 +6,8 @@ export interface SearchCitation {
   doc_title: string;
   page_number: number;
   snippet: string;
+  section_heading?: string;
+  chunk_id?: string;
 }
 
 export interface SearchRequest {
