@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
@@ -9,6 +9,7 @@ import { SegmentedControl } from '../primitives/SegmentedControl';
 import { DocumentReaderModal } from './DocumentReaderModal';
 import { SearchCitation, SearchResponse, UserRole } from '../../types/contracts';
 import { api } from '../../services/client';
+import { ingestionApi } from '../../services/ingestionApi';
 import {
   Search,
   FileText,
@@ -22,6 +23,8 @@ import {
   Check,
   Eye,
   Table,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface KnowledgeWorkspaceProps {
@@ -42,9 +45,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [copiedBundle, setCopiedBundle] = useState(false);
   const [lakeDocuments, setLakeDocuments] = useState<any[]>([]);
+  const [lakeDepartment, setLakeDepartment] = useState<string>('ALL');
+  const [lakeSearch, setLakeSearch] = useState<string>('');
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // Document Reader modal state
   const [readerModal, setReaderModal] = useState<{
@@ -53,6 +61,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     department: string;
     clearance: string;
     content: string;
+    pageCount?: number;
+    chunkCount?: number;
   }>({
     open: false,
     title: '',
@@ -113,20 +123,65 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const handleFileUploadWithRef = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
+    setUploadProgress(0);
     setUploadError(null);
     try {
-      const uploaded = await api.uploadDocument(files[0]);
-      setUploadSuccess(`Ingested "${uploaded.title}" (${uploaded.pages} pages) into local vector index.`);
-      setTimeout(() => setUploadSuccess(null), 5000);
-    } catch (err) {
-      setUploadError('Upload failed. Ensure the file is a supported format.');
+      const uploaded = await ingestionApi.uploadDocumentXHR(files[0], (pct) => {
+        setUploadProgress(pct);
+      });
+      setUploadProgress(100);
+      setUploadSuccess(`Ingested "${uploaded.title}" (${uploaded.pages} pages) into local sovereign memory.`);
+      setTimeout(() => {
+        setUploadSuccess(null);
+        setUploadProgress(0);
+      }, 5000);
+      fetchLakeDocuments();
+    } catch (err: any) {
+      setUploadError(err?.message || 'Upload failed. Ensure the file is a supported format.');
       console.error(err);
     } finally {
       setUploading(false);
-      // reset input so same file can be re-uploaded
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Document Lake Filtering & Pagination Calculations
+  const lakeDepartmentTabs = useMemo(() => {
+    return ['ALL', 'EXECUTIVE', 'PRODUCT', 'ENGINEERING', 'SALES', 'FINANCE', 'LEGAL'];
+  }, []);
+
+  const departmentCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: lakeDocuments.length };
+    for (const doc of lakeDocuments) {
+      const d = (doc.department || 'GENERAL').toUpperCase();
+      counts[d] = (counts[d] || 0) + 1;
+    }
+    return counts;
+  }, [lakeDocuments]);
+
+  const filteredLakeDocuments = useMemo(() => {
+    return lakeDocuments.filter((doc) => {
+      const docDept = (doc.department || 'GENERAL').toUpperCase();
+      const matchesDept = lakeDepartment === 'ALL' || docDept === lakeDepartment;
+      const title = (doc.filename || doc.title || '').toLowerCase();
+      const format = (doc.format || '').toLowerCase();
+      const q = lakeSearch.toLowerCase();
+      const matchesSearch = !q || title.includes(q) || docDept.toLowerCase().includes(q) || format.includes(q);
+      return matchesDept && matchesSearch;
+    });
+  }, [lakeDocuments, lakeDepartment, lakeSearch]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLakeDocuments.length / pageSize));
+
+  const paginatedDocs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLakeDocuments.slice(start, start + pageSize);
+  }, [filteredLakeDocuments, currentPage, pageSize]);
+
+  // Reset to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [lakeDepartment, lakeSearch, pageSize]);
 
   const handleCopyCitationBundle = () => {
     if (!result) return;
@@ -180,6 +235,26 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           </div>
         }
       />
+
+      {uploading && (
+        <div className="p-4 rounded-[14px] border border-[#0071E3]/[0.20] dark:border-[#0A84FF]/[0.25] bg-white dark:bg-[#1C1C1E] shadow-sm space-y-2 animate-slide-up">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-black dark:text-white flex items-center gap-2">
+              <UploadCloud className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-pulse" />
+              Ingesting Sovereign Document into Lake...
+            </span>
+            <span className="font-mono text-[11px] text-[#0071E3] dark:text-[#0A84FF] font-bold">
+              {uploadProgress}%
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-[#0071E3] dark:bg-[#0A84FF] transition-all duration-150 ease-out"
+              style={{ width: `${Math.max(5, uploadProgress)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {uploadSuccess && (
         <div className="p-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-[13px] flex items-center gap-2 animate-slide-up">
@@ -461,6 +536,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
       {/* VIEW 2: DOCUMENT LAKE BROWSER */}
       {activeView === 'lake' && (
         <div className="rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-6 space-y-5 shadow-sm">
+          {/* Header & Stats Ribbon */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/[0.08] dark:border-white/[0.08] pb-4">
             <div>
               <h3 className="text-base sm:text-lg font-semibold text-black dark:text-white">
@@ -477,72 +553,174 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             </div>
           </div>
 
-          {lakeDocuments.length === 0 ? (
+          {/* Department Filter Pills with Count Badges */}
+          <div className="flex flex-wrap items-center gap-1.5 pb-2">
+            {lakeDepartmentTabs.map((dept) => {
+              const count = departmentCounts[dept] || 0;
+              const isSelected = lakeDepartment === dept;
+              return (
+                <button
+                  key={dept}
+                  type="button"
+                  onClick={() => setLakeDepartment(dept)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-black text-white dark:bg-white dark:text-black shadow-sm'
+                      : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:bg-black/[0.08] dark:hover:bg-white/[0.10]'
+                  }`}
+                >
+                  <span>{dept}</span>
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                      isSelected
+                        ? 'bg-white/20 dark:bg-black/20 text-white dark:text-black'
+                        : 'bg-black/[0.08] dark:bg-white/[0.10] text-[#6E6E73] dark:text-[#8E8E93]'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick Filter Search Input */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-3.5 h-3.5 text-[#8E8E93] absolute left-3 pointer-events-none" />
+              <input
+                type="text"
+                value={lakeSearch}
+                onChange={(e) => setLakeSearch(e.target.value)}
+                placeholder="Filter documents in lake..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-[10px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none"
+              />
+            </div>
+            <div className="text-xs text-[#8E8E93] font-mono">
+              Matching: {filteredLakeDocuments.length}
+            </div>
+          </div>
+
+          {filteredLakeDocuments.length === 0 ? (
             <EmptyState
               icon={<FileText className="w-5 h-5 text-[#8E8E93]" />}
-              title="No documents ingested yet"
-              description="Drop or upload PDFs, Word documents, spreadsheets, or markdown files to populate institutional memory."
-              actionLabel="Upload First Document"
-              onAction={() => fileInputRef.current?.click()}
+              title="No documents match current filters"
+              description="Adjust your search term or department filter to view ingested documents."
+              actionLabel="Reset Filters"
+              onAction={() => {
+                setLakeDepartment('ALL');
+                setLakeSearch('');
+              }}
             />
           ) : (
-            <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10]">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#F5F5F7] dark:bg-[#2C2C2E] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px] border-b border-black/[0.08] dark:border-white/[0.08]">
-                  <tr>
-                    <th className="py-3 px-4">Document Title</th>
-                    <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Clearance</th>
-                    <th className="py-3 px-4">Tables / Chunks</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
-                  {lakeDocuments.map((doc, idx) => {
-                    const title = doc.filename || doc.title || `Document #${idx + 1}`;
-                    const dept = doc.department || 'GENERAL';
-                    const docType = doc.format || 'Document';
-                    const clr = doc.clearance || 'ALL_TEAM';
-                    const content = doc.preview || doc.content || 'Indexed in local sovereign memory.';
-                    return (
-                      <tr
-                        key={doc.doc_id || doc.id || idx}
-                        className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                        onClick={() =>
-                          setReaderModal({
-                            open: true,
-                            title,
-                            department: dept,
-                            clearance: clr,
-                            content,
-                          })
-                        }
-                      >
-                        <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
-                          <span className="truncate max-w-xs">{title}</span>
-                        </td>
-                        <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
-                        <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{docType}</td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
-                            {clr}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-[#8E8E93] font-mono">
-                          {doc.table_count || 0} tables • {doc.chunk_count || 1} chunks
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
-                            Read
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              <div className="overflow-x-auto rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] max-h-[560px] overflow-y-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-[#F5F5F7]/95 dark:bg-[#2C2C2E]/95 backdrop-blur z-10 border-b border-black/[0.08] dark:border-white/[0.08] text-[#6E6E73] dark:text-[#8E8E93] font-semibold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3 px-4">Document Title</th>
+                      <th className="py-3 px-4">Department</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Clearance</th>
+                      <th className="py-3 px-4">Tables / Chunks</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/[0.06] dark:divide-white/[0.06] bg-white dark:bg-[#1C1C1E]">
+                    {paginatedDocs.map((doc, idx) => {
+                      const title = doc.filename || doc.title || `Document #${idx + 1}`;
+                      const dept = doc.department || 'GENERAL';
+                      const docType = doc.format || 'Document';
+                      const clr = doc.clearance || 'ALL_TEAM';
+                      const content = doc.preview || doc.content || 'Indexed in local sovereign memory.';
+                      const pages = doc.page_count || Math.max(1, Math.ceil((doc.chunk_count || 1) / 3));
+
+                      return (
+                        <tr
+                          key={doc.doc_id || doc.id || idx}
+                          className="hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors cursor-pointer group"
+                          onClick={() =>
+                            setReaderModal({
+                              open: true,
+                              title,
+                              department: dept,
+                              clearance: clr,
+                              content,
+                              pageCount: pages,
+                              chunkCount: doc.chunk_count || 1,
+                            })
+                          }
+                        >
+                          <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+                            <span className="truncate max-w-xs">{title}</span>
+                          </td>
+                          <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
+                          <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{docType}</td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-black/[0.05] dark:bg-white/[0.08] text-black dark:text-white">
+                              {clr}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-[#8E8E93] font-mono">
+                            {doc.table_count || 0} tables • {doc.chunk_count || 1} chunks
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <Button variant="ghost" size="sm" icon={<Eye className="w-3.5 h-3.5" />}>
+                              Read
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controller (Bug 17) */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 text-xs text-[#6E6E73] dark:text-[#8E8E93]">
+                <div className="flex items-center gap-2">
+                  <span>Show</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="px-2 py-1 text-xs rounded-[6px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white focus:outline-none"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span>per page</span>
+                  <span className="text-[#8E8E93] ml-2">
+                    Showing {Math.min(filteredLakeDocuments.length, (currentPage - 1) * pageSize + 1)}–
+                    {Math.min(filteredLakeDocuments.length, currentPage * pageSize)} of {filteredLakeDocuments.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="p-1.5 rounded-[8px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <span className="font-mono text-xs px-2.5 py-1">
+                    Page {currentPage} of {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="p-1.5 rounded-[8px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -556,6 +734,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
         department={readerModal.department}
         clearance={readerModal.clearance}
         content={readerModal.content}
+        pageCount={readerModal.pageCount}
+        chunkCount={readerModal.chunkCount}
       />
     </div>
   );
