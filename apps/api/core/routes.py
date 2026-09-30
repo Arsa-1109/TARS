@@ -3,11 +3,14 @@ import os
 import re
 import shutil
 import uuid
+import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, UploadFile, File, Header, Query
 from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel
 import json
+
+logger = logging.getLogger(__name__)
 from apps.api.schemas.contracts import (
     ActionItemDTO,
     SystemStatus,
@@ -574,23 +577,109 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         raise HTTPException(status_code=400, detail="Content cannot be empty")
     
     mem_id = f"MEM-TEACH-{uuid.uuid4().hex[:8].upper()}"
-    if req.title and not req.title.startswith("Fact: "):
-        title = req.title
-    else:
-        words = raw_content.split()
-        title = " ".join(words[:6]) if len(words) >= 3 else f"Taught Fact ({req.category or 'POLICY'})"
-    content = raw_content
-    source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
     now_ts = int(time.time())
-    tags = f"teach,learned,{(req.category or 'policy').lower()}"
 
-    # 1. Persist to SQLite institutional memory table
+    # 1. Distill formal decision artifact via local ML model (qwen3:8b)
+    # The ML model reasons over user intent and strips conversational meta-language
+    ml_title = None
+    ml_policy = None
+    ml_context = None
+    ml_category = None
+
+    try:
+        distill_prompt = (
+            "You are TARS, Chief Architecture Officer and institutional AI for AetherFlow Technologies.\n"
+            "A team member just submitted a conversational statement or instruction to /teach in Think Tank.\n"
+            "Analyze the statement, strip away meta-conversational instructions "
+            "(e.g. 'record a new decision named', 'please add decision for', 'we decided to', 'I want to teach you that'), "
+            "and determine the true architectural, strategic, or business decision being declared.\n\n"
+            "Guidelines:\n"
+            "- If the user says 'record a new decision named cats', the subject/initiative is 'Cats' "
+            "(e.g. Title: 'Project Cats Strategic Initiative', Chosen Policy: 'Officially establish and resource the Cats initiative across engineering and product streams').\n"
+            "- If the user says 'we are partnering with Stark Industries on Oct 5th', "
+            "Title: 'Stark Industries Strategic Collaboration', Chosen Policy: 'Formalize cross-company integration and technical partnership with Stark Industries starting October 5th.'\n"
+            "- Synthesize a crisp, executive title (3-7 words), a formal imperative chosen policy statement, relevant context drivers, and the proper category.\n\n"
+            "Return ONLY a JSON object with this exact structure:\n"
+            "{\n"
+            "  \"title\": \"Crisp, professional title (3-7 words)\",\n"
+            "  \"chosen_policy\": \"Formal, executive policy statement of what is ratified\",\n"
+            "  \"context_drivers\": \"Context and business rationale\",\n"
+            "  \"category\": \"STRATEGY\" or \"ENGINEERING\" or \"SECURITY\" or \"PRODUCT\"\n"
+            "}"
+        )
+        ml_res = await ollama_client.generate(
+            prompt=f'Input statement to distill: "{raw_content}"',
+            system=distill_prompt,
+            task_complexity="deep",
+            structured_format="json"
+        )
+        if ml_res.get("success") and isinstance(ml_res.get("response"), dict):
+            resp_dict = ml_res["response"]
+            if resp_dict.get("title"):
+                ml_title = str(resp_dict["title"]).strip().strip('"')
+            if resp_dict.get("chosen_policy"):
+                ml_policy = str(resp_dict["chosen_policy"]).strip().strip('"')
+            if resp_dict.get("context_drivers"):
+                ml_context = str(resp_dict["context_drivers"]).strip()
+            if resp_dict.get("category"):
+                cat_cand = str(resp_dict["category"]).upper().strip()
+                if cat_cand in ("STRATEGY", "ENGINEERING", "SECURITY", "PRODUCT"):
+                    ml_category = cat_cand
+    except Exception as ml_err:
+        logger.warning(f"Ollama decision distillation note: {ml_err}")
+
+    # Fallback heuristics if ML is unavailable or returned incomplete data
+    if not ml_title or not ml_policy:
+        cleaned = re.sub(
+            r"^(?:please\s+)?(?:record|add|create|ratify|register|log)?\s*(?:a\s+)?(?:new\s+)?(?:decision|policy|fact|adr)\s*(?:named|called|titled|about|for)?\s*[:\-\s]*",
+            "",
+            raw_content,
+            flags=re.IGNORECASE
+        ).strip().rstrip(".")
+        cleaned = re.sub(
+            r"^(?:we\s+decided\s+(?:to|that)?|i\s+want\s+to\s+teach\s+you\s+that|remember\s+that)\s*",
+            "",
+            cleaned,
+            flags=re.IGNORECASE
+        ).strip().rstrip(".")
+
+        if not cleaned:
+            cleaned = raw_content
+
+        if not ml_title:
+            ml_title = f"{cleaned.capitalize()} Initiative" if len(cleaned.split()) <= 4 else cleaned[:60].capitalize()
+        if not ml_policy:
+            ml_policy = f"Officially ratified institutional policy: {cleaned}."
+        if not ml_context:
+            ml_context = f"Ratified via Collaborative Think Tank by {req.user_name or 'Team Member'} ({req.user_role or 'ENGINEER'})."
+        if not ml_category:
+            low = raw_content.lower()
+            if any(k in low for k in ["auth", "api", "database", "postgres", "outbox", "http", "service", "code", "schema", "ast", "refactor"]):
+                ml_category = "ENGINEERING"
+            elif any(k in low for k in ["security", "saml", "sso", "rbac", "encryption", "compliance", "soc2", "permission"]):
+                ml_category = "SECURITY"
+            elif any(k in low for k in ["pricing", "cost", "billing", "burn", "runway"]):
+                ml_category = "STRATEGY"
+            elif any(k in low for k in ["product", "feature", "client", "ui", "ux"]):
+                ml_category = "PRODUCT"
+            else:
+                ml_category = "STRATEGY"
+
+    title = ml_title
+    chosen_policy = ml_policy
+    category = ml_category
+    context_desc = ml_context or f"Ratified via Collaborative Think Tank by {req.user_name or 'Team Member'}."
+    source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
+    tags = f"teach,learned,decision,{category.lower()}"
+    content_record = f"{chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
+
+    # 2. Persist to SQLite institutional memory table
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO memories (id, record_type, title, content, source, timestamp, tags, clearance)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (mem_id, "INSTITUTIONAL_FACT", title, content, source, now_ts, tags, req.clearance or "ALL_TEAM"))
+    ''', (mem_id, "INSTITUTIONAL_FACT", title, content_record, source, now_ts, tags, req.clearance or "ALL_TEAM"))
 
     # Log to interaction_logs telemetry
     cursor.execute('''
@@ -604,11 +693,11 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         req.clearance or "ALL_TEAM",
         "TEACH",
         title,
-        content
+        chosen_policy
     ))
     conn.commit()
 
-    # 2. Automatically instantiate a durable Decision in Workspace 5 (Kùzu Graph & MADR)
+    # 3. Automatically instantiate a durable Decision in Workspace 5 (Kùzu Graph & MADR)
     decision_id = f"DEC-{uuid.uuid4().hex[:6].upper()}"
     decision_title = title
     try:
@@ -618,29 +707,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         except Exception:
             sse_manager = None
 
-        cleaned_text = raw_content.strip().rstrip(".")
-        if len(cleaned_text) > 75:
-            w = cleaned_text.split()
-            decision_title = " ".join(w[:8])
-            if not decision_title.endswith("."):
-                decision_title += "..."
-        else:
-            decision_title = cleaned_text[0].upper() + cleaned_text[1:] if cleaned_text else "Strategic Decision"
-
-        # Determine appropriate category
-        low = raw_content.lower()
-        if any(k in low for k in ["auth", "api", "database", "postgres", "outbox", "http", "service", "code", "schema", "ast", "refactor"]):
-            category = "ENGINEERING"
-        elif any(k in low for k in ["security", "saml", "sso", "rbac", "encryption", "compliance", "soc2", "permission"]):
-            category = "SECURITY"
-        elif any(k in low for k in ["pricing", "cost", "billing", "burn", "runway"]):
-            category = "STRATEGY"
-        elif any(k in low for k in ["product", "feature", "client", "ui", "ux"]):
-            category = "PRODUCT"
-        else:
-            category = "STRATEGY"
-
-        dec_context = f"Recorded via Collaborative Think Tank /teach by {req.user_name or 'Team Member'} ({req.user_role or 'ENGINEER'})."
+        dec_context = f"{context_desc} (Taught by {req.user_name or 'Team Member'} [{req.user_role or 'ENGINEER'}])."
 
         # Add to Kùzu Graph Engine
         graph_engine.add_decision(
@@ -648,7 +715,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
             title=decision_title,
             category=category,
             context=dec_context,
-            chosen_option=raw_content,
+            chosen_option=chosen_policy,
             clearance=req.clearance or "ALL_TEAM",
             status="ACTIVE",
         )
@@ -660,7 +727,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
                 rule_name=decision_title,
                 violating_file="docs/architecture",
                 rationale=dec_context,
-                suggested_refactor=raw_content,
+                suggested_refactor=chosen_policy,
             )
         except Exception as madr_err:
             logger.debug(f"MADR writing note for {decision_id}: {madr_err}")
@@ -677,7 +744,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         logger.warning(f"Notice: Failed to register decision node for /teach: {dec_err}")
 
     confirmation_message = (
-        f"Institutional memory successfully updated: \"{raw_content}\" recorded and ratified as Decision [{decision_id}] in Workspace 5 Strategic Decision Registry. Accessible in future searches."
+        f"Institutional memory updated & formal Decision [{decision_id}] (\"{decision_title}\") ratified in Workspace 5: \"{chosen_policy}\""
     )
 
     return TeachMemoryResponse(
