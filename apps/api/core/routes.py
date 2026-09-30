@@ -1379,3 +1379,27 @@ async def delete_single_chat_message(
         raise HTTPException(status_code=404, detail="Message not found")
     conn.commit()
     return {"status": "deleted", "message_id": message_id}
+
+
+@router.get("/decisions/recommendations")
+async def get_core_strategic_recommendations(status: str = "ACTIVE"):
+    """Returns stored strategic growth and runway recommendations."""
+    from apps.api.core.strategic_advisor import strategic_advisor
+    return strategic_advisor.list_recommendations(status=status)
+
+
+@router.post("/decisions/recommendations/generate")
+async def generate_core_strategic_recommendations():
+    """Triggers autonomous strategic analysis using local Qwen3 model."""
+    from apps.api.core.strategic_advisor import strategic_advisor
+    return await strategic_advisor.generate_recommendations()
+
+
+@router.post("/decisions/recommendations/{rec_id}/dismiss")
+async def dismiss_core_strategic_recommendation(rec_id: str):
+    """Dismisses a strategic recommendation."""
+    from apps.api.core.strategic_advisor import strategic_advisor
+    success = strategic_advisor.dismiss_recommendation(rec_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Recommendation not found")
+    return {"status": "dismissed", "id": rec_id}

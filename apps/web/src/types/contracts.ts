@@ -98,6 +98,22 @@ export interface ContradictionCheckResponse {
   explanation: string | null;
 }
 
+export interface StrategicRecommendation {
+  id: string;
+  title: string;
+  category: 'RUNWAY' | 'REVENUE' | 'VELOCITY' | 'ARCHITECTURE' | 'SECURITY' | string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  rationale: string;
+  estimated_impact: string;
+  actionable_steps: string[];
+  supporting_citations: string[];
+  sim_prompt?: string;
+  sim_burn_delta?: number;
+  sim_timeline_shift?: number;
+  status: 'ACTIVE' | 'ACCEPTED' | 'DISMISSED' | string;
+  created_at?: string;
+}
+
 export interface SimulationRequest {
   proposal: string;
   delay_days: number;

@@ -3,6 +3,7 @@ import {
   DecisionCreateRequest,
   DecisionPatchRequest,
   ContradictionCheckResponse,
+  StrategicRecommendation,
   SimulationRequest,
   SimulationResponse,
   SimulationScenarioRequest,
@@ -137,6 +138,50 @@ export class DecisionsApi {
    */
   async simulate(req: SimulationRequest): Promise<SimulationResponse> {
     return this.simulateImpact(req);
+  }
+
+  /**
+   * Fetches active AI strategic growth & optimization recommendations.
+   */
+  async getRecommendations(): Promise<StrategicRecommendation[]> {
+    try {
+      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('Failed to fetch recommendations:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Proactively triggers local Qwen3 model to analyze current company state
+   * and generate fresh strategic optimization vectors.
+   */
+  async generateRecommendations(): Promise<StrategicRecommendation[]> {
+    try {
+      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations/generate', {
+        method: 'POST',
+      });
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.error('Failed to generate recommendations:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Dismisses a strategic suggestion.
+   */
+  async dismissRecommendation(id: string): Promise<boolean> {
+    try {
+      await this.fetchJson<{ status: string; id: string }>(`/core/decisions/recommendations/${id}/dismiss`, {
+        method: 'POST',
+      });
+      return true;
+    } catch (err) {
+      console.warn('Failed to dismiss recommendation:', err);
+      return false;
+    }
   }
 }
 

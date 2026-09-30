@@ -11,6 +11,7 @@ import {
   DecisionItem,
   ContradictionCheckResponse,
   SimulationScenarioResponse,
+  StrategicRecommendation,
 } from '../../types/contracts';
 import { decisionsApi } from '../../services/decisionsApi';
 import { realtimeBus } from '../../services/realtime';
@@ -20,6 +21,7 @@ import {
   Plus,
   CheckCircle2,
   TrendingDown,
+  TrendingUp,
   GitCommit,
   Trash2,
   Archive,
@@ -28,6 +30,13 @@ import {
   DollarSign,
   AlertOctagon,
   Sparkles,
+  Zap,
+  ChevronDown,
+  ChevronUp,
+  X,
+  RefreshCw,
+  Compass,
+  FilePlus2,
 } from 'lucide-react';
 
 interface DecisionsWorkspaceProps {
@@ -81,6 +90,68 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [supersededByVal, setSupersededByVal] = useState('');
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 
+  // Strategic Growth Radar State
+  const [recommendations, setRecommendations] = useState<StrategicRecommendation[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [generatingRecs, setGeneratingRecs] = useState(false);
+  const [radarExpanded, setRadarExpanded] = useState(true);
+  const [recFilterTab, setRecFilterTab] = useState<string>('ALL');
+  const [radarNotice, setRadarNotice] = useState<string | null>(null);
+
+  const fetchRecommendations = async () => {
+    setLoadingRecs(true);
+    try {
+      const data = await decisionsApi.getRecommendations();
+      setRecommendations(data);
+    } catch (err) {
+      console.warn('Failed to load recommendations:', err);
+    } finally {
+      setLoadingRecs(false);
+    }
+  };
+
+  const handleGenerateRecommendations = async () => {
+    setGeneratingRecs(true);
+    setRadarNotice(null);
+    try {
+      const data = await decisionsApi.generateRecommendations();
+      setRecommendations(data);
+      setRadarNotice('Fresh strategic suggestions synthesized by local Qwen 3 model from institutional memory.');
+      setTimeout(() => setRadarNotice(null), 6000);
+    } catch (err) {
+      console.error('Failed to generate suggestions:', err);
+    } finally {
+      setGeneratingRecs(false);
+    }
+  };
+
+  const handleDismissRec = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setRecommendations((prev) => prev.filter((r) => r.id !== id));
+    await decisionsApi.dismissRecommendation(id);
+  };
+
+  const handlePromoteToDecision = (rec: StrategicRecommendation) => {
+    setNewTitle(rec.title);
+    let cat: 'STRATEGY' | 'ENGINEERING' | 'SECURITY' | 'PRODUCT' = 'STRATEGY';
+    if (rec.category === 'ARCHITECTURE' || rec.category === 'ENGINEERING') cat = 'ENGINEERING';
+    else if (rec.category === 'SECURITY') cat = 'SECURITY';
+    else if (rec.category === 'VELOCITY' || rec.category === 'PRODUCT') cat = 'PRODUCT';
+    setNewCategory(cat);
+
+    const contextContent = `${rec.rationale}\n\nEstimated Impact: ${rec.estimated_impact}\nSupporting Citations: ${(rec.supporting_citations || []).join(', ')}`;
+    setNewContext(contextContent);
+    setNewChoice((rec.actionable_steps || []).join('\n'));
+    setRecordDialogOpen(true);
+  };
+
+  const handleSimulateRec = (rec: StrategicRecommendation) => {
+    setSimScenarioPrompt(rec.sim_prompt || `What if we implement: ${rec.title}?`);
+    setSimBurnDelta(rec.sim_burn_delta ?? -5000);
+    setSimTimelineShift(rec.sim_timeline_shift ?? 14);
+    setSimulationOpen(true);
+  };
+
   const fetchDecisions = async () => {
     const data = await decisionsApi.getDecisions();
     setDecisions(data);
@@ -94,9 +165,11 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   useEffect(() => {
     fetchDecisions();
+    fetchRecommendations();
     const unsub = realtimeBus.subscribe((evt) => {
       if (evt.event === 'DECISION_MUTATION') {
         fetchDecisions();
+        fetchRecommendations();
       }
     });
     return unsub;
@@ -216,6 +289,46 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     });
   }, [decisions, filterTab]);
 
+  const recCategoryBadges: Record<string, { bg: string; text: string; border: string }> = {
+    REVENUE: {
+      bg: 'bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.12]',
+      text: 'text-[#0071E3] dark:text-[#0A84FF]',
+      border: 'border-[#0071E3]/20 dark:border-[#0A84FF]/25',
+    },
+    RUNWAY: {
+      bg: 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]',
+      text: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-500/20 dark:border-emerald-500/25',
+    },
+    VELOCITY: {
+      bg: 'bg-purple-500/[0.08] dark:bg-purple-500/[0.12]',
+      text: 'text-purple-600 dark:text-purple-400',
+      border: 'border-purple-500/20 dark:border-purple-500/25',
+    },
+    ARCHITECTURE: {
+      bg: 'bg-amber-500/[0.08] dark:bg-amber-500/[0.12]',
+      text: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-500/20 dark:border-amber-500/25',
+    },
+    SECURITY: {
+      bg: 'bg-rose-500/[0.08] dark:bg-rose-500/[0.12]',
+      text: 'text-rose-600 dark:text-rose-400',
+      border: 'border-rose-500/20 dark:border-rose-500/25',
+    },
+    STRATEGY: {
+      bg: 'bg-sky-500/[0.08] dark:bg-sky-500/[0.12]',
+      text: 'text-sky-600 dark:text-sky-400',
+      border: 'border-sky-500/20 dark:border-sky-500/25',
+    },
+  };
+
+  const filteredRecommendations = useMemo(() => {
+    return recommendations.filter((r) => {
+      if (recFilterTab === 'ALL') return true;
+      return (r.category || '').toUpperCase() === recFilterTab;
+    });
+  }, [recommendations, recFilterTab]);
+
   return (
     <div className="space-y-5 animate-fade-in pb-4">
       <PageHeader
@@ -243,6 +356,223 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
           </div>
         }
       />
+
+      {/* Strategic Growth Radar & Autonomous ML Suggestions */}
+      <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm overflow-hidden transition-all">
+        {/* Radar Header */}
+        <div className="p-4 sm:p-5 border-b border-black/[0.05] dark:border-white/[0.05] flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#0071E3]/20 via-[#0A84FF]/20 to-purple-500/20 text-[#0071E3] dark:text-[#0A84FF] flex items-center justify-center shrink-0 border border-[#0071E3]/20 shadow-inner">
+              <Sparkles className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight">
+                  Strategic Growth Radar
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Qwen 3 (Local ML Connected)
+                </span>
+              </div>
+              <span className="text-[11px] text-[#86868B] dark:text-[#8E8E93] block">
+                Autonomous optimization vectors synthesized from sovereign company memory, financial runway ($666k / -$74k burn), and active ADR invariants.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={generatingRecs}
+              icon={<Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />}
+              onClick={handleGenerateRecommendations}
+            >
+              Analyze Opportunities
+            </Button>
+            <button
+              type="button"
+              onClick={() => setRadarExpanded(!radarExpanded)}
+              className="p-1.5 rounded-lg text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.05] transition-colors"
+              title={radarExpanded ? "Collapse Radar" : "Expand Radar"}
+            >
+              {radarExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Radar Body */}
+        {radarExpanded && (
+          <div className="p-4 sm:p-5 space-y-4">
+            {/* Notice banner if freshly generated */}
+            {radarNotice && (
+              <div className="flex items-center justify-between text-[12px] px-3.5 py-2 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>{radarNotice}</span>
+                </div>
+                <button
+                  onClick={() => setRadarNotice(null)}
+                  className="text-emerald-600 dark:text-emerald-400 hover:opacity-75"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Category Filter Bar */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                {['ALL', 'REVENUE', 'RUNWAY', 'VELOCITY', 'ARCHITECTURE', 'SECURITY'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setRecFilterTab(cat)}
+                    className={`text-[10px] font-mono uppercase px-2.5 py-1 rounded-full font-semibold transition-all ${
+                      recFilterTab === cat
+                        ? 'bg-black text-white dark:bg-white dark:text-black shadow-xs'
+                        : 'bg-black/[0.04] text-[#6E6E73] dark:bg-white/[0.06] dark:text-[#8E8E93] hover:text-black dark:hover:text-white'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11px] font-mono text-[#8E8E93] shrink-0">
+                {filteredRecommendations.length} Vector{filteredRecommendations.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Suggestions Cards Grid */}
+            {loadingRecs && recommendations.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#8E8E93] flex items-center justify-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin text-[#0071E3]" />
+                <span>Synthesizing company strategic vectors...</span>
+              </div>
+            ) : filteredRecommendations.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#8E8E93] rounded-[16px] border border-dashed border-black/[0.08] dark:border-white/[0.08]">
+                No recommendations in this category. Click &quot;Analyze Opportunities&quot; to discover new growth vectors.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
+                {filteredRecommendations.map((rec) => {
+                  const badgeStyle = recCategoryBadges[rec.category.toUpperCase()] || recCategoryBadges.STRATEGY;
+                  const isHigh = (rec.priority || '').toUpperCase() === 'HIGH';
+
+                  return (
+                    <div
+                      key={rec.id}
+                      className="group flex flex-col justify-between rounded-[16px] border border-black/[0.07] dark:border-white/[0.07] bg-black/[0.015] dark:bg-white/[0.02] hover:bg-black/[0.03] dark:hover:bg-white/[0.04] p-4 transition-all duration-200 hover:shadow-md hover:border-black/[0.14] dark:hover:border-white/[0.14] space-y-3"
+                    >
+                      <div className="space-y-2.5">
+                        {/* Top Meta Row */}
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`text-[9.5px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
+                            >
+                              {rec.category}
+                            </span>
+                            <span
+                              className={`text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded-md ${
+                                isHigh
+                                  ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}
+                            >
+                              {rec.priority}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDismissRec(rec.id, e)}
+                            className="text-[#8E8E93] hover:text-[#FF3B30] p-1 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                            title="Dismiss suggestion"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Title */}
+                        <h4 className="text-[13px] font-bold text-black dark:text-white leading-snug">
+                          {rec.title}
+                        </h4>
+
+                        {/* Estimated Impact Pill */}
+                        <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] border border-emerald-500/20 px-2 py-0.5 rounded-md">
+                          <TrendingUp className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{rec.estimated_impact}</span>
+                        </div>
+
+                        {/* Rationale */}
+                        <p className="text-[11.5px] text-[#4A4A4F] dark:text-[#A1A1A6] leading-relaxed line-clamp-3">
+                          {rec.rationale}
+                        </p>
+
+                        {/* Actionable Steps */}
+                        {rec.actionable_steps && rec.actionable_steps.length > 0 && (
+                          <div className="space-y-1 pt-1">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#8E8E93]">
+                              Action Vectors:
+                            </span>
+                            <ul className="space-y-1">
+                              {rec.actionable_steps.slice(0, 3).map((step, sIdx) => (
+                                <li
+                                  key={sIdx}
+                                  className="flex items-start gap-1.5 text-[11px] text-[#333] dark:text-[#C7C7CC] leading-tight"
+                                >
+                                  <span className="text-[#0071E3] dark:text-[#0A84FF] mt-0.5 font-bold">›</span>
+                                  <span>{step}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Supporting Citations */}
+                        {rec.supporting_citations && rec.supporting_citations.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 pt-1">
+                            {rec.supporting_citations.map((cite, cIdx) => (
+                              <span
+                                key={cIdx}
+                                className="text-[9.5px] font-mono bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] px-1.5 py-0.5 rounded"
+                              >
+                                {cite}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Action Buttons */}
+                      <div className="pt-2 border-t border-black/[0.05] dark:border-white/[0.05] flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handlePromoteToDecision(rec)}
+                          className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 px-2 rounded-lg bg-black/[0.05] dark:bg-white/[0.07] text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors"
+                          title="Draft this recommendation as an Architectural Decision Record"
+                        >
+                          <FilePlus2 className="w-3 h-3" />
+                          <span>Draft ADR</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSimulateRec(rec)}
+                          className="flex items-center justify-center gap-1 text-[11px] font-medium py-1.5 px-2.5 rounded-lg bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF] hover:bg-[#0071E3] hover:text-white dark:hover:bg-[#0A84FF] dark:hover:text-white transition-colors"
+                          title="Run counterfactual runway and delivery simulation on this scenario"
+                        >
+                          <Play className="w-3 h-3" />
+                          <span>Simulate</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Contradiction Detection Surface */}
       <div className="p-4 sm:p-5 rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm space-y-3">
