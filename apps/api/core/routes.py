@@ -41,6 +41,16 @@ from apps.api.core.ollama_client import ollama_client
 from apps.api.core.search import search_service
 from apps.api.core.company import company_repo
 from apps.api.core.db import db
+from apps.api.core.actions import action_hub
+from apps.api.core.policies import policy_engine
+from apps.api.core.facts import fact_manager
+from apps.api.schemas.core_contracts import (
+    ActionReceipt,
+    PolicyRule,
+    PolicyDecision,
+    FactTransitionRequest,
+    FactTransitionResponse,
+)
 
 try:
     from apps.api.ingestion.routes import sse_manager
@@ -344,6 +354,165 @@ async def delete_action_item(item_id: str):
     if sse_manager:
         sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "DELETE", "id": item_id})
     return {"status": "deleted"}
+
+
+# ==========================================
+# PHASE 3: GOVERNED ACTION ENGINE, POLICIES & FACT LIFECYCLE (Points 4, 11-14, 90-94, 145-160)
+# ==========================================
+
+class ActionTransitionRequest(BaseModel):
+    target_status: str
+    actor_id: Optional[str] = "SYSTEM"
+    actor_role: Optional[str] = "ENGINEER"
+    reason: Optional[str] = None
+
+
+class ActionExecuteRequest(BaseModel):
+    actor_id: Optional[str] = "SYSTEM"
+    actor_role: Optional[str] = "ENGINEER"
+    actor_clearance: Optional[str] = "ALL_TEAM"
+    rollback_handler: Optional[Dict[str, Any]] = None
+
+
+class ActionRollbackRequest(BaseModel):
+    actor_id: Optional[str] = "SYSTEM"
+    reason: Optional[str] = "MANUAL_ROLLBACK"
+
+
+class PolicyEvaluateRequest(BaseModel):
+    action_type: str
+    risk_level: str = "LOW"
+    actor_role: str = "ENGINEER"
+    actor_clearance: str = "ALL_TEAM"
+    parameters: Optional[Dict[str, Any]] = None
+    tool: Optional[str] = None
+    organisation_id: Optional[str] = "CMP-GENESIS-01"
+
+
+@router.post("/action_hub/{item_id}/transition", response_model=ActionItemDTO)
+@router.post("/actions/{item_id}/transition", response_model=ActionItemDTO)
+async def transition_action_item(item_id: str, req: ActionTransitionRequest):
+    updated = action_hub.transition_action(
+        action_id=item_id,
+        target_status=req.target_status,
+        actor_id=req.actor_id or "SYSTEM",
+        actor_role=req.actor_role or "ENGINEER",
+        reason=req.reason,
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "TRANSITION", "id": item_id, "status": req.target_status})
+    return updated
+
+
+@router.post("/action_hub/{item_id}/execute", response_model=ActionReceipt)
+@router.post("/actions/{item_id}/execute", response_model=ActionReceipt)
+async def execute_action_item(item_id: str, req: Optional[ActionExecuteRequest] = None):
+    req = req or ActionExecuteRequest()
+    receipt = action_hub.execute_action(
+        action_id=item_id,
+        actor_id=req.actor_id or "SYSTEM",
+        actor_role=req.actor_role or "ENGINEER",
+        actor_clearance=req.actor_clearance or "ALL_TEAM",
+        rollback_handler=req.rollback_handler,
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "EXECUTE", "id": item_id, "receipt_id": receipt.receipt_id})
+    return receipt
+
+
+@router.post("/action_hub/{item_id}/rollback", response_model=ActionReceipt)
+@router.post("/actions/{item_id}/rollback", response_model=ActionReceipt)
+async def rollback_action_item(item_id: str, req: Optional[ActionRollbackRequest] = None):
+    req = req or ActionRollbackRequest()
+    receipt = action_hub.rollback_action(
+        action_id=item_id,
+        actor_id=req.actor_id or "SYSTEM",
+        reason=req.reason or "MANUAL_ROLLBACK",
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "ROLLBACK", "id": item_id, "receipt_id": receipt.receipt_id})
+    return receipt
+
+
+@router.get("/action_hub/{item_id}/receipts", response_model=List[ActionReceipt])
+@router.get("/actions/{item_id}/receipts", response_model=List[ActionReceipt])
+async def get_action_receipts(item_id: str):
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM action_receipts WHERE action_id = ? ORDER BY executed_at DESC;", (item_id,))
+    rows = cursor.fetchall()
+    receipts = []
+    for r in rows:
+        d = dict(r)
+        rb = None
+        if d.get("rollback_payload"):
+            try:
+                rb = json.loads(d["rollback_payload"])
+            except Exception:
+                pass
+        receipts.append(ActionReceipt(
+            receipt_id=d["receipt_id"],
+            action_id=d["action_id"],
+            status=d["status"],
+            actor=d["actor"],
+            executed_at=d["executed_at"],
+            duration_ms=d.get("duration_ms", 0),
+            parameters_hash=d["parameters_hash"],
+            result_summary=d.get("result_summary"),
+            rollback_payload=rb,
+            audit_block_id=d.get("audit_block_id"),
+            organisation_id=d.get("organisation_id", "CMP-GENESIS-01"),
+        ))
+    return receipts
+
+
+# --- Deterministic Policy Engine Routes ---
+
+@router.get("/policies", response_model=List[PolicyRule])
+async def list_policies(organisation_id: str = Query("CMP-GENESIS-01")):
+    return policy_engine.list_policies(organisation_id=organisation_id)
+
+
+@router.post("/policies/evaluate", response_model=PolicyDecision)
+async def evaluate_policy(req: PolicyEvaluateRequest):
+    return policy_engine.evaluate(
+        action_type=req.action_type,
+        risk_level=req.risk_level,
+        actor_role=req.actor_role,
+        actor_clearance=req.actor_clearance,
+        parameters=req.parameters,
+        tool=req.tool,
+        organisation_id=req.organisation_id or "CMP-GENESIS-01",
+    )
+
+
+@router.post("/policies", response_model=PolicyRule)
+async def register_policy(rule: PolicyRule):
+    policy_engine.register_policy(rule)
+    return rule
+
+
+# --- Fact-Confidence Lifecycle Routes ---
+
+@router.post("/facts/transition", response_model=FactTransitionResponse)
+async def transition_fact_confidence(req: FactTransitionRequest):
+    return fact_manager.transition_confidence(
+        entity_type=req.entity_type,
+        entity_id=req.entity_id,
+        new_state=req.new_state,
+        actor=req.actor or "SYSTEM",
+        reason=req.reason,
+        organisation_id=req.organisation_id or "CMP-GENESIS-01",
+    )
+
+
+@router.get("/facts/unverified", response_model=List[Dict[str, Any]])
+async def list_unverified_facts(
+    organisation_id: str = Query("CMP-GENESIS-01"),
+    limit: int = Query(50),
+):
+    return fact_manager.list_unverified_facts(organisation_id=organisation_id, limit=limit)
+
 
 # --- Session Routes ---
 @router.post("/session", response_model=SessionData)

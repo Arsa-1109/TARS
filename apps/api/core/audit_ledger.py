@@ -66,6 +66,7 @@ class AuditLedger:
         source: Optional[str] = None,
         input_data: Any = None,
         result_data: Any = None,
+        payload: Any = None,
         # Backward-compatible and test alias parameters
         actor_id: Optional[str] = None,
         event_type: Optional[str] = None,
@@ -79,7 +80,7 @@ class AuditLedger:
         actual_actor = actor or actor_id or "SYSTEM"
         actual_action = action or event_type or "MUTATION"
         actual_source = source or entity_id or "SYSTEM"
-        actual_input = input_data if input_data is not None else details
+        actual_input = input_data if input_data is not None else (payload if payload is not None else details)
         actual_result = result_data if result_data is not None else {"status": "SUCCESS"}
 
         org_id = organisation_id or "CMP-GENESIS-01"
@@ -92,16 +93,14 @@ class AuditLedger:
         conn = db.get_connection()
         cursor = conn.cursor()
 
-        # Retrieve the latest sequence block for this organisation
+        # Retrieve the latest sequence block globally across the audit ledger
         cursor.execute(
             """
             SELECT sequence_id, event_hash
             FROM audit_ledger
-            WHERE organisation_id = ?
             ORDER BY sequence_id DESC
             LIMIT 1
-            """,
-            (org_id,),
+            """
         )
         last_row = cursor.fetchone()
 
@@ -121,11 +120,12 @@ class AuditLedger:
         cursor.execute(
             """
             INSERT INTO audit_ledger (
-                event_id, timestamp, actor, organisation_id, action,
+                sequence_id, event_id, timestamp, actor, organisation_id, action,
                 source, input_hash, result_hash, previous_hash, event_hash, is_valid
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (
+                next_seq,
                 event_id,
                 now_ts,
                 actual_actor,
@@ -154,6 +154,7 @@ class AuditLedger:
             "previous_hash": prev_hash,
             "event_hash": event_hash,
             "current_hash": event_hash,
+            "block_hash": event_hash,
             "status": "RECORDED",
         }
 
@@ -166,38 +167,29 @@ class AuditLedger:
         conn = db.get_connection()
         cursor = conn.cursor()
 
-        if organisation_id:
-            cursor.execute(
-                """
-                SELECT sequence_id, event_id, timestamp, actor, organisation_id,
-                       action, source, input_hash, result_hash, previous_hash, event_hash
-                FROM audit_ledger
-                WHERE organisation_id = ?
-                ORDER BY sequence_id ASC
-                """,
-                (organisation_id,),
-            )
-        else:
-            cursor.execute(
-                """
-                SELECT sequence_id, event_id, timestamp, actor, organisation_id,
-                       action, source, input_hash, result_hash, previous_hash, event_hash
-                FROM audit_ledger
-                ORDER BY sequence_id ASC
-                """
-            )
-
+        cursor.execute(
+            """
+            SELECT sequence_id, event_id, timestamp, actor, organisation_id,
+                   action, source, input_hash, result_hash, previous_hash, event_hash
+            FROM audit_ledger
+            ORDER BY sequence_id ASC
+            """
+        )
         rows = cursor.fetchall()
 
         if not rows:
             return {
                 "status": "AUDIT_VALID",
+                "is_valid": True,
                 "total_events": 0,
                 "tip_hash": GENESIS_HASH,
                 "message": "Audit ledger is pristine and empty (Genesis state).",
             }
 
+        total_verified = 0
+        last_tip = GENESIS_HASH
         expected_prev_hash = GENESIS_HASH
+
         for idx, row in enumerate(rows):
             seq = row["sequence_id"]
             ev_id = row["event_id"]
@@ -206,6 +198,8 @@ class AuditLedger:
 
             if seq == 0:
                 expected_prev_hash = stored_hash
+                total_verified += 1
+                last_tip = stored_hash
                 continue
 
             # 1. Validate previous_hash link
@@ -213,11 +207,15 @@ class AuditLedger:
                 logger.error(f"Audit chain broken at seq {seq} ({ev_id}): expected prev {expected_prev_hash}, got {stored_prev}")
                 return {
                     "status": "AUDIT_INTEGRITY_FAILURE",
+                    "is_valid": False,
                     "broken_at_sequence": seq,
                     "event_id": ev_id,
                     "reason": f"Hash continuity broken at sequence {seq}. Previous hash does not match prior block.",
                     "expected_previous_hash": expected_prev_hash,
                     "stored_previous_hash": stored_prev,
+                    "total_events": total_verified,
+                    "tip_hash": expected_prev_hash,
+                    "message": f"Hash continuity broken at sequence {seq}.",
                 }
 
             # 2. Recompute current block hash
@@ -231,19 +229,28 @@ class AuditLedger:
                 logger.error(f"Audit record signature invalid at seq {seq} ({ev_id}): payload altered post-commit")
                 return {
                     "status": "AUDIT_INTEGRITY_FAILURE",
+                    "is_valid": False,
                     "broken_at_sequence": seq,
                     "event_id": ev_id,
                     "reason": f"Payload tamper detected at sequence {seq}. Signature recalculation mismatch.",
                     "recomputed_hash": recomputed,
                     "stored_hash": stored_hash,
+                    "total_events": total_verified,
+                    "tip_hash": expected_prev_hash,
+                    "message": f"Payload tamper detected at sequence {seq}.",
                 }
 
             expected_prev_hash = stored_hash
+            total_verified += 1
+            last_tip = stored_hash
+
+        tenant_events = [r for r in rows if organisation_id is None or r["organisation_id"] == organisation_id]
 
         return {
             "status": "AUDIT_VALID",
-            "total_events": len(rows),
-            "tip_hash": expected_prev_hash,
+            "is_valid": True,
+            "total_events": len(tenant_events) if organisation_id else total_verified,
+            "tip_hash": last_tip,
             "message": "Audit trail verified cryptographically. Zero tampering detected.",
         }
 

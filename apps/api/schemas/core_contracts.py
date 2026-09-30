@@ -136,3 +136,87 @@ class EvidenceSet(BaseModel):
     abstention_reason: Optional[str] = None
 
 
+# ==========================================
+# PHASE 3: GOVERNED ACTION & POLICY CONTRACTS
+# ==========================================
+class ActionLifecycleState:
+    DETECTED = "DETECTED"
+    PROPOSED = "PROPOSED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    QUEUED = "QUEUED"
+    EXECUTING = "EXECUTING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    ROLLED_BACK = "ROLLED_BACK"
+
+    # Legacy mapping for backwards compatibility
+    LEGACY_MAP = {
+        "OPEN": "PROPOSED",
+        "PENDING": "REVIEW_REQUIRED",
+        "IN_PROGRESS": "EXECUTING",
+        "DONE": "COMPLETED",
+    }
+
+    @classmethod
+    def normalize(cls, state: str) -> str:
+        s = (state or "").upper().strip()
+        return cls.LEGACY_MAP.get(s, s)
+
+
+class ActionReceipt(BaseModel):
+    receipt_id: str = Field(default_factory=lambda: f"RCP-{uuid.uuid4().hex[:8]}")
+    action_id: str
+    status: str  # EXECUTED | FAILED | ROLLED_BACK
+    actor: str
+    executed_at: int
+    duration_ms: Optional[int] = 0
+    parameters_hash: str
+    result_summary: Optional[str] = None
+    rollback_payload: Optional[Dict[str, Any]] = None
+    audit_block_id: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+
+
+class PolicyRule(BaseModel):
+    id: str
+    action_type: str
+    description: Optional[str] = None
+    allowed_roles: List[str] = Field(default_factory=list)
+    required_clearance: str = "ALL_TEAM"
+    max_risk: str = "MEDIUM"  # LOW, MEDIUM, HIGH, CRITICAL
+    requires_human: bool = True
+    allowed_tools: List[str] = Field(default_factory=list)
+    conditions: Dict[str, Any] = Field(default_factory=dict)
+    organisation_id: str = "CMP-GENESIS-01"
+    is_active: bool = True
+
+
+class PolicyDecision(BaseModel):
+    is_allowed: bool
+    requires_human: bool
+    matching_policy_id: Optional[str] = None
+    denial_reasons: List[str] = Field(default_factory=list)
+    audit_ref: Optional[str] = None
+
+
+class FactTransitionRequest(BaseModel):
+    entity_type: str  # MEMORY | DOCUMENT | GLOSSARY | DECISION
+    entity_id: str
+    new_state: str  # CONFIRMED | REJECTED | REVIEW_REQUIRED | SUPERSEDED
+    actor: Optional[str] = "SYSTEM"
+    reason: Optional[str] = None
+    organisation_id: Optional[str] = "CMP-GENESIS-01"
+
+
+class FactTransitionResponse(BaseModel):
+    entity_id: str
+    entity_type: str
+    previous_state: str
+    current_state: str
+    audit_block_id: Optional[str] = None
+    timestamp: int
+
+
+

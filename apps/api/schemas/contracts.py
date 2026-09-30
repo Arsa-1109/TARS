@@ -134,21 +134,43 @@ class ActionItemDTO(BaseModel):
     id: str
     description: str = ""
     title: Optional[str] = None
+    action_type: str = "GENERIC"
     owner: str = "Unassigned"
     assignee: Optional[str] = None
     department: Optional[str] = "General"
     priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
     deadline: Optional[int] = None
-    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED
+    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED, PROPOSED, REVIEW_REQUIRED, QUEUED, EXECUTING, COMPLETED, FAILED, ROLLED_BACK
     source_type: str = "CALL" # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT, ARCHITECTURE
     source_id: str = ""
     source_offset: Optional[str] = None
+    source: str = "HUMAN"     # LLM_PROPOSAL, CLIENT_CALL, DECISION, HUMAN
+    reason: Optional[str] = None
+    evidence_ref: Optional[str] = None
+    tool: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    risk_level: str = "LOW"   # LOW, MEDIUM, HIGH, CRITICAL
+    approver_id: Optional[str] = None
+    approved_at: Optional[int] = None
+    execution_time_ms: Optional[int] = None
+    rollback_handler: Optional[Dict[str, Any]] = None
+    audit_block_id: Optional[str] = None
     organisation_id: str = "CMP-GENESIS-01"
     lifecycle_status: Optional[str] = "OPEN"
     effective_from: Optional[int] = None
     effective_to: Optional[int] = None
+    confidence_state: str = "CONFIRMED"
     source_mode: str = "LIVE"
     is_authoritative: bool = True
+
+from apps.api.schemas.core_contracts import (
+    ActionLifecycleState,
+    ActionReceipt,
+    PolicyRule,
+    PolicyDecision,
+    FactTransitionRequest,
+    FactTransitionResponse,
+)
 
 # ==========================================
 # CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE

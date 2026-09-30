@@ -138,12 +138,15 @@ class VoiceToSpecExtractor:
                         owner="Sales / Product Lead",
                         department="Product",
                         priority="HIGH",
-                        status="OPEN",
+                        status="PROPOSED",
                         source_type="CLIENT_CALL",
                         source_id=call_id,
                         source_offset=offset,
+                        source="CLIENT_CALL",
+                        confidence_state="UNVERIFIED",
+                        is_authoritative=False,
                     )
-                    action_hub_repo.create(action_item)
+                    action_hub_repo.create(action_item, actor_id="SPEC_EXTRACTOR", actor_role="AUTOMATED")
 
                     # Broadcast SSE notification via properly structured Event model
                     local_bus.publish(

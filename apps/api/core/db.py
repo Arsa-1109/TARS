@@ -474,7 +474,144 @@ class LocalDB:
             1
         ))
         cursor.execute("UPDATE memories SET is_demo = 1 WHERE id = 'MEM-CAP-TABLE-SEED' OR title LIKE '%AetherFlow%';")
-        
+
+        # ==========================================
+        # PHASE 3: GOVERNED ACTION HUB TABLES (Points 11, 12, 90-94)
+        # ==========================================
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS action_items (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                description TEXT NOT NULL,
+                action_type TEXT NOT NULL DEFAULT 'GENERIC',
+                owner TEXT NOT NULL DEFAULT 'Unassigned',
+                assignee TEXT,
+                department TEXT DEFAULT 'General',
+                priority TEXT NOT NULL DEFAULT 'MEDIUM',
+                deadline INTEGER,
+                status TEXT NOT NULL DEFAULT 'PROPOSED',
+                source_type TEXT NOT NULL DEFAULT 'CALL',
+                source_id TEXT NOT NULL DEFAULT '',
+                source_offset TEXT,
+                source TEXT NOT NULL DEFAULT 'HUMAN',
+                reason TEXT,
+                evidence_ref TEXT,
+                tool TEXT,
+                parameters TEXT,
+                risk_level TEXT NOT NULL DEFAULT 'LOW',
+                approver_id TEXT,
+                approved_at INTEGER,
+                execution_time_ms INTEGER,
+                rollback_handler TEXT,
+                audit_block_id TEXT,
+                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01',
+                lifecycle_status TEXT DEFAULT 'OPEN',
+                effective_from INTEGER,
+                effective_to INTEGER,
+                confidence_state TEXT NOT NULL DEFAULT 'CONFIRMED',
+                source_mode TEXT NOT NULL DEFAULT 'LIVE',
+                is_authoritative INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        ''')
+        cursor.execute("PRAGMA table_info(action_items);")
+        act_cols = [r[1] for r in cursor.fetchall()]
+        if "title" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN title TEXT")
+        if "action_type" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN action_type TEXT NOT NULL DEFAULT 'GENERIC'")
+        if "assignee" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN assignee TEXT")
+        if "department" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN department TEXT DEFAULT 'General'")
+        if "priority" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN priority TEXT NOT NULL DEFAULT 'MEDIUM'")
+        if "source" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN source TEXT NOT NULL DEFAULT 'HUMAN'")
+        if "reason" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN reason TEXT")
+        if "evidence_ref" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN evidence_ref TEXT")
+        if "tool" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN tool TEXT")
+        if "parameters" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN parameters TEXT")
+        if "risk_level" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN risk_level TEXT NOT NULL DEFAULT 'LOW'")
+        if "approver_id" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN approver_id TEXT")
+        if "approved_at" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN approved_at INTEGER")
+        if "execution_time_ms" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN execution_time_ms INTEGER")
+        if "rollback_handler" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN rollback_handler TEXT")
+        if "audit_block_id" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN audit_block_id TEXT")
+        if "organisation_id" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'")
+        if "lifecycle_status" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN lifecycle_status TEXT DEFAULT 'OPEN'")
+        if "effective_from" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN effective_from INTEGER")
+        if "effective_to" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN effective_to INTEGER")
+        if "confidence_state" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN confidence_state TEXT NOT NULL DEFAULT 'CONFIRMED'")
+        if "source_mode" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN source_mode TEXT NOT NULL DEFAULT 'LIVE'")
+        if "is_authoritative" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN is_authoritative INTEGER NOT NULL DEFAULT 1")
+        if "created_at" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0")
+        if "updated_at" not in act_cols:
+            cursor.execute("ALTER TABLE action_items ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0")
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items(status);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_org ON action_items(organisation_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_owner ON action_items(owner);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_created ON action_items(created_at DESC);")
+
+        # Action Execution Receipts Table (Points 4, 145-160)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS action_receipts (
+                receipt_id TEXT PRIMARY KEY,
+                action_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                actor TEXT NOT NULL,
+                executed_at INTEGER NOT NULL,
+                duration_ms INTEGER DEFAULT 0,
+                parameters_hash TEXT NOT NULL,
+                result_summary TEXT,
+                rollback_payload TEXT,
+                audit_block_id TEXT,
+                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'
+            );
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_receipts_action ON action_receipts(action_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_receipts_org ON action_receipts(organisation_id);")
+
+        # Declarative Policy Rules Table (Points 13, 14)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS action_policies (
+                id TEXT PRIMARY KEY,
+                action_type TEXT NOT NULL,
+                description TEXT,
+                allowed_roles TEXT NOT NULL,
+                required_clearance TEXT NOT NULL DEFAULT 'ALL_TEAM',
+                max_risk TEXT NOT NULL DEFAULT 'MEDIUM',
+                requires_human INTEGER NOT NULL DEFAULT 1,
+                allowed_tools TEXT,
+                conditions TEXT,
+                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_policies_type ON action_policies(action_type, organisation_id);")
+
         conn.commit()
 
         # Guarantee synchronisation with sovereign vault database (.tars/vault.db)
