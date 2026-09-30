@@ -37,6 +37,7 @@ export function App() {
     availableRoles,
     availableDomains,
     canAccessWorkspace,
+    setOnboardingCompleted,
   } = useSessionStore();
 
   const { theme, toggleTheme } = useThemeStore();
@@ -477,8 +478,21 @@ export function App() {
         onClose={() => setGenesisWizardOpen(false)}
         initialProfile={companyProfile}
         onComplete={(newProfile) => {
+          const companyKey = `tars_company_onboarded_${newProfile.id || newProfile.company_name || 'default'}`;
+          localStorage.setItem(companyKey, 'true');
+          setOnboardingCompleted(true);
           setCompanyProfile(newProfile);
           setGenesisWizardOpen(false);
+          // Persist user onboarding status to SQLite
+          api.createUser({
+            name: profile.name || 'Alex Vance',
+            email: profile.email || 'alex@aetherflow.io',
+            role: 'FOUNDER',
+            department: 'Executive',
+            clearance: 'EXECUTIVE_ONLY',
+            company_name: newProfile.company_name || 'AetherFlow Technologies, Inc.',
+            company_id: newProfile.id || 'CMP-GENESIS-01',
+          }).catch(() => {});
           // Refresh tasks with freshly configured role-based flight-plans
           api.getActionItems().then((items) => setActionItems(items));
         }}

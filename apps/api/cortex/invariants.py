@@ -204,15 +204,15 @@ class InvariantsEngine:
 
         defaults = {
             "INV-017": {
-                "violating_file": "src/payments/service.py",
-                "line_number": 84,
+                "violating_file": "apps/api/core/routes.py",
+                "line_number": 48,
                 "is_breached": not refactored,
                 "observed_code": (
-                    "# REFACTORED: Outbox pattern applied\nasync with db.transaction():\n    order = await create_order(db, payload)\n    await outbox.publish('order.created', order.id)\n# Stripe dispatch executed asynchronously post-commit"
+                    "# REFACTORED: Outbox pattern applied\nasync with db.transaction():\n    order = await create_order(db, payload)\n    await outbox.publish('order.created', order.id)\n# Webhook dispatch executed asynchronously post-commit"
                     if refactored
-                    else "async with db.transaction():\n    order = await create_order(db, payload)\n    # BREACH: External HTTP call inside transaction\n    charge = await stripe_client.charges.create(amount=order.total)\n    await mark_paid(db, order.id, charge.id)"
+                    else "async with db.transaction():\n    order = await create_order(db, payload)\n    # BREACH: External HTTP call inside transaction\n    res = await httpx.post('https://api.external.com/v1/notify', json={'order_id': order.id})\n    await mark_notified(db, order.id)"
                 ),
-                "refactored_code": "async with db.transaction():\n    order = await create_order(db, payload)\n    # REFACTORED: Outbox pattern applied\n    await outbox.publish('order.created', order.id)\n# Stripe dispatch executed asynchronously post-commit",
+                "refactored_code": "async with db.transaction():\n    order = await create_order(db, payload)\n    # REFACTORED: Outbox pattern applied\n    await outbox.publish('order.created', order.id)\n# Webhook dispatch executed asynchronously post-commit",
             },
             "INV-021": {
                 "violating_file": "apps/api/core/dispatcher.py",
@@ -229,7 +229,7 @@ class InvariantsEngine:
                 "refactored_code": "flags:\n  enable_vector_cache: true\n  enable_local_whisper: true\n  # REFACTORED: Deprecated flag pruned from active lifecycle",
             },
             "INV-008": {
-                "violating_file": "apps/api/core/session.py",
+                "violating_file": "apps/api/core/db.py",
                 "line_number": 29,
                 "is_breached": False,
                 "observed_code": "def log_auth_success(user, auth_token):\n    # Redacted sanitized telemetry\n    logger.info('User authenticated successfully', extra={'user_id': user.id})",
@@ -243,14 +243,14 @@ class InvariantsEngine:
                 "refactored_code": "// REFACTORED: Clean API service port abstraction\nimport { api } from '../../services/client';",
             },
             "INV-004": {
-                "violating_file": "apps/web/src/services/auth.ts",
+                "violating_file": "apps/web/src/state/useSessionStore.ts",
                 "line_number": 14,
                 "is_breached": False,
                 "observed_code": "// Session cookies managed via HttpOnly\ndocument.cookie = `session_token=${token}; Secure; HttpOnly; SameSite=Strict`;",
                 "refactored_code": "// REFACTORED: HttpOnly SameSite cookie session active",
             },
             "INV-API01": {
-                "violating_file": "apps/api/core/gateway.py",
+                "violating_file": "apps/api/core/routes.py",
                 "line_number": 55,
                 "is_breached": False,
                 "observed_code": "# Sovereign local socket binding\nserver = socket.create_server(('127.0.0.1', 8000))\n# Outbound WAN egress: 0.00 KB",
@@ -290,15 +290,15 @@ class InvariantsEngine:
         simulations = {
             "INV-017": {
                 "rule_id": "INV-017",
-                "git_command": 'git commit -m "feat(payments): execute stripe charge"',
+                "git_command": 'git commit -m "feat(webhook): dispatch outbound event"',
                 "execution_time_ms": 38.4,
-                "target_file": "src/payments/service.py:84",
+                "target_file": "apps/api/core/routes.py:48",
                 "is_breached": True,
                 "terminal_logs": [
                     "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
-                    "[tars-hook] Checking 4 staged files (285 additions, 42 deletions)...",
+                    "[tars-hook] Checking staged files (285 additions, 42 deletions)...",
                     "[tars-hook] BREACH DETECTED: INV-017 (HTTP Call Inside Database Transaction Block)",
-                    "[tars-hook] Violating AST node: CallExpression 'stripe_client.charges.create' at src/payments/service.py:84",
+                    "[tars-hook] Violating AST node: CallExpression 'httpx.post' at apps/api/core/routes.py:48",
                     "[tars-hook] Architectural Rationale: External HTTP calls inside DB transactions hold connection pool locks open.",
                     "[tars-hook] ERROR: Commit blocked in 38.4ms. Transactional Outbox pattern required."
                 ]
@@ -337,11 +337,11 @@ class InvariantsEngine:
                 "rule_id": "INV-008",
                 "git_command": 'git commit -m "chore(auth): add debug logging to jwt verification"',
                 "execution_time_ms": 15.8,
-                "target_file": "apps/api/core/session.py:29",
+                "target_file": "apps/api/core/db.py:29",
                 "is_breached": True,
                 "terminal_logs": [
                     "[tars-hook] Running Tree-sitter AST diff check against .tars/invariants.yaml...",
-                    "[tars-hook] Checking staged file: apps/api/core/session.py (18 additions, 3 deletions)...",
+                    "[tars-hook] Checking staged file: apps/api/core/db.py (18 additions, 3 deletions)...",
                     "[tars-hook] BREACH DETECTED: INV-008 (Plaintext Sensitive Entity / Token Logging)",
                     "[tars-hook] Violating AST node: CallExpression 'logger.info' referencing raw credential at line 29",
                     "[tars-hook] Architectural Rationale: Logging authentication tokens leaks credentials into disk audit logs.",
@@ -364,4 +364,32 @@ class InvariantsEngine:
             }
         }
         return simulations.get(rule_id, simulations["INV-017"])
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+    if len(sys.argv) > 1 and sys.argv[1] == "check-staged":
+        engine = InvariantsEngine()
+        violations = engine.check_staged()
+        if violations:
+            print(f"[BLOCKED] TARS Sentinel: {len(violations)} invariant violation(s) found:")
+            for v in violations:
+                print(f"  * [{v.rule_id}] {v.rule_name}")
+                print(f"    File: {v.violating_file}:{v.line_number}")
+                print(f"    Rationale: {v.rationale}")
+                print(f"    Suggested Fix: {v.suggested_refactor}")
+            sys.exit(1)
+        else:
+            print("[OK] TARS Sentinel: All architectural invariants preserved. Push permitted.")
+            sys.exit(0)
+    else:
+        print("Usage: python -m apps.api.cortex.invariants check-staged")
+        sys.exit(0)
 

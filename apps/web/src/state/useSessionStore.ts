@@ -102,12 +102,23 @@ const STORAGE_ROLE_KEY = 'tars_current_role';
 const STORAGE_DOMAIN_KEY = 'tars_current_domain';
 const STORAGE_AUTH_KEY = 'tars_is_authenticated';
 const STORAGE_USER_KEY = 'tars_current_user_profile';
+const STORAGE_ONBOARDING_KEY = 'tars_onboarding_completed';
 
 export function useSessionStore() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const saved = localStorage.getItem(STORAGE_AUTH_KEY);
     return saved === 'true';
   });
+
+  const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean>(() => {
+    const saved = localStorage.getItem(STORAGE_ONBOARDING_KEY);
+    return saved === 'true';
+  });
+
+  const setOnboardingCompleted = (completed: boolean) => {
+    localStorage.setItem(STORAGE_ONBOARDING_KEY, completed ? 'true' : 'false');
+    setOnboardingCompletedState(completed);
+  };
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     const saved = localStorage.getItem(STORAGE_ROLE_KEY) as UserRole;
@@ -260,6 +271,8 @@ export function useSessionStore() {
     allowedWorkspaces: ROLE_WORKSPACES[currentRole] || [],
     getProfileForRole: (r: UserRole) => ROLES[r],
     canAccessWorkspace,
+    onboarding_completed: onboardingCompleted,
+    setOnboardingCompleted,
   };
 }
 

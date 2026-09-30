@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# scripts/hooks/pre-push - TARS Platform Sentinel Pre-Push AST Invariant Guard
+# Dynamic Python interpreter discovery (Windows .venv, POSIX .venv, or active PATH)
+
+if [ -f ".venv/Scripts/python.exe" ]; then
+    PY_CMD=".venv/Scripts/python.exe"
+elif [ -f ".venv/bin/python" ]; then
+    PY_CMD=".venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
+    PY_CMD="python3"
+else
+    PY_CMD="python"
+fi
+
+echo "[TARS Sentinel] Running pre-push AST invariant validation via $PY_CMD..."
+"$PY_CMD" -m apps.api.cortex.invariants check-staged
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "❌ [TARS Sentinel] Push aborted: Invariant violation detected."
+    exit 1
+fi
+
+echo "✅ [TARS Sentinel] All architectural invariants preserved. Push permitted."
+exit 0
