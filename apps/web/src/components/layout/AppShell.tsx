@@ -90,8 +90,16 @@ export const AppShell: React.FC<AppShellProps> = ({
 
 
       {/* Main Viewport */}
-      <main className="h-[calc(100vh-56px)] overflow-y-auto flex-1 w-full">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 pb-20 md:pb-6">
+      <main className={`flex-1 w-full min-h-0 ${
+        currentWorkspace === 'knowledge'
+          ? 'h-[calc(100vh-52px)] overflow-hidden flex flex-col'
+          : 'h-[calc(100vh-52px)] overflow-y-auto'
+      }`}>
+        <div className={`w-full mx-auto ${
+          currentWorkspace === 'knowledge'
+            ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl px-3 sm:px-4 lg:px-6 py-2.5 pb-20 md:pb-2.5'
+            : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 pb-20 md:pb-6'
+        }`}>
           {children}
         </div>
       </main>

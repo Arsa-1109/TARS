@@ -306,7 +306,7 @@ export function App() {
 
   return (
     <div
-      className={`transition-opacity duration-200 ease-in-out ${appVisible ? 'opacity-100' : 'opacity-0'}`}
+      className={`h-screen overflow-hidden transition-opacity duration-200 ease-in-out ${appVisible ? 'opacity-100' : 'opacity-0'}`}
       style={{ willChange: 'opacity' }}
     >
     <AppShell
@@ -338,7 +338,7 @@ export function App() {
 
     >
       {/* Workspace Routing with Apple subtle fade transition */}
-      <div key={workspace} className="animate-fade-in">
+      <div key={workspace} className={`animate-fade-in ${workspace === 'knowledge' ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden' : ''}`}>
         {workspace === 'knowledge' && (
           <KnowledgeWorkspace
             onOpenCitation={openCitation}

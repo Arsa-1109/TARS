@@ -8,7 +8,7 @@ import { EmptyState } from '../primitives/EmptyState';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { Dialog } from '../primitives/Dialog';
 import { DocumentReaderModal } from './DocumentReaderModal';
-import { SearchCitation, UserRole, ChatSessionDTO, ChatMessageDTO } from '../../types/contracts';
+import { SearchCitation, UserRole, ChatSessionDTO, ChatMessageDTO, ChatAttachment } from '../../types/contracts';
 import { knowledgeChatApi } from '../../services/knowledgeChatApi';
 import { ingestionApi } from '../../services/ingestionApi';
 import { useSessionStore } from '../../state/useSessionStore';
@@ -36,6 +36,7 @@ import {
   Layers,
   HelpCircle,
   ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface KnowledgeWorkspaceProps {
@@ -191,6 +192,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileUploadMapRef = useRef<Map<string, File>>(new Map());
 
   // Lake Documents State
   const [lakeDocuments, setLakeDocuments] = useState<any[]>([]);
@@ -449,26 +451,223 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     setTimeout(() => setCopiedMessageId(null), 2000);
   };
 
+  // Open Document Reader from attachment card
+  const handleOpenReaderForAttachment = (att: ChatAttachment) => {
+    const lakeDoc = lakeDocuments.find(
+      (d) =>
+        (att.doc_id && (d.id === att.doc_id || d.doc_id === att.doc_id)) ||
+        (d.filename || d.title) === att.file_name
+    );
+    setReaderModal({
+      open: true,
+      title: att.file_name,
+      department: lakeDoc?.department || 'GENERAL',
+      clearance: lakeDoc?.clearance || 'ALL_TEAM',
+      content:
+        lakeDoc?.content ||
+        lakeDoc?.raw_text ||
+        `# ${att.file_name}\n\nDocument successfully indexed into sovereign knowledge repository.\nPages: ${att.pages || 1}\nClearance: Sovereign Local Storage\nStatus: Verified and Grounded.`,
+      pageCount: att.pages || lakeDoc?.pages || 1,
+      chunkCount: lakeDoc?.chunk_count || 1,
+    });
+  };
+
+  // Quick prompt to ask about this document
+  const handleAskAboutDoc = (fileName: string) => {
+    setInputMessage(`Summarize key points, decisions, and clauses in "${fileName}"`);
+    setTimeout(() => composerInputRef.current?.focus(), 50);
+  };
+
+  // Retry document upload
+  const handleRetryUpload = async (uploadMsgId: string) => {
+    const file = fileUploadMapRef.current.get(uploadMsgId);
+    if (!file) return;
+
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === uploadMsgId && m.attachment
+          ? {
+              ...m,
+              attachment: {
+                ...m.attachment,
+                status: 'uploading',
+                progress: 0,
+                error_message: undefined,
+              },
+            }
+          : m
+      )
+    );
+
+    try {
+      const uploaded = await ingestionApi.uploadDocumentXHR(file, (pct) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === uploadMsgId && m.attachment
+              ? { ...m, attachment: { ...m.attachment, progress: pct } }
+              : m
+          )
+        );
+      });
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === uploadMsgId && m.attachment
+            ? {
+                ...m,
+                attachment: {
+                  ...m.attachment,
+                  status: 'indexed',
+                  progress: 100,
+                  doc_id: uploaded.doc_id,
+                  pages: uploaded.pages,
+                },
+              }
+            : m
+        )
+      );
+      fetchLakeDocuments();
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Upload retry failed.';
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === uploadMsgId && m.attachment
+            ? {
+                ...m,
+                attachment: {
+                  ...m.attachment,
+                  status: 'error',
+                  error_message: errorMsg,
+                },
+              }
+            : m
+        )
+      );
+    }
+  };
+
   // Document Upload
   const handleFileUploadWithRef = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    const file = files[0];
+
+    // Auto-create chat if none active
+    let targetChatId = activeChatId;
+    if (!targetChatId) {
+      try {
+        const newChat = await knowledgeChatApi.createChat(effectiveUserId, `Upload: ${file.name}`);
+        setChats((prev) => [newChat, ...prev]);
+        targetChatId = newChat.id;
+        setActiveChatId(newChat.id);
+      } catch (err) {
+        console.error('Failed to create chat for upload:', err);
+        return;
+      }
+    }
+
+    const uploadMsgId = `upload-${Date.now()}`;
+    fileUploadMapRef.current.set(uploadMsgId, file);
+    const format = file.name.split('.').pop()?.toUpperCase() || 'DOC';
+
+    // Insert visible upload item in the active chat conversation immediately
+    const newAttachmentMsg: ChatMessageDTO = {
+      id: uploadMsgId,
+      chat_id: targetChatId,
+      role: 'user',
+      content: `[Uploaded document: ${file.name}]`,
+      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      attachment: {
+        file_name: file.name,
+        file_size: file.size,
+        format,
+        status: 'uploading',
+        progress: 0,
+      },
+    };
+
+    setMessages((prev) => [...prev, newAttachmentMsg]);
     setUploading(true);
     setUploadProgress(0);
     setUploadError(null);
+
     try {
-      const uploaded = await ingestionApi.uploadDocumentXHR(files[0], (pct) => {
+      const uploaded = await ingestionApi.uploadDocumentXHR(file, (pct) => {
         setUploadProgress(pct);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === uploadMsgId && m.attachment
+              ? { ...m, attachment: { ...m.attachment, progress: pct } }
+              : m
+          )
+        );
       });
+
       setUploadProgress(100);
       setUploadSuccess(`Ingested "${uploaded.title}" (${uploaded.pages} pages) into local sovereign memory.`);
       setTimeout(() => {
         setUploadSuccess(null);
         setUploadProgress(0);
       }, 5000);
+
+      // Update attachment card to indexed
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === uploadMsgId && m.attachment
+            ? {
+                ...m,
+                attachment: {
+                  ...m.attachment,
+                  status: 'indexed',
+                  progress: 100,
+                  doc_id: uploaded.doc_id,
+                  pages: uploaded.pages,
+                },
+              }
+            : m
+        )
+      );
+
+      // Refresh Lake documents
       fetchLakeDocuments();
+
+      // Assistant acknowledgment
+      const assistMsgId = `tars-ack-${Date.now()}`;
+      const assistMsg: ChatMessageDTO = {
+        id: assistMsgId,
+        chat_id: targetChatId,
+        role: 'assistant',
+        content: `I have indexed **${uploaded.title || file.name}** (${uploaded.pages || 1} pages) into company sovereign memory.\n\nYou can ask questions about its contents, clauses, or implications right away.`,
+        created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        citations: [
+          {
+            doc_id: uploaded.doc_id || 'DOC-NEW',
+            doc_title: uploaded.title || file.name,
+            page_number: 1,
+            snippet: `Document "${uploaded.title || file.name}" was ingested and indexed into Document Lake.`,
+          },
+        ],
+      };
+      setMessages((prev) => [...prev, assistMsg]);
+
     } catch (err: any) {
-      setUploadError(err?.message || 'Upload failed. Ensure the file is a supported format.');
+      const errorMsg = err?.message || 'Upload failed. Ensure the file is a supported format.';
+      setUploadError(errorMsg);
       console.error(err);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === uploadMsgId && m.attachment
+            ? {
+                ...m,
+                attachment: {
+                  ...m.attachment,
+                  status: 'error',
+                  error_message: errorMsg,
+                },
+              }
+            : m
+        )
+      );
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -528,79 +727,67 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   }, [filteredLakeDocuments, currentPage, pageSize]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Knowledge"
-        title="Company Knowledge"
-        description="Search company documents, contracts, and decisions with verifiable citations."
-        actions={
+    <div className="h-full flex flex-col flex-1 min-h-0 overflow-hidden gap-2 sm:gap-2.5">
+      {/* Knowledge Workspace Subheader */}
+      <div className="flex items-center justify-between gap-3 pb-2 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <SegmentedControl
-              size="sm"
-              options={[
-                { value: 'chat', label: 'Chat Assistant' },
-                { value: 'lake', label: 'All Documents', badge: lakeDocuments.length },
-              ]}
-              value={activeView}
-              onChange={(v) => setActiveView(v as any)}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
-              onChange={(e) => handleFileUploadWithRef(e.target.files)}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<UploadCloud className="w-4 h-4" />}
-              loading={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Upload Document
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Uploading Progress Notification */}
-      {uploading && (
-        <div className="p-4 rounded-[14px] border border-[#0071E3]/[0.20] dark:border-[#0A84FF]/[0.25] bg-white dark:bg-[#1C1C1E] shadow-sm space-y-2 animate-slide-up">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-black dark:text-white flex items-center gap-2">
-              <UploadCloud className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-pulse" />
-              Ingesting Sovereign Document into Lake...
-            </span>
-            <span className="font-mono text-[11px] text-[#0071E3] dark:text-[#0A84FF] font-bold">
-              {uploadProgress}%
+            <h1 className="text-base sm:text-lg font-bold tracking-tight text-black dark:text-white truncate">
+              Company Knowledge
+            </h1>
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] shrink-0 font-medium">
+              {clearance}
             </span>
           </div>
-          <div className="w-full h-2 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
-            <div
-              className="h-full rounded-full bg-[#0071E3] dark:bg-[#0A84FF] transition-all duration-150 ease-out"
-              style={{ width: `${Math.max(5, uploadProgress)}%` }}
-            />
-          </div>
+          <p className="text-[11px] sm:text-xs text-[#6E6E73] dark:text-[#8E8E93] truncate hidden sm:block">
+            Sovereign corporate memory, verifiable citations & local document intelligence
+          </p>
         </div>
-      )}
 
-      {/* Upload Success */}
+        <div className="flex items-center gap-2 shrink-0">
+          <SegmentedControl
+            size="sm"
+            options={[
+              { value: 'chat', label: 'Chat Assistant' },
+              { value: 'lake', label: 'Document Lake', badge: lakeDocuments.length },
+            ]}
+            value={activeView}
+            onChange={(v) => setActiveView(v as any)}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
+            onChange={(e) => handleFileUploadWithRef(e.target.files)}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            icon={<UploadCloud className="w-3.5 h-3.5" />}
+            loading={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload Document
+          </Button>
+        </div>
+      </div>
+
+      {/* Upload Toast (For Document Lake view or subtle feedback) */}
       {uploadSuccess && (
-        <div className="p-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-[13px] flex items-center gap-2 animate-slide-up">
-          <Check className="w-4 h-4 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" />
-          <span className="flex-1 font-medium">{uploadSuccess}</span>
-          <button onClick={() => setUploadSuccess(null)} className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity">
+        <div className="p-2.5 px-3.5 rounded-[12px] border border-[#0071E3]/[0.22] dark:border-[#0A84FF]/[0.22] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] text-[#0051A2] dark:text-[#0A84FF] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
+          <Check className="w-3.5 h-3.5 shrink-0 text-[#0071E3] dark:text-[#0A84FF]" />
+          <span className="flex-1 font-medium truncate">{uploadSuccess}</span>
+          <button onClick={() => setUploadSuccess(null)} className="text-[10px] font-medium opacity-60 hover:opacity-100 transition-opacity">
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Upload Error */}
       {uploadError && (
-        <div className="p-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] bg-[#FF3B30]/[0.08] text-[#C0392B] dark:text-[#FF453A] text-[13px] flex items-center gap-2 animate-slide-up">
-          <span className="flex-1 font-medium">{uploadError}</span>
-          <button onClick={() => setUploadError(null)} className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity">
+        <div className="p-2.5 px-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] bg-[#FF3B30]/[0.08] text-[#C0392B] dark:text-[#FF453A] text-xs flex items-center gap-2 shrink-0 animate-slide-up">
+          <span className="flex-1 font-medium truncate">{uploadError}</span>
+          <button onClick={() => setUploadError(null)} className="text-[10px] font-medium opacity-60 hover:opacity-100 transition-opacity">
             Dismiss
           </button>
         </div>
@@ -608,10 +795,10 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 1: PERSISTENT COMPANY KNOWLEDGE CHATBOT */}
       {activeView === 'chat' && (
-        <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-col md:flex-row h-[780px] overflow-hidden">
+        <div className="flex-1 min-h-0 rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-col md:flex-row overflow-hidden">
 
           {/* LEFT SIDEBAR: CONVERSATION LIST */}
-          <div className="w-full md:w-72 lg:w-80 shrink-0 border-b md:border-b-0 md:border-r border-black/[0.07] dark:border-white/[0.07] flex flex-col bg-black/[0.015] dark:bg-white/[0.01]">
+          <div className="w-full md:w-72 lg:w-80 shrink-0 border-b md:border-b-0 md:border-r border-black/[0.07] dark:border-white/[0.07] flex flex-col h-full overflow-hidden bg-black/[0.015] dark:bg-white/[0.01]">
             {/* Top Action Bar */}
             <div className="p-3.5 border-b border-black/[0.07] dark:border-white/[0.07] space-y-2.5">
               <div className="flex items-center justify-between">
@@ -866,57 +1053,170 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                         key={m.id}
                         className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-2`}
                       >
-                        {/* Bubble */}
-                        <div
-                          className={`relative max-w-[88%] sm:max-w-[80%] rounded-[18px] p-4 text-[14px] leading-relaxed shadow-xs transition-all ${
-                            isUser
-                              ? 'bg-[#0071E3] text-white rounded-br-[4px]'
-                              : 'bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.07] dark:border-white/[0.08] text-black dark:text-white rounded-tl-[4px]'
-                          }`}
-                        >
-                          {!isUser && (
-                            <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] pb-2 mb-3 text-xs">
-                              <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
-                                <span className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]" />
-                                TARS
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyMessage(m.id, m.content)}
-                                  className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
-                                  title="Copy response"
-                                >
-                                  {copiedMessageId === m.id ? (
-                                    <>
-                                      <Check className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
-                                      <span className="text-[#0071E3] dark:text-[#0A84FF]">Copied</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy className="w-3 h-3" />
-                                      <span>Copy</span>
-                                    </>
-                                  )}
-                                </button>
+                        {/* If message has an attachment, render dedicated Sovereign Attachment Card */}
+                        {m.attachment ? (
+                          <div className="w-full max-w-[92%] sm:max-w-[85%] rounded-[16px] border border-black/[0.1] dark:border-white/[0.12] bg-white dark:bg-[#252528] p-3.5 shadow-sm space-y-2.5 transition-all">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 ${
+                                  m.attachment.format === 'PDF'
+                                    ? 'bg-[#FF3B30]/10 text-[#FF3B30]'
+                                    : m.attachment.format === 'CSV' || m.attachment.format === 'XLSX'
+                                    ? 'bg-[#34C759]/10 text-[#34C759]'
+                                    : 'bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]'
+                                }`}>
+                                  <FileText className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs font-semibold text-black dark:text-white truncate" title={m.attachment.file_name}>
+                                    {m.attachment.file_name}
+                                  </div>
+                                  <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] flex items-center gap-1.5 mt-0.5">
+                                    {m.attachment.file_size ? (
+                                      <span>{(m.attachment.file_size / 1024).toFixed(0)} KB</span>
+                                    ) : null}
+                                    {m.attachment.pages ? (
+                                      <>
+                                        <span>•</span>
+                                        <span>{m.attachment.pages} pages</span>
+                                      </>
+                                    ) : null}
+                                    <span>•</span>
+                                    <span className="font-mono text-[10px] uppercase text-[#0071E3] dark:text-[#0A84FF]">{m.attachment.format || 'DOC'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Status Badge */}
+                              <div className="shrink-0">
+                                {m.attachment.status === 'uploading' && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]">
+                                    <Spinner size="sm" />
+                                    <span>Uploading {m.attachment.progress || 0}%</span>
+                                  </span>
+                                )}
+                                {m.attachment.status === 'indexed' && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#34C759]/10 text-[#248A3D] dark:text-[#30D158]">
+                                    <Check className="w-3 h-3" />
+                                    <span>Indexed and ready</span>
+                                  </span>
+                                )}
+                                {m.attachment.status === 'error' && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#FF3B30]/10 text-[#FF3B30]">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    <span>Upload failed</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          )}
 
-                          {isUser ? (
-                            <div className="whitespace-pre-wrap">{m.content}</div>
-                          ) : (
-                            <FormattedAnswer content={m.content} />
-                          )}
+                            {/* Uploading Progress Bar */}
+                            {m.attachment.status === 'uploading' && (
+                              <div className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-[#0071E3] dark:bg-[#0A84FF] transition-all duration-150 ease-out"
+                                  style={{ width: `${Math.max(8, m.attachment.progress || 0)}%` }}
+                                />
+                              </div>
+                            )}
 
+                            {/* Indexed Quick Actions */}
+                            {m.attachment.status === 'indexed' && (
+                              <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-black/[0.05] dark:border-white/[0.06]">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAskAboutDoc(m.attachment!.file_name)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.12] text-[#0071E3] dark:text-[#0A84FF] hover:bg-[#0071E3]/[0.15] transition-colors"
+                                >
+                                  <Sparkles className="w-3 h-3" />
+                                  <span>Ask TARS about this document</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenReaderForAttachment(m.attachment!)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-black/[0.04] dark:bg-white/[0.06] text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] transition-colors"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  <span>View in Document Reader</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Error Actions */}
+                            {m.attachment.status === 'error' && (
+                              <div className="flex items-center justify-between pt-1 border-t border-black/[0.05] dark:border-white/[0.06] text-xs">
+                                <span className="text-[11px] text-[#FF3B30] truncate mr-2">
+                                  {m.attachment.error_message || 'Ingestion failed.'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetryUpload(m.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[8px] text-[11px] font-medium bg-[#FF3B30]/10 text-[#FF3B30] hover:bg-[#FF3B30]/20 transition-colors shrink-0"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  <span>Retry</span>
+                                </button>
+                              </div>
+                            )}
+
+                            <div className="text-[10px] text-right font-mono text-[#8E8E93]">
+                              {m.created_at || 'Just now'}
+                            </div>
+                          </div>
+                        ) : (
+                          /* Bubble */
                           <div
-                            className={`text-[10px] mt-2 font-mono ${
-                              isUser ? 'text-white/70 text-right' : 'text-[#8E8E93] text-left'
+                            className={`relative max-w-[88%] sm:max-w-[80%] rounded-[18px] p-4 text-[14px] leading-relaxed shadow-xs transition-all ${
+                              isUser
+                                ? 'bg-[#0071E3] text-white rounded-br-[4px]'
+                                : 'bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.07] dark:border-white/[0.08] text-black dark:text-white rounded-tl-[4px]'
                             }`}
                           >
-                            {m.created_at || 'Just now'}
+                            {!isUser && (
+                              <div className="flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.06] pb-2 mb-3 text-xs">
+                                <span className="font-semibold text-black dark:text-white flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]" />
+                                  TARS
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyMessage(m.id, m.content)}
+                                    className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white transition-colors flex items-center gap-1"
+                                    title="Copy response"
+                                  >
+                                    {copiedMessageId === m.id ? (
+                                      <>
+                                        <Check className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
+                                        <span className="text-[#0071E3] dark:text-[#0A84FF]">Copied</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3" />
+                                        <span>Copy</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {isUser ? (
+                              <div className="whitespace-pre-wrap">{m.content}</div>
+                            ) : (
+                              <FormattedAnswer content={m.content} />
+                            )}
+
+                            <div
+                              className={`text-[10px] mt-2 font-mono ${
+                                isUser ? 'text-white/70 text-right' : 'text-[#8E8E93] text-left'
+                              }`}
+                            >
+                              {m.created_at || 'Just now'}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Citation Cards (Under Assistant Reply) */}
                         {!isUser && hasCitations && (
@@ -1030,7 +1330,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 2: DOCUMENT LAKE BROWSER */}
       {activeView === 'lake' && (
-        <div className="rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-6 space-y-5 shadow-sm">
+        <div className="flex-1 min-h-0 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-4 sm:p-6 space-y-5 shadow-sm overflow-y-auto">
           {/* Header & Stats Ribbon */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/[0.08] dark:border-white/[0.08] pb-4">
             <div>

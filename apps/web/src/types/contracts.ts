@@ -26,6 +26,17 @@ export interface SearchResponse {
 }
 
 // Persistent Company Knowledge Chatbot
+export interface ChatAttachment {
+  file_name: string;
+  file_size?: number;
+  format?: string;
+  doc_id?: string;
+  status: 'uploading' | 'indexed' | 'error';
+  progress?: number;
+  error_message?: string;
+  pages?: number;
+}
+
 export interface ChatSessionDTO {
   id: string;
   user_id: string;
@@ -43,6 +54,7 @@ export interface ChatMessageDTO {
   citations?: SearchCitation[];
   created_at: string;
   is_deleted?: boolean;
+  attachment?: ChatAttachment;
 }
 
 // Workspace 2: Client Call Studio
