@@ -221,10 +221,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
               variant="secondary"
               size="sm"
               icon={<Play className="w-3.5 h-3.5" />}
-              onClick={() => {
-                setSimulationOpen(true);
-                handleRunSimulation();
-              }}
+              onClick={() => setSimulationOpen(true)}
             >
               What-If Simulation
             </Button>
