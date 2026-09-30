@@ -199,7 +199,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="min-h-screen bg-[#F5F5F7] dark:bg-black text-[#1D1D1F] dark:text-white font-sans selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black transition-colors duration-300">
       {/* Apple-grade Sticky Header */}
-      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none relative">
+      <header className="sticky top-0 z-40 h-[52px] border-b border-black/[0.08] dark:border-white/[0.10] flex items-center justify-between px-6 lg:px-12 backdrop-blur-[24px] bg-white/80 dark:bg-black/80 transition-colors select-none">
         <div className="flex items-center gap-2.5 z-10">
           <img
             src="/tars-logo.jpg"
