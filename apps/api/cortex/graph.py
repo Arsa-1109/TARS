@@ -315,9 +315,12 @@ class TarsGraph:
         """Updates specific fields of a Decision node in Kùzu."""
         if not fields:
             return True
+        ALLOWED_FIELDS = {"title", "category", "context", "chosen_option", "clearance", "status", "lifecycle_status"}
         set_clauses = []
         params = {"id": decision_id}
         for k, v in fields.items():
+            if k not in ALLOWED_FIELDS:
+                continue
             if k == "lifecycle_status":
                 params["status"] = v
                 set_clauses.append("d.status = $status")
