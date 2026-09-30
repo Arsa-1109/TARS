@@ -16,8 +16,8 @@ export function Sentinel({ onLaunchDemo }: { onLaunchDemo: () => void }) {
         <Eyebrow testId="sentinel-eyebrow">Chapter 04 — The sentinel</Eyebrow>
         <h2 className="tl-serif mt-8 text-5xl sm:text-6xl lg:text-7xl leading-[0.95] text-[var(--tl-star)]">
           <MaskLine i={0}>Architecture, guarded</MaskLine>
-          <MaskLine i={1}><em className="italic text-[var(--tl-amber)]">at the speed of</em></MaskLine>
-          <MaskLine i={2}><em className="italic text-[var(--tl-amber)]">a keystroke.</em></MaskLine>
+          <MaskLine i={1}><em className="italic text-white">at the speed of</em></MaskLine>
+          <MaskLine i={2}><em className="italic text-white">a keystroke.</em></MaskLine>
         </h2>
         <Reveal delay={0.15}>
           <p className="mt-8 max-w-lg text-base leading-relaxed text-[var(--tl-mute)]">
@@ -37,7 +37,7 @@ export function Sentinel({ onLaunchDemo }: { onLaunchDemo: () => void }) {
               viewport={{ once: true, margin: '-10% 0px' }}
               transition={{ duration: 1, delay: i * 0.12, ease: EASE }}
             >
-              <span className="tl-mono text-[12px] text-[var(--tl-amber)]">{id}</span>
+              <span className="tl-mono text-[12px] text-[#CCCCCC]">{id}</span>
               <span className="tl-serif text-2xl text-[var(--tl-star)] transition-transform duration-500 group-hover:translate-x-2">{name}</span>
               <span className="hidden sm:block tl-mono text-[10px] uppercase tracking-[0.18em] text-[var(--tl-mute)]">{origin}</span>
             </motion.div>
@@ -50,7 +50,7 @@ export function Sentinel({ onLaunchDemo }: { onLaunchDemo: () => void }) {
             onClick={onLaunchDemo}
             className="tl-btn-ghost mt-10 h-11 px-6 rounded-full text-[13px] flex items-center gap-3"
           >
-            <Terminal className="w-4 h-4 text-[var(--tl-amber)]" /> 1-click Cursor &amp; IDE MCP
+            <Terminal className="w-4 h-4 text-white" /> 1-click Cursor &amp; IDE MCP
           </button>
         </Reveal>
       </div>

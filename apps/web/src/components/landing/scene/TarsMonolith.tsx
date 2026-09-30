@@ -15,8 +15,8 @@ const EMB_RZ = [-0.34, -0.06, 0.3, -0.14];
 const EMB_Y = [0.12, -0.32, -0.08, 0.34];
 const STG_Y = [0.3, -0.2, 0.12, -0.34];
 const STG_RX = [0.12, -0.08, 0.1, -0.14];
-const AMBER = new THREE.Color('#F2C689');
-const ICE = new THREE.Color('#BFD6FF');
+const WHITE = new THREE.Color('#FFFFFF');
+const SILVER = new THREE.Color('#CCCCCC');
 const damp = THREE.MathUtils.damp;
 
 export function TarsMonolith() {
@@ -32,25 +32,25 @@ export function TarsMonolith() {
   const slabMat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        color: '#1a1d24',
-        metalness: 0.9,
-        roughness: 0.3,
-        clearcoat: 0.6,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 1.25,
+        color: '#111111',
+        metalness: 0.88,
+        roughness: 0.35,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 1.1,
       }),
     []
   );
   const stripMats = useMemo(
-    () => [0, 1, 2, 3].map(() => new THREE.MeshBasicMaterial({ color: AMBER.clone(), toneMapped: false })),
+    () => [0, 1, 2, 3].map(() => new THREE.MeshBasicMaterial({ color: WHITE.clone(), toneMapped: false })),
     []
   );
   const bladeMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: AMBER.clone(), toneMapped: false, transparent: true }),
+    () => new THREE.MeshBasicMaterial({ color: WHITE.clone(), toneMapped: false, transparent: true }),
     []
   );
   const ringMat = useMemo(
-    () => new THREE.MeshBasicMaterial({ color: ICE.clone().multiplyScalar(2.2), toneMapped: false, transparent: true, opacity: 0 }),
+    () => new THREE.MeshBasicMaterial({ color: SILVER.clone().multiplyScalar(2.0), toneMapped: false, transparent: true, opacity: 0 }),
     []
   );
 
@@ -92,13 +92,13 @@ export function TarsMonolith() {
       m.position.x = (i - 1) * (W + GAP) * spreadK;
     });
     const pulse = c.pulse * (0.5 + 0.5 * Math.sin(t * 6));
-    bladeMat.color.copy(AMBER).multiplyScalar(c.glow * (1.2 + pulse * 1.4));
+    bladeMat.color.copy(WHITE).multiplyScalar(c.glow * (1.1 + pulse * 1.2));
     bladeMat.opacity = 0.35 + 0.65 * Math.min(1, c.glow);
     stripMats.forEach((m, i) => {
       const wave = Math.max(0, Math.sin(t * 5 - i * 1.3)) * c.pulse * 3;
-      m.color.copy(AMBER).multiplyScalar(c.glow * 2.2 * (0.85 + 0.15 * Math.sin(t * 2 + i)) + wave);
+      m.color.copy(WHITE).multiplyScalar(c.glow * 1.8 * (0.85 + 0.15 * Math.sin(t * 2 + i)) + wave);
     });
-    light.current.intensity = 1.5 + c.glow * 3;
+    light.current.intensity = 1.4 + c.glow * 2.8;
 
     ringMat.opacity = c.ring * 0.9;
     ring.current.rotation.y += dt * 0.25;
@@ -126,7 +126,7 @@ export function TarsMonolith() {
             <boxGeometry args={[0.012, H * 0.9, D * 0.6]} />
           </mesh>
         ))}
-        <pointLight ref={light} color="#F2C689" distance={6} decay={2} position={[0, 0.2, 0.9]} />
+        <pointLight ref={light} color="#FFFFFF" distance={6} decay={2} position={[0, 0.2, 0.9]} />
       </group>
       <group ref={ring}>
         <mesh rotation={[Math.PI / 2.3, 0, 0]} material={ringMat}>
