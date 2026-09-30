@@ -93,7 +93,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
   };
 
-  const allowedWorkspaces = ROLE_WORKSPACES[currentRole] || ['knowledge', 'thinktank', 'onboarding'];
+  const allowedWorkspaces = ROLE_WORKSPACES[currentRole] || ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'];
   const filteredOptions = allowedWorkspaces
     .map((wsId) => allWorkspaceOptions[wsId])
     .filter(Boolean);
@@ -121,7 +121,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
 
         {companyName && (
-          <div className="hidden lg:flex items-center gap-1.5 pl-2 border-l border-black/[0.1] dark:border-white/[0.1]">
+          <div className="hidden sm:flex items-center gap-1.5 pl-2 border-l border-black/[0.1] dark:border-white/[0.1]">
             <span className="text-xs font-semibold text-[#6E6E73] dark:text-[#8E8E93] max-w-[130px] truncate" title={companyName}>
               {companyName}
             </span>
@@ -131,7 +131,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         {onOpenGenesis && (
           <button
             onClick={onOpenGenesis}
-            className="hidden xl:inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-semibold text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/10 hover:bg-[#0071E3]/15 transition-colors border border-[#0071E3]/20"
+            className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-semibold text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/10 hover:bg-[#0071E3]/15 transition-colors border border-[#0071E3]/20"
             title="Launch Genesis Onboarding Wizard"
           >
             <Sparkles className="w-2.5 h-2.5" />
@@ -142,7 +142,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
 
       {/* Center: Workspace nav */}
-      <div className="hidden md:flex items-center justify-center flex-1 px-6">
+      <div className="flex items-center justify-center flex-1 px-2 sm:px-4 md:px-6 min-w-0 overflow-x-auto">
         <SegmentedControl
           size="sm"
           options={filteredOptions}

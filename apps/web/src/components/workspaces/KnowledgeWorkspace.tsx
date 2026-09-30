@@ -727,51 +727,46 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   }, [filteredLakeDocuments, currentPage, pageSize]);
 
   return (
-    <div className="h-full flex flex-col flex-1 min-h-0 overflow-hidden gap-2 sm:gap-2.5">
-      {/* Knowledge Workspace Subheader */}
-      <div className="flex items-center justify-between gap-3 pb-2 border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
-        <div className="min-w-0">
+    <div className="h-full flex flex-col flex-1 min-h-0 overflow-hidden space-y-3">
+      {/* Standard TARS Workspace PageHeader */}
+      <PageHeader
+        eyebrow="Workspace 1"
+        title="Company Knowledge"
+        description="Search company documents, contracts, and decisions with verifiable citations."
+        className="pb-3 mb-0 shrink-0"
+        actions={
           <div className="flex items-center gap-2">
-            <h1 className="text-base sm:text-lg font-bold tracking-tight text-black dark:text-white truncate">
-              Company Knowledge
-            </h1>
-            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] shrink-0 font-medium">
+            <span className="text-[10px] font-mono uppercase px-2 py-1 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] font-medium hidden sm:inline-block">
               {clearance}
             </span>
+            <SegmentedControl
+              size="sm"
+              options={[
+                { value: 'chat', label: 'Chat Assistant' },
+                { value: 'lake', label: 'Document Lake', badge: lakeDocuments.length },
+              ]}
+              value={activeView}
+              onChange={(v) => setActiveView(v as any)}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
+              onChange={(e) => handleFileUploadWithRef(e.target.files)}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<UploadCloud className="w-3.5 h-3.5" />}
+              loading={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Upload Document
+            </Button>
           </div>
-          <p className="text-[11px] sm:text-xs text-[#6E6E73] dark:text-[#8E8E93] truncate hidden sm:block">
-            Sovereign corporate memory, verifiable citations & local document intelligence
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <SegmentedControl
-            size="sm"
-            options={[
-              { value: 'chat', label: 'Chat Assistant' },
-              { value: 'lake', label: 'Document Lake', badge: lakeDocuments.length },
-            ]}
-            value={activeView}
-            onChange={(v) => setActiveView(v as any)}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept=".pdf,.docx,.txt,.csv,.xlsx,.m4a"
-            onChange={(e) => handleFileUploadWithRef(e.target.files)}
-          />
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<UploadCloud className="w-3.5 h-3.5" />}
-            loading={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Upload Document
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Upload Toast (For Document Lake view or subtle feedback) */}
       {uploadSuccess && (

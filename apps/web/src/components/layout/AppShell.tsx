@@ -97,7 +97,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       }`}>
         <div className={`w-full mx-auto ${
           currentWorkspace === 'knowledge'
-            ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl px-3 sm:px-4 lg:px-6 py-2.5 pb-20 md:pb-2.5'
+            ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden max-w-7xl px-4 sm:px-6 lg:px-8 py-3 pb-20 md:pb-4'
             : 'max-w-7xl px-4 sm:px-6 lg:px-8 py-4 pb-20 md:pb-6'
         }`}>
           {children}
