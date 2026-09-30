@@ -1,5 +1,6 @@
 import time
 import os
+import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -29,6 +30,33 @@ from apps.api.core.company import company_repo
 from apps.api.core.db import db
 
 router = APIRouter()
+
+
+def _is_lightweight_query(query: str) -> bool:
+    """Classifies whether a query is a casual greeting or lightweight conversational ping."""
+    q = query.strip().lower()
+    q_clean = re.sub(r"[^\w\s]", "", q).strip()
+
+    SUBSTANTIVE_KEYWORDS = {
+        "policy", "runway", "saml", "sso", "bdr", "inv", "pricing", "architect",
+        "custom", "client", "customer", "contract", "role", "duty", "duties",
+        "decision", "adr", "cash", "burn", "mrr", "arr", "who am i", "what do i do"
+    }
+    if any(kw in q_clean for kw in SUBSTANTIVE_KEYWORDS):
+        return False
+
+    GREETINGS = {
+        "hi", "hello", "hey", "hiya", "howdy", "greetings", "good morning",
+        "good afternoon", "good evening", "sup", "whats up", "what's up",
+        "ping", "test", "who are you", "help", "hey tars", "hello tars", "hi tars"
+    }
+    if q_clean in GREETINGS:
+        return True
+
+    if len(q_clean) <= 25 and re.match(r"^(hi|hello|hey|greetings|howdy|good\s+(morning|afternoon|evening))\b", q_clean):
+        return True
+
+    return False
 
 
 # --- Search Route with SLM Answering ---
@@ -91,50 +119,68 @@ async def search_knowledge(req: SearchRequest):
     team_size = company.get("team_size", "12 FTE")
     runway_m = company.get("runway_months", 9.0)
 
-    company_facts = (
-        f"Company Name: {comp_name}\n"
-        f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
-        f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
-        f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
-        f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
-        f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
-        f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
-    )
+    is_light = _is_lightweight_query(req.query)
 
-    # Synthesize answer with local Ollama SLM
-    user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}' and clearance level '{req.clearance}'.\n"
-    system_prompt = (
-        f"You are TARS, the autonomous startup second brain for {comp_name}. "
-        "Answer questions directly, accurately, and professionally based strictly on verified company facts and internal documents. "
-        "Do NOT output internal thinking or scratchpad notes. "
-        "Do NOT repeat the question or start with robotic self-introductions like 'As TARS, the autonomous startup second brain...'. "
-        "Provide a polished, complete answer."
-    )
-    prompt = (
-        f"Company Institutional Knowledge Facts:\n{company_facts}\n"
-        f"{user_context}"
-        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n\n"
-    )
+    if is_light:
+        system_prompt = (
+            f"You are TARS, the autonomous startup second brain for {comp_name}. "
+            "Output only your direct response without scratchpad notes or corporate manifestos. "
+            "Greet the team member warmly and concisely, inviting questions on company policies, architecture invariants, or runway. "
+            "Keep your reply to 1-2 friendly sentences."
+        )
+        prompt = (
+            f"User: {req.user_name or 'Team Member'}\n"
+            f"Role: {req.user_role or 'Team Member'}\n"
+            f"User Greeting: {req.query}\n"
+            "Provide a warm, welcoming, and concise greeting."
+        )
+        task_complexity = "light"
+        max_tokens = 160
+    else:
+        company_facts = (
+            f"Company Name: {comp_name}\n"
+            f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
+            f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
+            f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
+            f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
+            f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+            f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
+        )
+        user_context = f"\nActive User Context: The current user is '{req.user_name or 'Team Member'}' with the assigned role '{req.user_role or 'ENGINEER'}' and clearance level '{req.clearance}'.\n"
+        system_prompt = (
+            f"You are TARS, the autonomous startup second brain for {comp_name}. "
+            "Answer questions directly, accurately, and professionally based strictly on verified company facts and internal documents. "
+            "Do NOT output internal thinking or scratchpad notes. "
+            "Do NOT repeat the question or start with robotic self-introductions like 'As TARS, the autonomous startup second brain...'. "
+            "Provide a polished, complete answer."
+        )
+        prompt = (
+            f"Company Institutional Knowledge Facts:\n{company_facts}\n"
+            f"{user_context}"
+            f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n\n"
+        )
 
-    # Layer 2 RBAC Guardrail: explicit security policy
-    if not is_exec:
-        prompt += "SECURITY POLICY: If the user queries cap table allocations, founder equity, or confidential executive finances, state clearly that this information is restricted to Founder/Executive clearance and refuse disclosure.\n"
+        # Layer 2 RBAC Guardrail: explicit security policy
+        if not is_exec:
+            prompt += "SECURITY POLICY: If the user queries cap table allocations, founder equity, or confidential executive finances, state clearly that this information is restricted to Founder/Executive clearance and refuse disclosure.\n"
 
-    prompt += f"Query: {req.query}\n"
+        prompt += f"Query: {req.query}\n"
 
-    if citations:
-        context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
-        prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
+        if citations:
+            context_str = "\n".join([f"- [{c.doc_title}]: {c.snippet}" for c in citations])
+            prompt += f"\nRelevant Internal Documents:\n{context_str}\n"
 
-    prompt += (
-        f"\nUser Query: {req.query}\n\n"
-        "Provide a structured, refined, concise, and complete response addressing this query directly. "
-        "Focus on 4 to 5 high-impact, actionable recommendations or key points. "
-        f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
-        "Ensure every point is fully articulated, and conclude cleanly without trailing off."
-    )
+        prompt += (
+            f"\nUser Query: {req.query}\n\n"
+            "Provide a structured, refined, concise, and complete response addressing this query directly. "
+            "Focus on 4 to 5 high-impact, actionable recommendations or key points. "
+            f"IMPORTANT: If the user asks about their role ('what is my role', 'whats my primary role', 'who am i', 'what do i do'), explain THEIR role ({req.user_role or 'their assigned position'}) and their key duties at the company, NOT TARS's role.\n"
+            "Ensure every point is fully articulated, and conclude cleanly without trailing off."
+        )
+        task_complexity = "deep"
+        max_tokens = 1536
 
-    # 3. Honest Local Ollama Generation & Outage Behavior
+    # 4. Honest Local Ollama Generation & Outage Behavior
     ollama_ok = await ollama_client.is_available()
     if not ollama_ok:
         print("[SEARCH DEBUG] Ollama is OFFLINE. Returning truthful outage response.", flush=True)
@@ -143,9 +189,9 @@ async def search_knowledge(req: SearchRequest):
         else:
             answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
     else:
-        print(f"[SEARCH DEBUG] Calling ollama_client.generate...", flush=True)
-        llm_res = await ollama_client.generate(prompt, task_complexity="deep", max_tokens=1536, system=system_prompt)
-        print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}", flush=True)
+        print(f"[SEARCH DEBUG] Calling ollama_client.generate with task_complexity={task_complexity}...", flush=True)
+        llm_res = await ollama_client.generate(prompt, task_complexity=task_complexity, max_tokens=max_tokens, system=system_prompt)
+        print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}, model={llm_res.get('model_used')}", flush=True)
         if llm_res.get("success") and llm_res.get("response"):
             answer = str(llm_res.get("response")).strip()
         elif citations:

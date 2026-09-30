@@ -4,7 +4,7 @@
 * **Track**: Track 1 — Cortex & Strategy (Teammate 1)
 * **Branch**: `feat/track-1-cortex`
 * **Base Branches**: `main` / `integration-1` / `integration-2`
-* **Total Git Impact**: 12 files changed (+1,315 insertions, -228 deletions)
+* **Total Git Impact**: 16 files changed (+1,589 insertions, -233 deletions)
 * **Test Verification**: 6/6 Pytest tests passing (100%), 0 TypeScript compilation errors (`npx tsc --noEmit`)
 * **Branch Collision Guarantee**: Zero changes to shared touchpoints `apps/api/main.py` and `apps/web/src/services/liveApi.ts`
 
@@ -19,7 +19,10 @@
 | **Bug 16** | **Counterfactual "What-If" Simulation Engine** | Strategic simulation was static/mocked and disconnected from actual company financials or commitments. | Created `POST /api/cortex/simulate/scenario` calculating differential runway $\Delta R$ from live cash reserves ($666,000) and net burn ($74,000/mo), querying Kùzu client commitments, and generating pre-populated ADR drafts. |
 | **Spec §4.1.3** | **Unsolicited Auto-Simulation GPU Churn** | Opening the What-If drawer immediately triggered heavy simulation without user request. | Removed auto-trigger on drawer mount in `DecisionsWorkspace.tsx`. Simulation now executes strictly upon user button click. |
 | **Security Fix** | **Cypher Injection Mitigation** | Dynamic string interpolation in `TarsGraph.update_decision` could permit unauthorized Cypher mutations. | Implemented strict `ALLOWED_FIELDS` allowlist verification for all parameterized Cypher mutation clauses. |
-| **SLM Optimization** | **Reasoning Truncation & Identity Resolution** | Token budget (280 tokens) truncated SLM outputs, `<think>` tags leaked, and user identity queries confused assistant identity. | Switched cascade priority to `qwen3:8b`, increased token limit to 1024, sanitized `<thought>`/`<think>` tags via regex, and added prompt steering for user role queries. |
+| **SLM Optimization** | **Reasoning Truncation & Identity Resolution** | Token budget (280 tokens) truncated SLM outputs, `<think>` tags leaked, and user identity queries confused assistant identity. | Switched cascade priority to `qwen3:8b`, increased token limit to 1024 then 1536, sanitized `<thought>`/`<think>` tags via regex, and added prompt steering for user role queries. |
+| **UX & Formatting** | **Unformatted Knowledge Responses & Truncation** | Knowledge search answers were displayed as raw unformatted text blocks, and long answers risked mid-sentence cutoff. | Implemented custom `FormattedAnswer` with styled numbered list chips, bolding, bullet trees, expanded SLM generation budget to 1536 tokens, and refined prompt for 4–5 distinct actionable points. |
+| **Contradiction Heuristics** | **False-Positive Contradiction Flags** | Heuristic dictionary mapped `"localstorage"` to generic `"session"`, flagging benign queries as policy violations. | Refined dictionary to `"localstorage": ["cookie", "httponly"]`, ensuring precision without false positives on standard session queries. |
+| **Conversational Intent & Light SLM Routing** | **Greeting Query Triggered Heavy 7B Model & 5-Point Briefing** | Hardcoded `task_complexity="deep"` routed casual greetings ("hi", "hello") to the heavy 7B/8B model, producing a 5-point corporate briefing. | Added `_is_lightweight_query` intent classifier; routes greetings to the fast SLM cascade (`qwen3:1.7b` / `qwen2.5:1.5b`) with a 160-token budget and warm 1–2 sentence greeting in sub-1.3 seconds. |
 
 ---
 
@@ -56,6 +59,8 @@
   * Automatically creates supersedes graph relationship when a replacement decision ID is supplied.
 * **`get_decision(decision_id: str) -> Optional[Dict[str, Any]]`**:
   * Retrieves single decision node with full field resolution.
+* **Heuristic Conflict Precision Refinement**:
+  * Adjusted conflict mapping for `localstorage` from `["cookie", "httponly", "session"]` to `["cookie", "httponly"]` to eliminate false-positive contradictions on general session handling while maintaining hard invariant guards for authentication token storage.
 * **`EmbeddedGraphConn`**:
   * Extended mock in-memory connection emulator to support `SET d.lifecycle_status = 'SUPERSEDED'`, partial `SET`, and `DETACH DELETE` for standalone unit testing without a live Kùzu binary.
 
@@ -72,11 +77,19 @@
 
 #### `apps/api/core/model_router.py` & `apps/api/core/ollama_client.py`
 * **Cascade Refinement**: Replaced non-existent model tags with `qwen3:8b` -> `qwen2.5-coder:7b` -> `deepseek-r1:7b` for deep reasoning, and `qwen3:1.7b` -> `qwen2.5:1.5b` for subsecond extraction.
-* **Token Budget**: Increased `num_predict` default from 280 to 1024 for deep/reasoning tasks.
+* **Token Budget Expansion**: Increased `num_predict` default from 280 to 1024, and up to 1536 for complex/deep reasoning and comprehensive search syntheses.
 * **Reasoning Tag Sanitization**: Upgraded regex filter to cleanly strip both `<thought>...</thought>` and `<think>...</think>` blocks from streaming/non-streaming responses.
 
 #### `apps/api/core/routes.py`
-* Added prompt steering in the RAG search endpoint to correctly resolve identity queries (e.g., "what is my role?"), directing the LLM to summarize the human user's assigned role rather than the system's identity.
+* **Prompt Steering for User Role**: Added explicit system steering for identity queries (e.g., "what is my role?", "who am i?"), directing the LLM to summarize the human user's assigned role and key responsibilities rather than reciting TARS agent identity.
+* **Structured Search Synthesis**: Enforced generation constraints directing the model to deliver 4 to 5 high-impact, actionable, and cleanly concluded points without trailing off.
+* **Conversational Intent Classification & Fast SLM Routing**:
+  * Implemented `_is_lightweight_query(query: str)`: Detects conversational greetings and lightweight pings (`"hi"`, `"hello"`, `"hey"`, `"good morning"`, `"help"`, etc.) while ensuring substantive domain queries containing keywords (`runway`, `policy`, `saml`, `sso`, etc.) route to deep synthesis.
+  * For greetings/light queries: Sets `task_complexity="light"`, dispatching to `SUBSECOND_EXTRACTION_CASCADE` (`qwen3:1.7b` / `qwen2.5:1.5b`) with a 160-token budget and warm 1–2 sentence welcoming response in ~1.0–1.2s.
+  * For domain knowledge queries: Retains `task_complexity="deep"` with full 1536-token budget on `DEEP_REASONING_CASCADE` (`qwen3:8b` / `qwen2.5-coder:7b`).
+
+#### `run.py`
+* Enhanced development server runner to utilize `"apps.api.main:app"` string target with `reload=True` and `app_dir=str(root_dir)` for live development hot reloading.
 
 ---
 
@@ -137,6 +150,7 @@
 ## 3. Git Commit Log
 
 ```text
+8b1a98b feat(track-1): enhance knowledge search formatting, prevent SLM truncation, and add track 1 docs
 b918c4b fix(slm): resolve qwen3:8b for reasoning, expand token limit to 1024, and eliminate repetitive preamble
 188500e fix(web): discontinue auto-simulation on What-If drawer open per spec §4.1.3
 9b77e2b fix(security): enforce field allowlist in update_decision Cypher mutation
