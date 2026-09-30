@@ -262,7 +262,30 @@ class LocalDB:
             cursor.execute("ALTER TABLE documents ADD COLUMN source_mode TEXT NOT NULL DEFAULT 'LIVE'")
         if "is_authoritative" not in doc_cols:
             cursor.execute("ALTER TABLE documents ADD COLUMN is_authoritative INTEGER NOT NULL DEFAULT 1")
+        if "version" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN version INTEGER NOT NULL DEFAULT 1")
+        if "parent_doc_id" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN parent_doc_id TEXT DEFAULT NULL")
+        if "version_hash" not in doc_cols:
+            cursor.execute("ALTER TABLE documents ADD COLUMN version_hash TEXT DEFAULT NULL")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_documents_bitemporal ON documents(organisation_id, effective_from, effective_to);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_documents_version ON documents(parent_doc_id, version);")
+
+        # Institutional Glossary & Entity Index (Point 22 & 49)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS institutional_glossary (
+                term TEXT NOT NULL,
+                category TEXT NOT NULL, -- PERSON, COMPANY, DECISION, POLICY, COMMITMENT, TECHNOLOGY, RISK
+                definition TEXT NOT NULL,
+                canonical_ref TEXT,
+                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01',
+                clearance TEXT NOT NULL DEFAULT 'ALL_TEAM',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (term, organisation_id)
+            )
+        ''')
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_glossary_cat ON institutional_glossary(organisation_id, category);")
 
         cursor.execute("PRAGMA table_info(action_items)")
         act_cols = [row[1] for row in cursor.fetchall()]

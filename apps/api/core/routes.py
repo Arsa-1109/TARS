@@ -126,7 +126,7 @@ async def search_knowledge(req: SearchRequest):
     req_id = f"REQ-{uuid.uuid4().hex[:8]}"
 
     # 3. RBAC-Filtered Federated Search with server-authoritative candidate generation
-    citations = await search_service.search(
+    search_hybrid_res = await search_service.search_hybrid(
         query=req.query,
         limit=8,
         user_clearance=req.clearance or "ALL_TEAM",
@@ -134,7 +134,12 @@ async def search_knowledge(req: SearchRequest):
         organisation_id=req.organisation_id,
         as_of=req.as_of,
     )
-    print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
+    citations = search_hybrid_res["citations"]
+    evidence_set = search_hybrid_res["evidence_set"]
+    hybrid_status = search_hybrid_res.get("status")
+    abstention_reason = search_hybrid_res.get("abstention_reason")
+
+    print(f"[SEARCH DEBUG] Citations found: {len(citations)}, status={hybrid_status}", flush=True)
     # Retrieve and format institutional company facts
     company = company_repo.get_profile() or {}
     comp_name = company.get("company_name", "Your Company")
@@ -238,10 +243,10 @@ async def search_knowledge(req: SearchRequest):
         source_mode = "FALLBACK"
         is_authoritative = False
         if citations:
-            answer = f"Local AI inference unavailable — Ollama is offline. Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            answer = f"Local AI unavailable — Ollama is not running (Local AI inference unavailable). Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
             response_status = "PARTIAL"
         else:
-            answer = f"Local AI inference unavailable — Ollama is offline. 0 citations found matching '{req.query}'."
+            answer = f"Local AI unavailable — Ollama is not running (Local AI inference unavailable). 0 citations found matching '{req.query}'."
             response_status = "INFERENCE_UNAVAILABLE"
     else:
         print(f"[SEARCH DEBUG] Calling ollama_client.generate with task_complexity={task_complexity}...", flush=True)
@@ -262,6 +267,11 @@ async def search_knowledge(req: SearchRequest):
             source_mode = "LIVE"
             is_authoritative = True
             response_status = "NO_EVIDENCE"
+
+    # Check if abstention was triggered by low evidence confidence (Points 61, 62)
+    if ollama_ok and (hybrid_status == "ABSTAINED" or (evidence_set and getattr(evidence_set, "abstention_triggered", False))):
+        response_status = "ABSTAINED"
+        answer = f"Abstaining from response: Insufficient verified institutional evidence found matching query '{req.query}'."
 
     # 4. Telemetry Logging (Safe Continuous Learning Telemetry)
     try:
@@ -284,6 +294,8 @@ async def search_knowledge(req: SearchRequest):
         is_authoritative=is_authoritative,
         status=response_status,
         request_id=req_id,
+        evidence_set=evidence_set.model_dump() if hasattr(evidence_set, "model_dump") else None,
+        abstention_reason=abstention_reason,
     )
 
 # --- Action Hub Routes ---
@@ -743,13 +755,13 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
             else:
                 ml_category = "STRATEGY"
 
-    title = ml_title
+    title = req.title or ml_title
     chosen_policy = ml_policy
-    category = ml_category
+    category = req.category or ml_category
     context_desc = ml_context or f"Ratified via Collaborative Think Tank by {req.user_name or 'Team Member'}."
     source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
     tags = f"teach,learned,decision,{category.lower()}"
-    content_record = f"{chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
+    content_record = f"{title}: {chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
 
     # 2. Persist to SQLite institutional memory table
     conn = db.get_connection()

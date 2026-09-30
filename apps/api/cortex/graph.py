@@ -246,7 +246,7 @@ class TarsGraph:
                 pass
 
         rels_to_create = [
-            ("SUPERSEDES", "CREATE REL TABLE SUPERSEDES(FROM Decision TO Decision, reason STRING, timestamp INT64);"),
+            ("SUPERSEDES", "CREATE REL TABLE SUPERSEDES(FROM Decision TO Decision, FROM Document TO Document, reason STRING, timestamp INT64);"),
             ("RELATES_TO", "CREATE REL TABLE RELATES_TO(FROM Document TO Decision, FROM Decision TO Document, FROM ActionItem TO Document, FROM CodeEntity TO Document);"),
             ("EXTRACTED_FROM", "CREATE REL TABLE EXTRACTED_FROM(FROM ActionItem TO ClientCall, timestamp_offset STRING);"),
             ("ASSIGNED_TO", "CREATE REL TABLE ASSIGNED_TO(FROM ActionItem TO Document);"),

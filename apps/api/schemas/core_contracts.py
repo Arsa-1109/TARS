@@ -5,6 +5,7 @@ Exclusive domain schema definitions for Teammate 3.
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+import uuid
 
 
 class ChatMessageCreate(BaseModel):
@@ -95,4 +96,43 @@ class AuditVerifyResponse(BaseModel):
     reason: Optional[str] = None
     expected_previous_hash: Optional[str] = None
     stored_previous_hash: Optional[str] = None
+
+
+# ==========================================
+# PHASE 2: EVIDENCE & RETRIEVAL CONTRACTS
+# ==========================================
+class EvidenceChannel(BaseModel):
+    name: str  # "bm25_lexical", "semantic_vector", "graph_traversal"
+    score: float
+    rank: int
+
+
+class EvidenceItem(BaseModel):
+    evidence_id: str
+    source_document_id: str
+    source_title: str
+    source_type: str = "DOCUMENT"  # DOCUMENT | DECISION | COMMITMENT | POLICY | TRANSCRIPT
+    location: str = "page:1"  # "page:1", "offset:102-450", "timestamp:00:14:32"
+    source_timestamp: int = 0
+    author: Optional[str] = "SYSTEM"
+    confidence_score: float = 1.0  # Calibrated [0.0, 1.0]
+    confidence_state: str = FactLifecycleState.CONFIRMED
+    content_snippet: str
+    retrieval_channels: List[EvidenceChannel] = Field(default_factory=list)
+    rrf_score: float = 0.0
+    relationship_path: List[str] = Field(default_factory=list)  # e.g. ["Document:DEC-031", "RELATES_TO", "ClientCall:CC-104"]
+    is_superseded: bool = False
+    superseded_by: Optional[str] = None
+
+
+class EvidenceSet(BaseModel):
+    evidence_set_id: str = Field(default_factory=lambda: f"EVS-{uuid.uuid4().hex[:8]}")
+    query: str
+    items: List[EvidenceItem]
+    composite_confidence: float = 1.0
+    decision_context: Optional[str] = None
+    constraints_applied: List[str] = Field(default_factory=list)
+    abstention_triggered: bool = False
+    abstention_reason: Optional[str] = None
+
 

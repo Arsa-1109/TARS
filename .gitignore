@@ -64,6 +64,9 @@ drop/*
 .cache/
 tmp/
 temp/
+tmp_test/
+.tmp_test/
+tars_test_*/
 scratch/
 *.swp
 *.swo

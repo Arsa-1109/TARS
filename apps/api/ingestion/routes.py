@@ -16,7 +16,7 @@ import shutil
 import threading
 import time
 import uuid
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status, Body, Header
 from fastapi.responses import StreamingResponse, FileResponse
@@ -296,10 +296,13 @@ class DocumentIngestResponse(BaseModel):
     table_count: int
     character_count: int
     preview: str
-    effective_from: Optional[str] = None
-    effective_to: Optional[str] = None
+    effective_from: Optional[Union[int, str]] = None
+    effective_to: Optional[Union[int, str]] = None
     organisation_id: Optional[str] = None
     audit_block_id: Optional[str] = None
+    version: Optional[int] = 1
+    parent_doc_id: Optional[str] = None
+    prior_version_doc_id: Optional[str] = None
 
 
 @router.post("/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
@@ -371,6 +374,9 @@ async def upload_document(
             effective_to=ingest_result.get("effective_to"),
             organisation_id=tenant_id,
             audit_block_id=ingest_result.get("audit_block_id"),
+            version=ingest_result.get("version", 1),
+            parent_doc_id=ingest_result.get("parent_doc_id"),
+            prior_version_doc_id=ingest_result.get("prior_version_doc_id"),
         )
     except TARSException:
         raise

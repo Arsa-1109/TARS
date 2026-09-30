@@ -17,6 +17,7 @@ from apps.api.core.audit_ledger import audit_ledger
 from apps.api.core.errors import TARSException, ErrorCodes
 from apps.api.ingestion.markitdown_parser import markitdown_parser
 from apps.api.ingestion.kuzu_sync import kuzu_sync
+from apps.api.ingestion.entity_extractor import entity_extractor
 
 logger = logging.getLogger("tars.ingestion.transaction_coordinator")
 
@@ -45,15 +46,17 @@ class TransactionalIngestionCoordinator:
         source_mode: str = "LIVE",
         simulate_failure_at: Optional[str] = None,
         doc_record: Optional[Dict[str, Any]] = None,
+        parent_doc_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Executes multi-stage transactional document ingestion:
         Stage 1: Byte validation & SHA-256 integrity
         Stage 2: Semantic parsing (Markdown, Excel tables)
-        Stage 3: SQLite primary catalog transaction
+        Stage 3: SQLite primary catalog transaction with version progression & supersession
         Stage 4: Chunked semantic memory indexing
-        Stage 5: Kùzu graph synchronization & relationship linking
-        Stage 6: Chained SHA-256 audit block commitment
+        Stage 5: Kùzu graph synchronization & relationship linking (including [:SUPERSEDES])
+        Stage 6: Semantic graph entity extraction into institutional glossary
+        Stage 7: Chained SHA-256 audit block commitment
         
         If any stage fails:
         - SQLite transaction rolls back immediately
@@ -111,6 +114,57 @@ class TransactionalIngestionCoordinator:
             # Explicit SQLite transaction isolation
             cursor.execute("BEGIN IMMEDIATE;")
 
+            # Document Versioning & Supersession Resolution (Point 21)
+            # Find prior active document version by filename or parent_doc_id
+            prior_doc_id = None
+            prior_version = 0
+            resolved_parent_id = parent_doc_id
+
+            if parent_doc_id:
+                cursor.execute(
+                    "SELECT doc_id, version, parent_doc_id FROM documents WHERE (doc_id = ? OR parent_doc_id = ?) AND organisation_id = ? ORDER BY version DESC LIMIT 1;",
+                    (parent_doc_id, parent_doc_id, organisation_id),
+                )
+                row = cursor.fetchone()
+                if row:
+                    prior_doc_id = row[0]
+                    prior_version = row[1] or 1
+                    resolved_parent_id = row[2] or parent_doc_id
+            else:
+                cursor.execute(
+                    "SELECT doc_id, version, parent_doc_id FROM documents WHERE filename = ? AND organisation_id = ? AND superseded_by IS NULL ORDER BY version DESC LIMIT 1;",
+                    (safe_filename, organisation_id),
+                )
+                row = cursor.fetchone()
+                if row:
+                    prior_doc_id = row[0]
+                    prior_version = row[1] or 1
+                    resolved_parent_id = row[2] or row[0]
+
+            new_version = prior_version + 1 if prior_doc_id else 1
+            if not resolved_parent_id and prior_doc_id:
+                resolved_parent_id = prior_doc_id
+
+            # If there's a prior version, supersede it
+            if prior_doc_id:
+                cursor.execute(
+                    """
+                    UPDATE documents
+                    SET effective_to = ?, superseded_by = ?, superseded_at = ?
+                    WHERE doc_id = ?
+                    """,
+                    (now_ts, doc_id, now_ts, prior_doc_id),
+                )
+                # Also update corresponding memory
+                cursor.execute(
+                    """
+                    UPDATE memories
+                    SET effective_to = ?, superseded_by = ?, superseded_at = ?
+                    WHERE id = ? OR source = ?
+                    """,
+                    (now_ts, doc_id, now_ts, f"MEM-{prior_doc_id}", f"INGESTION:{prior_doc_id}"),
+                )
+
             # Stage 3: Store in documents table
             cursor.execute(
                 """
@@ -119,8 +173,9 @@ class TransactionalIngestionCoordinator:
                     format, file_size_bytes, page_count, table_count, character_count,
                     chunk_count, content, preview, ingested_at, is_demo,
                     organisation_id, effective_from, effective_to, source_timestamp,
-                    confidence_state, source_mode, is_authoritative
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    confidence_state, source_mode, is_authoritative,
+                    version, parent_doc_id, version_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     doc_id,
@@ -146,6 +201,9 @@ class TransactionalIngestionCoordinator:
                     "CONFIRMED",
                     source_mode,
                     1,
+                    new_version,
+                    resolved_parent_id,
+                    file_hash[:16],
                 ),
             )
 
@@ -193,29 +251,58 @@ class TransactionalIngestionCoordinator:
                 effective_to=effective_to,
                 confidence_state="CONFIRMED",
                 source_mode=source_mode,
+                version=new_version,
+                parent_doc_id=resolved_parent_id,
             )
             if not kuzu_success:
                 raise RuntimeError("Kùzu graph sync returned failure status")
             kuzu_synced = True
 
+            # If superseding a prior version, create [:SUPERSEDES] edge in graph
+            if prior_doc_id:
+                try:
+                    kuzu_sync.link_document_supersedes(
+                        new_doc_id=doc_id,
+                        old_doc_id=prior_doc_id,
+                        reason="DOCUMENT_VERSION_UPDATE",
+                        timestamp=now_ts,
+                    )
+                except Exception as k_err:
+                    logger.warning(f"Kùzu supersedes linking notice: {k_err}")
+
             if simulate_failure_at in ("stage_post_kuzu", "post_kuzu"):
                 raise RuntimeError("Simulated failure after Kùzu sync, before audit record")
+
+            # Stage 6: Semantic Entity Extraction & Institutional Glossary Indexing (Point 22 & 49)
+            try:
+                extracted_entities = entity_extractor.extract_entities(
+                    text=content,
+                    doc_id=doc_id,
+                    organisation_id=organisation_id,
+                )
+                entity_extractor.record_entities(
+                    entities=extracted_entities,
+                    doc_id=doc_id,
+                    organisation_id=organisation_id,
+                )
+            except Exception as ent_err:
+                logger.warning(f"Entity extraction notice for {doc_id}: {ent_err}")
 
             # Commit SQLite transaction
             conn.commit()
             sqlite_committed = True
 
-            # Stage 6: Append cryptographically chained audit event
+            # Stage 7: Append cryptographically chained audit event
             audit_res = audit_ledger.append_event(
                 actor=actor,
                 organisation_id=organisation_id,
                 action="DOCUMENT_INGESTED",
                 source="TRANSACTION_COORDINATOR",
-                input_data={"doc_id": doc_id, "filename": safe_filename, "hash": file_hash[:16]},
-                result_data={"status": "COMMITTED", "doc_id": doc_id, "kuzu_synced": True},
+                input_data={"doc_id": doc_id, "filename": safe_filename, "hash": file_hash[:16], "version": new_version},
+                result_data={"status": "COMMITTED", "doc_id": doc_id, "version": new_version, "superseded_id": prior_doc_id, "kuzu_synced": True},
             )
 
-            logger.info(f"Atomic ingestion successful for {doc_id} (Audit: {audit_res['event_id']})")
+            logger.info(f"Atomic ingestion successful for {doc_id} v{new_version} (Audit: {audit_res['event_id']})")
 
             return {
                 "status": "COMMITTED",
@@ -232,6 +319,10 @@ class TransactionalIngestionCoordinator:
                 "preview": preview,
                 "effective_from": eff_from,
                 "organisation_id": organisation_id,
+                "version": new_version,
+                "parent_doc_id": resolved_parent_id,
+                "superseded_by": None,
+                "prior_version_doc_id": prior_doc_id,
                 "audit_event_id": audit_res["event_id"],
                 "audit_block_id": audit_res["event_id"],
                 "source_mode": source_mode,

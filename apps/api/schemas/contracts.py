@@ -27,6 +27,17 @@ class SearchCitation(BaseModel):
     confidence: Optional[float] = 1.0
     effective_from: Optional[int] = None
     confidence_state: Optional[str] = "CONFIRMED"
+    location: Optional[str] = None
+    author: Optional[str] = None
+    retrieval_channels: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    rrf_score: Optional[float] = None
+    relationship_path: Optional[List[str]] = Field(default_factory=list)
+    is_superseded: bool = False
+    superseded_by: Optional[str] = None
+
+    @property
+    def id(self) -> str:
+        return self.doc_id
 
 class SearchResponse(BaseModel):
     query: str
@@ -35,8 +46,10 @@ class SearchResponse(BaseModel):
     latency_ms: float
     source_mode: str = "LIVE"  # LIVE | MOCK | FALLBACK | SYNTHETIC
     is_authoritative: bool = True
-    status: str = "COMPLETED"  # COMPLETED | INFERENCE_UNAVAILABLE | NO_EVIDENCE | PARTIAL
+    status: str = "COMPLETED"  # COMPLETED | INFERENCE_UNAVAILABLE | NO_EVIDENCE | PARTIAL | ABSTAINED
     request_id: Optional[str] = None
+    evidence_set: Optional[Dict[str, Any]] = None
+    abstention_reason: Optional[str] = None
 
 # ==========================================
 # WORKSPACE 2: CLIENT CALL STUDIO
@@ -346,3 +359,11 @@ class ChatMessageCreate(BaseModel):
     user_role: Optional[str] = "ENGINEER"
     user_name: Optional[str] = None
     clearance: Optional[str] = "ALL_TEAM"
+
+
+# Canonical aliases for Phase 2 contracts
+from apps.api.schemas.core_contracts import (
+    EvidenceChannel,
+    EvidenceItem,
+    EvidenceSet,
+)
