@@ -15,18 +15,41 @@ class SearchRequest(BaseModel):
     clearance: str = "ALL_TEAM"
     user_role: Optional[str] = None
     user_name: Optional[str] = None
+    organisation_id: Optional[str] = None
+    as_of: Optional[int] = None
 
 class SearchCitation(BaseModel):
     doc_id: str
     doc_title: str
     page_number: int
     snippet: str
+    source_type: Optional[str] = "DOCUMENT"
+    confidence: Optional[float] = 1.0
+    effective_from: Optional[int] = None
+    confidence_state: Optional[str] = "CONFIRMED"
+    location: Optional[str] = None
+    author: Optional[str] = None
+    retrieval_channels: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    rrf_score: Optional[float] = None
+    relationship_path: Optional[List[str]] = Field(default_factory=list)
+    is_superseded: bool = False
+    superseded_by: Optional[str] = None
+
+    @property
+    def id(self) -> str:
+        return self.doc_id
 
 class SearchResponse(BaseModel):
     query: str
     answer: str
     citations: List[SearchCitation]
     latency_ms: float
+    source_mode: str = "LIVE"  # LIVE | MOCK | FALLBACK | SYNTHETIC
+    is_authoritative: bool = True
+    status: str = "COMPLETED"  # COMPLETED | INFERENCE_UNAVAILABLE | NO_EVIDENCE | PARTIAL | ABSTAINED
+    request_id: Optional[str] = None
+    evidence_set: Optional[Dict[str, Any]] = None
+    abstention_reason: Optional[str] = None
 
 # ==========================================
 # WORKSPACE 2: CLIENT CALL STUDIO
@@ -59,6 +82,12 @@ class DecisionItem(BaseModel):
     clearance: str = "ALL_TEAM"
     lifecycle_status: Optional[str] = "ACTIVE"
     superseded_by: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
+    confidence_state: str = "CONFIRMED"
     drivers: List[str] = Field(default_factory=list)
     options_considered: List[str] = Field(default_factory=list)
 
@@ -105,15 +134,43 @@ class ActionItemDTO(BaseModel):
     id: str
     description: str = ""
     title: Optional[str] = None
+    action_type: str = "GENERIC"
     owner: str = "Unassigned"
     assignee: Optional[str] = None
     department: Optional[str] = "General"
     priority: str = "MEDIUM"  # LOW, MEDIUM, HIGH, URGENT
     deadline: Optional[int] = None
-    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED
+    status: str = "OPEN"      # OPEN, IN_PROGRESS, DONE, PENDING, APPROVED, REJECTED, PROPOSED, REVIEW_REQUIRED, QUEUED, EXECUTING, COMPLETED, FAILED, ROLLED_BACK
     source_type: str = "CALL" # CLIENT_CALL, DECISION, THINK_TANK, CALL, CHAT, ARCHITECTURE
     source_id: str = ""
     source_offset: Optional[str] = None
+    source: str = "HUMAN"     # LLM_PROPOSAL, CLIENT_CALL, DECISION, HUMAN
+    reason: Optional[str] = None
+    evidence_ref: Optional[str] = None
+    tool: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    risk_level: str = "LOW"   # LOW, MEDIUM, HIGH, CRITICAL
+    approver_id: Optional[str] = None
+    approved_at: Optional[int] = None
+    execution_time_ms: Optional[int] = None
+    rollback_handler: Optional[Dict[str, Any]] = None
+    audit_block_id: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    lifecycle_status: Optional[str] = "OPEN"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    confidence_state: str = "CONFIRMED"
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
+
+from apps.api.schemas.core_contracts import (
+    ActionLifecycleState,
+    ActionReceipt,
+    PolicyRule,
+    PolicyDecision,
+    FactTransitionRequest,
+    FactTransitionResponse,
+)
 
 # ==========================================
 # CONTRIBUTOR 1: MEMORY & ACTION INFRASTRUCTURE
@@ -128,6 +185,13 @@ class MemoryRecord(BaseModel):
     tags: List[str] = Field(default_factory=list)
     related_ids: List[str] = Field(default_factory=list)
     vector_ref: Optional[str] = None
+    organisation_id: str = "CMP-GENESIS-01"
+    effective_from: Optional[int] = None
+    effective_to: Optional[int] = None
+    superseded_by: Optional[str] = None
+    confidence_state: str = "CONFIRMED"
+    source_mode: str = "LIVE"
+    is_authoritative: bool = True
 
 class ToolExecutionRequest(BaseModel):
     tool_name: str
@@ -143,6 +207,22 @@ class ToolAuditRecord(BaseModel):
     approval_state: str
     result: Optional[str] = None
     error: Optional[str] = None
+
+class AuditBlockDTO(BaseModel):
+    event_id: str
+    sequence_id: int
+    timestamp: int
+    actor: str
+    organisation_id: str
+    action: str
+    source: str
+    input_hash: str
+    result_hash: str
+    previous_hash: str
+    event_hash: str
+    is_valid: bool = True
+    current_hash: Optional[str] = None
+    sequence: Optional[int] = None
 
 class SystemStatus(BaseModel):
     status: str
@@ -301,3 +381,11 @@ class ChatMessageCreate(BaseModel):
     user_role: Optional[str] = "ENGINEER"
     user_name: Optional[str] = None
     clearance: Optional[str] = "ALL_TEAM"
+
+
+# Canonical aliases for Phase 2 contracts
+from apps.api.schemas.core_contracts import (
+    EvidenceChannel,
+    EvidenceItem,
+    EvidenceSet,
+)

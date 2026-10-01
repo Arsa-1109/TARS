@@ -134,7 +134,7 @@ class KuzuGraphEngine:
                 PRIMARY KEY (id)
             );""",
             "CREATE REL TABLE IF NOT EXISTS RELATES_TO (FROM Document TO Decision, FROM Decision TO Document, FROM ActionItem TO Document, FROM CodeEntity TO Document);",
-            "CREATE REL TABLE IF NOT EXISTS SUPERSEDES (FROM Decision TO Decision, reason STRING, timestamp INT64);",
+            "CREATE REL TABLE IF NOT EXISTS SUPERSEDES (FROM Decision TO Decision, FROM Document TO Document, reason STRING, timestamp INT64);",
             "CREATE REL TABLE IF NOT EXISTS EXTRACTED_FROM (FROM ActionItem TO ClientCall, timestamp_offset STRING);",
             "CREATE REL TABLE IF NOT EXISTS ASSIGNED_TO (FROM ActionItem TO Document);",
             "CREATE REL TABLE IF NOT EXISTS ENFORCES (FROM Invariant TO CodeEntity, FROM Invariant TO Decision);",
@@ -189,9 +189,18 @@ class KuzuGraphEngine:
         valid_from: Optional[int] = None,
         valid_until: Optional[int] = None,
         lifecycle_status: str = "ACTIVE",
+        organisation_id: str = "CMP-GENESIS-01",
+        effective_from: Optional[int] = None,
+        effective_to: Optional[int] = None,
+        superseded_by: Optional[str] = None,
+        confidence_state: str = "CONFIRMED",
+        source_mode: str = "LIVE",
+        version: int = 1,
+        parent_doc_id: Optional[str] = None,
     ) -> bool:
-        valid_from = valid_from or int(time.time())
-        valid_until = valid_until or int(time.time() + 31536000)
+        now_ts = int(time.time())
+        eff_from = effective_from or valid_from or now_ts
+        eff_to = effective_to or valid_until
 
         with self._lock:
             if self.use_native and self._conn:
@@ -210,8 +219,8 @@ class KuzuGraphEngine:
                             "title": title,
                             "department": department,
                             "clearance": clearance,
-                            "valid_from": valid_from,
-                            "valid_until": valid_until,
+                            "valid_from": eff_from,
+                            "valid_until": eff_to or (now_ts + 31536000),
                             "status": lifecycle_status,
                         },
                     )
@@ -226,9 +235,17 @@ class KuzuGraphEngine:
                 "title": title,
                 "department": department,
                 "clearance": clearance,
-                "valid_from": valid_from,
-                "valid_until": valid_until,
+                "valid_from": eff_from,
+                "valid_until": eff_to,
                 "lifecycle_status": lifecycle_status,
+                "organisation_id": organisation_id,
+                "effective_from": eff_from,
+                "effective_to": eff_to,
+                "superseded_by": superseded_by,
+                "confidence_state": confidence_state,
+                "source_mode": source_mode,
+                "version": version,
+                "parent_doc_id": parent_doc_id,
             }
             with sqlite3.connect(self._sqlite_path) as conn:
                 conn.execute(
@@ -237,6 +254,134 @@ class KuzuGraphEngine:
                 )
                 conn.commit()
             return True
+
+    def link_document_supersedes(
+        self,
+        new_doc_id: str,
+        old_doc_id: str,
+        reason: str = "VERSION_UPDATE",
+        timestamp: Optional[int] = None,
+    ) -> bool:
+        """
+        Creates a temporal [:SUPERSEDES] edge from new Document version to old Document version,
+        marking the old version's lifecycle_status as 'SUPERSEDED'.
+        """
+        ts = timestamp or int(time.time())
+        with self._lock:
+            import json
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute(
+                        """
+                        MATCH (newD:Document {id: $new_id}), (oldD:Document {id: $old_id})
+                        CREATE (newD)-[:SUPERSEDES {reason: $reason, timestamp: $ts}]->(oldD)
+                        SET oldD.lifecycle_status = 'SUPERSEDED';
+                        """,
+                        {"new_id": new_doc_id, "old_id": old_doc_id, "reason": reason, "ts": ts},
+                    )
+                    return True
+                except Exception as e:
+                    logger.warning(f"Native link_document_supersedes error: {e}")
+
+            # Fallback execution
+            with sqlite3.connect(self._sqlite_path) as conn:
+                edge_data = {"reason": reason, "timestamp": ts}
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_edges (edge_type, from_type, from_id, to_type, to_id, data) VALUES (?, ?, ?, ?, ?, ?);",
+                    ("SUPERSEDES", "Document", new_doc_id, "Document", old_doc_id, json.dumps(edge_data)),
+                )
+                cur = conn.cursor()
+                cur.execute("SELECT data FROM graph_nodes WHERE node_type = 'Document' AND id = ?;", (old_doc_id,))
+                row = cur.fetchone()
+                if row:
+                    old_data = json.loads(row[0])
+                    old_data["lifecycle_status"] = "SUPERSEDED"
+                    old_data["superseded_by"] = new_doc_id
+                    conn.execute(
+                        "UPDATE graph_nodes SET data = ? WHERE node_type = 'Document' AND id = ?;",
+                        (json.dumps(old_data), old_doc_id),
+                    )
+                conn.commit()
+            return True
+
+    def get_document_history(self, doc_id: str) -> List[Dict[str, Any]]:
+        """Traverses temporal [:SUPERSEDES] relationships backwards to retrieve document version ancestry."""
+        chain = []
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    res = self._conn.execute(
+                        """
+                        MATCH (current:Document {id: $id})-[:SUPERSEDES*]->(ancestor:Document)
+                        RETURN ancestor.id, ancestor.title, ancestor.lifecycle_status, ancestor.valid_from;
+                        """,
+                        {"id": doc_id},
+                    )
+                    while res.has_next():
+                        row = res.get_next()
+                        chain.append({
+                            "id": row[0],
+                            "title": row[1],
+                            "status": row[2],
+                            "valid_from": row[3],
+                        })
+                    return chain
+                except Exception as e:
+                    logger.warning(f"Native get_document_history error: {e}")
+
+            # Fallback traversal
+            import json
+            with sqlite3.connect(self._sqlite_path) as conn:
+                cur = conn.cursor()
+                curr_id = doc_id
+                visited = set()
+                while curr_id and curr_id not in visited:
+                    visited.add(curr_id)
+                    cur.execute(
+                        "SELECT to_id, data FROM graph_edges WHERE edge_type = 'SUPERSEDES' AND from_type = 'Document' AND from_id = ?;",
+                        (curr_id,),
+                    )
+                    edge = cur.fetchone()
+                    if not edge:
+                        break
+                    to_id, edge_data = edge
+                    cur.execute("SELECT data FROM graph_nodes WHERE node_type = 'Document' AND id = ?;", (to_id,))
+                    node_row = cur.fetchone()
+                    if node_row:
+                        chain.append(json.loads(node_row[0]))
+                    curr_id = to_id
+            return chain
+
+    def get_document_superseded_chain(self, doc_id: str) -> List[Dict[str, Any]]:
+        """Alias for get_document_history to traverse document supersedes lineage."""
+        return self.get_document_history(doc_id)
+
+    def delete_document_atomic(self, doc_id: str) -> Dict[str, Any]:
+        """
+        Compensating transaction method: atomically detaches and deletes a Document
+        node and its related edges from Kùzu upon downstream ingestion failure.
+        """
+        detached = 0
+        with self._lock:
+            if self.use_native and self._conn:
+                try:
+                    self._conn.execute("MATCH (d:Document) WHERE d.id = $doc_id DETACH DELETE d;", {"doc_id": doc_id})
+                    detached += 1
+                except Exception as e:
+                    logger.warning(f"Native delete_document_atomic notice: {e}")
+            try:
+                with sqlite3.connect(self._sqlite_path) as conn:
+                    cur = conn.cursor()
+                    cur.execute("DELETE FROM graph_nodes WHERE node_type = 'Document' AND id = ?;", (doc_id,))
+                    detached += cur.rowcount
+                    cur.execute(
+                        "DELETE FROM graph_edges WHERE (from_type = 'Document' AND from_id = ?) OR (to_type = 'Document' AND to_id = ?);",
+                        (doc_id, doc_id),
+                    )
+                    conn.commit()
+            except Exception as e:
+                logger.warning(f"Embedded delete_document_atomic notice: {e}")
+        return {"doc_id": doc_id, "detached_count": max(1, detached)}
 
     def sync_decision(
         self,

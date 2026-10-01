@@ -30,13 +30,27 @@ from apps.api.schemas.contracts import (
     ChatSessionUpdate,
     ChatMessageDTO,
     ChatMessageCreate,
+    AuditBlockDTO,
 )
+from apps.api.schemas.core_contracts import AuditVerifyResponse
+from apps.api.core.audit_ledger import audit_ledger
+from apps.api.core.errors import TARSException, ErrorCodes
 from apps.api.core.action_hub import action_hub_repo
 from apps.api.core.session import session_manager, SessionData, user_manager
 from apps.api.core.ollama_client import ollama_client
 from apps.api.core.search import search_service
 from apps.api.core.company import company_repo
 from apps.api.core.db import db
+from apps.api.core.actions import action_hub
+from apps.api.core.policies import policy_engine
+from apps.api.core.facts import fact_manager
+from apps.api.schemas.core_contracts import (
+    ActionReceipt,
+    PolicyRule,
+    PolicyDecision,
+    FactTransitionRequest,
+    FactTransitionResponse,
+)
 
 try:
     from apps.api.ingestion.routes import sse_manager
@@ -119,14 +133,23 @@ async def search_knowledge(req: SearchRequest):
             latency_ms=round(elapsed_ms, 2)
         )
 
-    # 3. RBAC-Filtered Federated Search
-    citations = await search_service.search(
+    req_id = f"REQ-{uuid.uuid4().hex[:8]}"
+
+    # 3. RBAC-Filtered Federated Search with server-authoritative candidate generation
+    search_hybrid_res = await search_service.search_hybrid(
         query=req.query,
         limit=8,
         user_clearance=req.clearance or "ALL_TEAM",
-        user_role=req.user_role or "ENGINEER"
+        user_role=req.user_role or "ENGINEER",
+        organisation_id=req.organisation_id,
+        as_of=req.as_of,
     )
-    print(f"[SEARCH DEBUG] Citations found: {len(citations)}", flush=True)
+    citations = search_hybrid_res["citations"]
+    evidence_set = search_hybrid_res["evidence_set"]
+    hybrid_status = search_hybrid_res.get("status")
+    abstention_reason = search_hybrid_res.get("abstention_reason")
+
+    print(f"[SEARCH DEBUG] Citations found: {len(citations)}, status={hybrid_status}", flush=True)
     # Retrieve and format institutional company facts
     company = company_repo.get_profile() or {}
     comp_name = company.get("company_name", "Your Company")
@@ -221,22 +244,44 @@ async def search_knowledge(req: SearchRequest):
 
     # 4. Honest Local Ollama Generation & Outage Behavior
     ollama_ok = await ollama_client.is_available()
+    source_mode = "LIVE"
+    is_authoritative = True
+    response_status = "COMPLETED"
+
     if not ollama_ok:
         print("[SEARCH DEBUG] Ollama is OFFLINE. Returning truthful outage response.", flush=True)
+        source_mode = "FALLBACK"
+        is_authoritative = False
         if citations:
-            answer = f"Local AI unavailable — Ollama is not running. Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            answer = f"Local AI unavailable — Ollama is not running (Local AI inference unavailable). Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            response_status = "PARTIAL"
         else:
-            answer = f"Local AI unavailable — Ollama is not running. Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+            answer = f"Local AI unavailable — Ollama is not running (Local AI inference unavailable). 0 citations found matching '{req.query}'."
+            response_status = "INFERENCE_UNAVAILABLE"
     else:
         print(f"[SEARCH DEBUG] Calling ollama_client.generate with task_complexity={task_complexity}...", flush=True)
         llm_res = await ollama_client.generate(prompt, task_complexity=task_complexity, max_tokens=max_tokens, system=system_prompt)
         print(f"[SEARCH DEBUG] ollama_client.generate completed: success={llm_res.get('success')}, model={llm_res.get('model_used')}", flush=True)
         if llm_res.get("success") and llm_res.get("response"):
             answer = str(llm_res.get("response")).strip()
+            source_mode = "LIVE"
+            is_authoritative = True
+            response_status = "COMPLETED"
         elif citations:
             answer = f"Found {len(citations)} relevant citations matching '{req.query}' in institutional knowledge memory."
+            source_mode = "FALLBACK"
+            is_authoritative = False
+            response_status = "PARTIAL"
         else:
-            answer = f"Found 0 relevant citations matching '{req.query}' in the local knowledge lake."
+            answer = f"No evidence found matching query '{req.query}' in institutional memory."
+            source_mode = "LIVE"
+            is_authoritative = True
+            response_status = "NO_EVIDENCE"
+
+    # Check if abstention was triggered by low evidence confidence (Points 61, 62)
+    if ollama_ok and (hybrid_status == "ABSTAINED" or (evidence_set and getattr(evidence_set, "abstention_triggered", False))):
+        response_status = "ABSTAINED"
+        answer = f"Abstaining from response: Insufficient verified institutional evidence found matching query '{req.query}'."
 
     # 4. Telemetry Logging (Safe Continuous Learning Telemetry)
     try:
@@ -254,7 +299,13 @@ async def search_knowledge(req: SearchRequest):
         query=req.query,
         answer=answer,
         citations=citations,
-        latency_ms=round(elapsed_ms, 2)
+        latency_ms=round(elapsed_ms, 2),
+        source_mode=source_mode,
+        is_authoritative=is_authoritative,
+        status=response_status,
+        request_id=req_id,
+        evidence_set=evidence_set.model_dump() if hasattr(evidence_set, "model_dump") else None,
+        abstention_reason=abstention_reason,
     )
 
 # --- Action Hub Routes ---
@@ -303,6 +354,165 @@ async def delete_action_item(item_id: str):
     if sse_manager:
         sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "DELETE", "id": item_id})
     return {"status": "deleted"}
+
+
+# ==========================================
+# PHASE 3: GOVERNED ACTION ENGINE, POLICIES & FACT LIFECYCLE (Points 4, 11-14, 90-94, 145-160)
+# ==========================================
+
+class ActionTransitionRequest(BaseModel):
+    target_status: str
+    actor_id: Optional[str] = "SYSTEM"
+    actor_role: Optional[str] = "ENGINEER"
+    reason: Optional[str] = None
+
+
+class ActionExecuteRequest(BaseModel):
+    actor_id: Optional[str] = "SYSTEM"
+    actor_role: Optional[str] = "ENGINEER"
+    actor_clearance: Optional[str] = "ALL_TEAM"
+    rollback_handler: Optional[Dict[str, Any]] = None
+
+
+class ActionRollbackRequest(BaseModel):
+    actor_id: Optional[str] = "SYSTEM"
+    reason: Optional[str] = "MANUAL_ROLLBACK"
+
+
+class PolicyEvaluateRequest(BaseModel):
+    action_type: str
+    risk_level: str = "LOW"
+    actor_role: str = "ENGINEER"
+    actor_clearance: str = "ALL_TEAM"
+    parameters: Optional[Dict[str, Any]] = None
+    tool: Optional[str] = None
+    organisation_id: Optional[str] = "CMP-GENESIS-01"
+
+
+@router.post("/action_hub/{item_id}/transition", response_model=ActionItemDTO)
+@router.post("/actions/{item_id}/transition", response_model=ActionItemDTO)
+async def transition_action_item(item_id: str, req: ActionTransitionRequest):
+    updated = action_hub.transition_action(
+        action_id=item_id,
+        target_status=req.target_status,
+        actor_id=req.actor_id or "SYSTEM",
+        actor_role=req.actor_role or "ENGINEER",
+        reason=req.reason,
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "TRANSITION", "id": item_id, "status": req.target_status})
+    return updated
+
+
+@router.post("/action_hub/{item_id}/execute", response_model=ActionReceipt)
+@router.post("/actions/{item_id}/execute", response_model=ActionReceipt)
+async def execute_action_item(item_id: str, req: Optional[ActionExecuteRequest] = None):
+    req = req or ActionExecuteRequest()
+    receipt = action_hub.execute_action(
+        action_id=item_id,
+        actor_id=req.actor_id or "SYSTEM",
+        actor_role=req.actor_role or "ENGINEER",
+        actor_clearance=req.actor_clearance or "ALL_TEAM",
+        rollback_handler=req.rollback_handler,
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "EXECUTE", "id": item_id, "receipt_id": receipt.receipt_id})
+    return receipt
+
+
+@router.post("/action_hub/{item_id}/rollback", response_model=ActionReceipt)
+@router.post("/actions/{item_id}/rollback", response_model=ActionReceipt)
+async def rollback_action_item(item_id: str, req: Optional[ActionRollbackRequest] = None):
+    req = req or ActionRollbackRequest()
+    receipt = action_hub.rollback_action(
+        action_id=item_id,
+        actor_id=req.actor_id or "SYSTEM",
+        reason=req.reason or "MANUAL_ROLLBACK",
+    )
+    if sse_manager:
+        sse_manager.publish("ACTION_ITEM_MUTATION", {"action": "ROLLBACK", "id": item_id, "receipt_id": receipt.receipt_id})
+    return receipt
+
+
+@router.get("/action_hub/{item_id}/receipts", response_model=List[ActionReceipt])
+@router.get("/actions/{item_id}/receipts", response_model=List[ActionReceipt])
+async def get_action_receipts(item_id: str):
+    conn = db.get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM action_receipts WHERE action_id = ? ORDER BY executed_at DESC;", (item_id,))
+    rows = cursor.fetchall()
+    receipts = []
+    for r in rows:
+        d = dict(r)
+        rb = None
+        if d.get("rollback_payload"):
+            try:
+                rb = json.loads(d["rollback_payload"])
+            except Exception:
+                pass
+        receipts.append(ActionReceipt(
+            receipt_id=d["receipt_id"],
+            action_id=d["action_id"],
+            status=d["status"],
+            actor=d["actor"],
+            executed_at=d["executed_at"],
+            duration_ms=d.get("duration_ms", 0),
+            parameters_hash=d["parameters_hash"],
+            result_summary=d.get("result_summary"),
+            rollback_payload=rb,
+            audit_block_id=d.get("audit_block_id"),
+            organisation_id=d.get("organisation_id", "CMP-GENESIS-01"),
+        ))
+    return receipts
+
+
+# --- Deterministic Policy Engine Routes ---
+
+@router.get("/policies", response_model=List[PolicyRule])
+async def list_policies(organisation_id: str = Query("CMP-GENESIS-01")):
+    return policy_engine.list_policies(organisation_id=organisation_id)
+
+
+@router.post("/policies/evaluate", response_model=PolicyDecision)
+async def evaluate_policy(req: PolicyEvaluateRequest):
+    return policy_engine.evaluate(
+        action_type=req.action_type,
+        risk_level=req.risk_level,
+        actor_role=req.actor_role,
+        actor_clearance=req.actor_clearance,
+        parameters=req.parameters,
+        tool=req.tool,
+        organisation_id=req.organisation_id or "CMP-GENESIS-01",
+    )
+
+
+@router.post("/policies", response_model=PolicyRule)
+async def register_policy(rule: PolicyRule):
+    policy_engine.register_policy(rule)
+    return rule
+
+
+# --- Fact-Confidence Lifecycle Routes ---
+
+@router.post("/facts/transition", response_model=FactTransitionResponse)
+async def transition_fact_confidence(req: FactTransitionRequest):
+    return fact_manager.transition_confidence(
+        entity_type=req.entity_type,
+        entity_id=req.entity_id,
+        new_state=req.new_state,
+        actor=req.actor or "SYSTEM",
+        reason=req.reason,
+        organisation_id=req.organisation_id or "CMP-GENESIS-01",
+    )
+
+
+@router.get("/facts/unverified", response_model=List[Dict[str, Any]])
+async def list_unverified_facts(
+    organisation_id: str = Query("CMP-GENESIS-01"),
+    limit: int = Query(50),
+):
+    return fact_manager.list_unverified_facts(organisation_id=organisation_id, limit=limit)
+
 
 # --- Session Routes ---
 @router.post("/session", response_model=SessionData)
@@ -714,13 +924,13 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
             else:
                 ml_category = "STRATEGY"
 
-    title = ml_title
+    title = req.title or ml_title
     chosen_policy = ml_policy
-    category = ml_category
+    category = req.category or ml_category
     context_desc = ml_context or f"Ratified via Collaborative Think Tank by {req.user_name or 'Team Member'}."
     source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
     tags = f"teach,learned,decision,{category.lower()}"
-    content_record = f"{chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
+    content_record = f"{title}: {chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
 
     # 2. Persist to SQLite institutional memory table
     conn = db.get_connection()
@@ -1596,3 +1806,25 @@ async def dismiss_core_strategic_recommendation(rec_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return {"status": "dismissed", "id": rec_id}
+
+
+# ==========================================
+# AUDIT LEDGER ENDPOINTS (Tamper-evident SHA-256)
+# ==========================================
+@router.get("/audit/verify", response_model=AuditVerifyResponse)
+async def verify_audit_ledger():
+    """
+    Cryptographic chain verification endpoint.
+    Traverses the chained SHA-256 ledger from Genesis block to tip,
+    verifying sequential hash integrity and reporting any tampering or broken links.
+    """
+    result = audit_ledger.verify_chain()
+    return AuditVerifyResponse(**result)
+
+
+@router.get("/audit/trail", response_model=List[AuditBlockDTO])
+async def get_audit_trail(limit: int = 100, entity_id: Optional[str] = None):
+    """Returns recent tamper-evident audit ledger entries."""
+    events = audit_ledger.get_events(limit=limit, entity_id=entity_id)
+    return [AuditBlockDTO(**e) for e in events]
+

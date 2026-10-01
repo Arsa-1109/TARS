@@ -16,7 +16,7 @@ import shutil
 import threading
 import time
 import uuid
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException, Query, status, Body, Header
 from fastapi.responses import StreamingResponse, FileResponse
@@ -30,6 +30,8 @@ from apps.api.ingestion.spec_extractor import spec_extractor
 from apps.api.ingestion.drop_watcher import drop_watcher
 from apps.api.ingestion.kuzu_sync import kuzu_sync
 from apps.api.ingestion.action_hub import action_hub_repo
+from apps.api.ingestion.transaction_coordinator import ingestion_coordinator
+from apps.api.core.errors import TARSException, ErrorCodes
 
 logger = logging.getLogger("tars.ingestion.routes")
 router = APIRouter()
@@ -294,6 +296,13 @@ class DocumentIngestResponse(BaseModel):
     table_count: int
     character_count: int
     preview: str
+    effective_from: Optional[Union[int, str]] = None
+    effective_to: Optional[Union[int, str]] = None
+    organisation_id: Optional[str] = None
+    audit_block_id: Optional[str] = None
+    version: Optional[int] = 1
+    parent_doc_id: Optional[str] = None
+    prior_version_doc_id: Optional[str] = None
 
 
 @router.post("/upload", response_model=DocumentIngestResponse, status_code=status.HTTP_201_CREATED)
@@ -303,17 +312,21 @@ async def upload_document(
     file: UploadFile = File(...),
     department: str = Form("GENERAL"),
     clearance: str = Form("ALL_TEAM"),
+    organisation_id: Optional[str] = Form(None),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
 ):
     """
     Uploads and parses a document (.pdf, .docx, .xlsx, .pptx, .csv, .json, .txt, .md).
     Flattens multi-sheet spreadsheets into semantic Markdown tables.
-    Registers document into the Kùzu graph database.
+    Uses TransactionalIngestionCoordinator for dual-store atomic commits and audit ledger recording.
     """
     safe_filename = os.path.basename(file.filename or f"upload_{uuid.uuid4().hex[:6]}.bin")
     file_path = os.path.join(UPLOAD_DIR, safe_filename)
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+
+    tenant_id = organisation_id or x_company_name or "default"
 
     try:
         doc_record = markitdown_parser.parse_file(
@@ -322,12 +335,13 @@ async def upload_document(
             clearance=clearance,
         )
 
-        # Synchronize to Kùzu graph
-        kuzu_sync.sync_document(
-            doc_id=doc_record["doc_id"],
-            title=safe_filename,
-            department=department,
-            clearance=clearance,
+        doc_record["organisation_id"] = tenant_id
+
+        # Use dual-store TransactionalIngestionCoordinator
+        ingest_result = ingestion_coordinator.ingest_document_atomic(
+            doc_record=doc_record,
+            file_path=file_path,
+            organisation_id=tenant_id,
         )
 
         # Notify via SSE event stream
@@ -338,6 +352,8 @@ async def upload_document(
                 "filename": safe_filename,
                 "table_count": doc_record.get("table_count", 0),
                 "chunk_count": doc_record.get("chunk_count", 0),
+                "organisation_id": tenant_id,
+                "audit_block_id": ingest_result.get("audit_block_id"),
             },
         )
 
@@ -354,7 +370,16 @@ async def upload_document(
             table_count=doc_record["table_count"],
             character_count=doc_record["character_count"],
             preview=preview,
+            effective_from=ingest_result.get("effective_from"),
+            effective_to=ingest_result.get("effective_to"),
+            organisation_id=tenant_id,
+            audit_block_id=ingest_result.get("audit_block_id"),
+            version=ingest_result.get("version", 1),
+            parent_doc_id=ingest_result.get("parent_doc_id"),
+            prior_version_doc_id=ingest_result.get("prior_version_doc_id"),
         )
+    except TARSException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document parsing failed: {e}")
 

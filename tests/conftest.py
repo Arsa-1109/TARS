@@ -9,8 +9,26 @@ import shutil
 import tempfile
 import pytest
 
+import uuid
+
+from pathlib import Path
+
 # 1. Establish isolated temporary test workspace directory before any apps.api imports
-TEST_TMP_DIR = tempfile.mkdtemp(prefix="tars_test_isolation_")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMP_PARENT = os.path.join(REPO_ROOT, "tmp_test")
+tempfile.tempdir = TEMP_PARENT
+
+def _safe_mkdtemp(suffix="", prefix="tmp", dir=None):
+    base = dir or TEMP_PARENT
+    os.makedirs(base, exist_ok=True)
+    d = os.path.join(base, f"{prefix}_{uuid.uuid4().hex[:8]}{suffix}")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+tempfile.mkdtemp = _safe_mkdtemp
+
+TEST_TMP_DIR = os.path.join(TEMP_PARENT, f"tars_test_isolation_{uuid.uuid4().hex[:8]}")
+os.makedirs(TEST_TMP_DIR, exist_ok=True)
 TEST_DB_FILE = os.path.join(TEST_TMP_DIR, "isolated_test_tars.db")
 TEST_VAULT_FILE = os.path.join(TEST_TMP_DIR, "isolated_vault.db")
 TEST_ACTION_HUB_FILE = os.path.join(TEST_TMP_DIR, "isolated_action_hub.sqlite3")
@@ -32,6 +50,14 @@ CANONICAL_USER_IDS = (
     "usr-chloe",
     "usr-liam",
 )
+
+
+@pytest.fixture
+def tmp_path():
+    p = Path(TEMP_PARENT) / f"tp_{uuid.uuid4().hex[:8]}"
+    p.mkdir(parents=True, exist_ok=True)
+    yield p
+    shutil.rmtree(p, ignore_errors=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
