@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('FOUNDER', 'CHIEF_ARCHITECT', 'EXECUTIVE', 'ENGINEER', 'PRODUCT', 'SALES', 'NEW_HIRE', 'GUEST', 'ALL_TEAM')),
     department TEXT NOT NULL,
-    clearance TEXT NOT NULL CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY')),
+    clearance TEXT NOT NULL CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY', 'EXECUTIVE')),
     created_at INTEGER NOT NULL,
     company_id TEXT,
     company_name TEXT
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS documents (
     file_path TEXT NOT NULL,
     file_hash TEXT UNIQUE NOT NULL,
     department TEXT NOT NULL,
-    clearance TEXT NOT NULL DEFAULT 'ALL_TEAM' CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY')),
+    clearance TEXT NOT NULL DEFAULT 'ALL_TEAM' CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY', 'EXECUTIVE')),
     format TEXT NOT NULL,
     file_size_bytes INTEGER NOT NULL CHECK (file_size_bytes >= 0),
     page_count INTEGER NOT NULL DEFAULT 1 CHECK (page_count >= 0),
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS memories (
     tags TEXT,
     related_ids TEXT,
     vector_ref TEXT,
-    clearance TEXT NOT NULL DEFAULT 'ALL_TEAM' CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY')),
+    clearance TEXT NOT NULL DEFAULT 'ALL_TEAM' CHECK (clearance IN ('ALL_TEAM', 'CONFIDENTIAL', 'EXECUTIVE_ONLY', 'EXECUTIVE')),
     is_demo INTEGER DEFAULT 0,
     organisation_id TEXT DEFAULT 'CMP-GENESIS-01'
 );
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS action_items (
     department TEXT DEFAULT 'General',
     priority TEXT DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')),
     deadline INTEGER,
-    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('DETECTED', 'PROPOSED', 'REVIEW_REQUIRED', 'APPROVED', 'REJECTED', 'EXECUTING', 'COMPLETED', 'FAILED', 'OPEN', 'IN_PROGRESS', 'DONE', 'PENDING')),
+    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('DETECTED', 'PROPOSED', 'REVIEW_REQUIRED', 'APPROVED', 'REJECTED', 'QUEUED', 'EXECUTING', 'COMPLETED', 'FAILED', 'ROLLED_BACK', 'OPEN', 'IN_PROGRESS', 'DONE', 'PENDING')),
     source_type TEXT NOT NULL,
     source_id TEXT NOT NULL,
     source_offset TEXT NOT NULL,

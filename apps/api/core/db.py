@@ -166,28 +166,55 @@ class LocalDB:
             )
         ''')
 
-        # Action Receipts table (Item 150: Cryptographic hash-chained receipts)
+        # Action Receipts table (Item 150: Cryptographic hash-chained receipts & Governed Action Engine)
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS action_receipts (
                 receipt_id TEXT PRIMARY KEY,
-                action_id TEXT,
+                action_id TEXT NOT NULL,
                 actor TEXT NOT NULL,
-                tool TEXT NOT NULL,
-                payload_hash TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                policy_version TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'COMPLETED',
+                executed_at INTEGER NOT NULL DEFAULT 0,
+                duration_ms INTEGER DEFAULT 0,
+                parameters_hash TEXT NOT NULL DEFAULT '',
+                result_summary TEXT,
+                rollback_payload TEXT,
+                audit_block_id TEXT,
+                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01',
+                tool TEXT DEFAULT '',
+                payload_hash TEXT DEFAULT '',
+                timestamp TEXT DEFAULT '',
+                policy_version TEXT DEFAULT '',
                 rollback_hook TEXT,
-                chain_hash TEXT NOT NULL,
-                prev_chain_hash TEXT
+                chain_hash TEXT DEFAULT '',
+                prev_chain_hash TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
         cursor.execute("PRAGMA table_info(action_receipts);")
         rcpt_cols = [row[1] for row in cursor.fetchall()]
-        if "prev_chain_hash" not in rcpt_cols:
-            try:
-                cursor.execute("ALTER TABLE action_receipts ADD COLUMN prev_chain_hash TEXT;")
-            except Exception:
-                pass
+        for col_name, col_def in [
+            ("status", "TEXT NOT NULL DEFAULT 'COMPLETED'"),
+            ("executed_at", "INTEGER NOT NULL DEFAULT 0"),
+            ("duration_ms", "INTEGER DEFAULT 0"),
+            ("parameters_hash", "TEXT NOT NULL DEFAULT ''"),
+            ("result_summary", "TEXT"),
+            ("rollback_payload", "TEXT"),
+            ("audit_block_id", "TEXT"),
+            ("organisation_id", "TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'"),
+            ("tool", "TEXT DEFAULT ''"),
+            ("payload_hash", "TEXT DEFAULT ''"),
+            ("timestamp", "TEXT DEFAULT ''"),
+            ("policy_version", "TEXT DEFAULT ''"),
+            ("rollback_hook", "TEXT"),
+            ("chain_hash", "TEXT DEFAULT ''"),
+            ("prev_chain_hash", "TEXT"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ]:
+            if col_name not in rcpt_cols:
+                try:
+                    cursor.execute(f"ALTER TABLE action_receipts ADD COLUMN {col_name} {col_def};")
+                except Exception:
+                    pass
         
         # Tamper-Evident Chained SHA-256 Audit Ledger
         cursor.execute('''
@@ -687,24 +714,10 @@ class LocalDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_owner ON action_items(owner);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_items_created ON action_items(created_at DESC);")
 
-        # Action Execution Receipts Table (Points 4, 145-160)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS action_receipts (
-                receipt_id TEXT PRIMARY KEY,
-                action_id TEXT NOT NULL,
-                status TEXT NOT NULL,
-                actor TEXT NOT NULL,
-                executed_at INTEGER NOT NULL,
-                duration_ms INTEGER DEFAULT 0,
-                parameters_hash TEXT NOT NULL,
-                result_summary TEXT,
-                rollback_payload TEXT,
-                audit_block_id TEXT,
-                organisation_id TEXT NOT NULL DEFAULT 'CMP-GENESIS-01'
-            );
-        ''')
+        # Action Execution Receipts Table Indexes (Points 4, 145-160, Item 150)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_receipts_action ON action_receipts(action_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_action_receipts_org ON action_receipts(organisation_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_receipts_chain_hash ON action_receipts(chain_hash);")
 
         # Declarative Policy Rules Table (Points 13, 14)
         cursor.execute('''
