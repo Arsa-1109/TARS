@@ -109,7 +109,8 @@ drop/*
 *.pdf
 *.md
 !README.md
-docs/
+docs/adr/
+!docs/screenshots/*.png
 verdant_assets/*
 /app/
 TRACK_1_DOCUMENTATION.md
