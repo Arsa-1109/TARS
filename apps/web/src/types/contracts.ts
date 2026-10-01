@@ -371,3 +371,57 @@ export interface WorkspaceResetResponse {
   timestamp: number;
 }
 
+// Workspace 3: Dynamic Onboarding Flight-Plans
+export interface OnboardingMilestoneTour {
+  title: string;
+  audio_duration: string;
+  speaker: string;
+}
+
+export interface OnboardingModuleDTO {
+  id: string;
+  company_name?: string;
+  company_id?: string;
+  day: number;
+  title: string;
+  description: string;
+  tasks: string[];
+  milestone_tour?: OnboardingMilestoneTour;
+  order_index?: number;
+  is_published?: boolean;
+  status?: 'COMPLETED' | 'CURRENT' | 'UPCOMING';
+}
+
+export interface OnboardingFlightPlanDTO {
+  company_name: string;
+  company_id?: string;
+  title: string;
+  total_days: number;
+  current_day: number;
+  modules: OnboardingModuleDTO[];
+  completed_tasks: Record<string, boolean>;
+  is_published: boolean;
+  updated_at?: string;
+}
+
+export interface OnboardingFlightPlanCreate {
+  company_name: string;
+  company_id?: string;
+  title?: string;
+  total_days?: number;
+  modules: OnboardingModuleDTO[];
+}
+
+export interface OnboardingProgressUpdateDTO {
+  company_name: string;
+  user_id?: string;
+  task_key: string;
+  completed: boolean;
+}
+
+export interface OnboardingResetRequest {
+  company_name: string;
+  company_id?: string;
+}
+
+

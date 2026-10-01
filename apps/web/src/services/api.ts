@@ -11,6 +11,9 @@ import {
   CompanyProfile,
   GenesisBloomPayload,
   GenesisBloomResponse,
+  OnboardingFlightPlanDTO,
+  OnboardingFlightPlanCreate,
+  OnboardingProgressUpdateDTO,
 } from '../types/contracts';
 
 export interface TarsApi {
@@ -58,5 +61,11 @@ export interface TarsApi {
 
   // Sovereign Workspace Management & Data Isolation
   resetWorkspace(payload?: import('../types/contracts').WorkspaceResetRequest): Promise<import('../types/contracts').WorkspaceResetResponse>;
+
+  // Workspace 3: Dynamic Onboarding Flight-Plans
+  getFlightPlan(companyName?: string, userId?: string): Promise<OnboardingFlightPlanDTO>;
+  saveFlightPlan(plan: OnboardingFlightPlanCreate): Promise<OnboardingFlightPlanDTO>;
+  updateTaskProgress(update: OnboardingProgressUpdateDTO): Promise<{ completed_tasks: Record<string, boolean> }>;
+  resetFlightPlanDefaults(companyName: string): Promise<OnboardingFlightPlanDTO>;
 }
 

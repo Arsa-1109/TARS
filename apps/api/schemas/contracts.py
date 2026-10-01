@@ -389,3 +389,53 @@ from apps.api.schemas.core_contracts import (
     EvidenceItem,
     EvidenceSet,
 )
+
+# ==========================================
+# WORKSPACE 3: DYNAMIC ONBOARDING FLIGHT-PLANS
+# ==========================================
+class OnboardingMilestoneTour(BaseModel):
+    title: str
+    audio_duration: str = "3m 45s"
+    speaker: str = "Founder"
+
+class OnboardingModuleDTO(BaseModel):
+    id: str
+    company_name: Optional[str] = None
+    company_id: Optional[str] = None
+    day: int
+    title: str
+    description: str
+    tasks: List[str] = Field(default_factory=list)
+    milestone_tour: Optional[OnboardingMilestoneTour] = None
+    order_index: int = 0
+    is_published: bool = True
+    status: Optional[str] = None
+
+class OnboardingFlightPlanDTO(BaseModel):
+    company_name: str
+    company_id: Optional[str] = None
+    title: str
+    total_days: int = 14
+    current_day: int = 1
+    modules: List[OnboardingModuleDTO] = Field(default_factory=list)
+    completed_tasks: Dict[str, bool] = Field(default_factory=dict)
+    is_published: bool = True
+    updated_at: Optional[str] = None
+
+class OnboardingFlightPlanCreate(BaseModel):
+    company_name: str
+    company_id: Optional[str] = None
+    title: Optional[str] = None
+    total_days: Optional[int] = 14
+    modules: List[OnboardingModuleDTO] = Field(default_factory=list)
+
+class OnboardingProgressUpdateDTO(BaseModel):
+    company_name: str
+    user_id: Optional[str] = None
+    task_key: str
+    completed: bool
+
+class OnboardingResetRequest(BaseModel):
+    company_name: str
+    company_id: Optional[str] = None
+

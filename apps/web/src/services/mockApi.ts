@@ -12,6 +12,10 @@ import {
   CompanyProfile,
   GenesisBloomPayload,
   GenesisBloomResponse,
+  OnboardingFlightPlanDTO,
+  OnboardingFlightPlanCreate,
+  OnboardingProgressUpdateDTO,
+  OnboardingModuleDTO,
 } from '../types/contracts';
 import {
   MOCK_SEARCH_RESULTS,
@@ -67,6 +71,8 @@ export class MockTarsApi implements TarsApi {
   private calls: VoiceToSpecResponse[] = [...MOCK_CALLS];
   private invariants: InvariantCheckResult[] = [...MOCK_INVARIANTS];
   private actions: ActionItemDTO[] = [...MOCK_ACTION_ITEMS];
+  private mockFlightPlans: Map<string, OnboardingModuleDTO[]> = new Map();
+  private mockProgress: Map<string, Record<string, boolean>> = new Map();
 
   async getCompanyProfile(companyIdOrName?: string): Promise<CompanyProfile | null> {
     await sleep(40);
@@ -523,5 +529,149 @@ export class MockTarsApi implements TarsApi {
       },
       timestamp: Date.now(),
     };
+  }
+
+  private _generateMockDefaults(companyName: string): OnboardingModuleDTO[] {
+    const cName = companyName || 'Sovereign Startup';
+    return [
+      {
+        id: `mod-mock-1-${Date.now()}`,
+        company_name: cName,
+        day: 1,
+        title: `Sovereignty & The Air-Gap Invariant (${cName})`,
+        description: `Understand why ${cName} enforces zero cloud egress ($E_{net} = 0.00\\text{ KB}$) and how local on-premise execution protects company IP.`,
+        tasks: [
+          `Inspect ${cName} institutional identity and core thesis in Knowledge Base`,
+          `Verify .tars/invariants.yaml and install local pre-commit AST guards`,
+          `Run airplane-mode verification script in local terminal with 0.00 KB egress`,
+        ],
+        milestone_tour: {
+          title: `Founding Thesis: Why Startups Die of Context Decay`,
+          audio_duration: '3m 45s',
+          speaker: `Founder (${cName})`,
+        },
+        order_index: 1,
+        is_published: true,
+        status: 'CURRENT',
+      },
+      {
+        id: `mod-mock-2-${Date.now()}`,
+        company_name: cName,
+        day: 2,
+        title: `Deterministic AST Enforcement & Python, TypeScript, SQLite`,
+        description: `Learn how Tree-sitter parses staged Git diffs in <50ms to enforce ${cName}'s architectural standards before commits land in main.`,
+        tasks: [
+          `Review architectural invariants in Architecture Workspace`,
+          `Test local AST query runner against staged diffs in <50ms`,
+          `Inspect living MADR generator output in docs/adr/`,
+        ],
+        order_index: 2,
+        is_published: true,
+        status: 'UPCOMING',
+      },
+      {
+        id: `mod-mock-3-${Date.now()}`,
+        company_name: cName,
+        day: 3,
+        title: `Institutional Memory & Strategic Policies`,
+        description: `Explore the sovereign graph connecting ADR decisions, customer commitments, and code entities for ${cName}.`,
+        tasks: [
+          `Review policy decisions regarding Strict Rejection of Bespoke Forks`,
+          `Trace customer commitments into the Unified Action Hub`,
+          `Ask the Socratic Mentor about architectural boundaries and cash runway`,
+        ],
+        order_index: 3,
+        is_published: true,
+        status: 'UPCOMING',
+      },
+      {
+        id: `mod-mock-4-${Date.now()}`,
+        company_name: cName,
+        day: 4,
+        title: `First Compliant Pull Request`,
+        description: `Author and commit your first feature passing all invariant gates for ${cName}.`,
+        tasks: [
+          `Implement new service component adhering to Hexagonal architecture`,
+          `Verify sub-50ms pre-commit hook execution without regressions`,
+          `Submit PR with automated institutional executive summary`,
+        ],
+        order_index: 4,
+        is_published: true,
+        status: 'UPCOMING',
+      },
+    ];
+  }
+
+  async getFlightPlan(companyName?: string, userId?: string): Promise<OnboardingFlightPlanDTO> {
+    await sleep(40);
+    const cName = companyName || 'AetherFlow Technologies, Inc.';
+    const key = cName.trim().toLowerCase();
+
+    if (!this.mockFlightPlans.has(key)) {
+      this.mockFlightPlans.set(key, this._generateMockDefaults(cName));
+    }
+
+    const modules = this.mockFlightPlans.get(key) || [];
+    const progressKey = `${key}::${userId || 'usr-default'}`;
+    const userProgress = this.mockProgress.get(progressKey) || {};
+
+    const populatedModules = modules.map((m) => {
+      const allDone = m.tasks.length > 0 && m.tasks.every((_, idx) => !!userProgress[`${m.day}-${idx}`]);
+      return {
+        ...m,
+        status: (allDone ? 'COMPLETED' : m.day === 1 ? 'CURRENT' : 'UPCOMING') as 'COMPLETED' | 'CURRENT' | 'UPCOMING',
+      };
+    });
+
+    return {
+      company_name: cName,
+      title: `${cName} Flight-Plan`,
+      total_days: 14,
+      current_day: 1,
+      modules: populatedModules,
+      completed_tasks: { ...userProgress },
+      is_published: true,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async saveFlightPlan(plan: OnboardingFlightPlanCreate): Promise<OnboardingFlightPlanDTO> {
+    await sleep(60);
+    const cName = plan.company_name || 'Sovereign Startup';
+    const key = cName.trim().toLowerCase();
+    this.mockFlightPlans.set(key, [...plan.modules]);
+
+    return {
+      company_name: cName,
+      company_id: plan.company_id,
+      title: plan.title || `${cName} Flight-Plan`,
+      total_days: plan.total_days || 14,
+      current_day: 1,
+      modules: [...plan.modules],
+      completed_tasks: {},
+      is_published: true,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  async updateTaskProgress(update: OnboardingProgressUpdateDTO): Promise<{ completed_tasks: Record<string, boolean> }> {
+    await sleep(30);
+    const cName = update.company_name || 'Sovereign Startup';
+    const key = cName.trim().toLowerCase();
+    const progressKey = `${key}::${update.user_id || 'usr-default'}`;
+    const existing = this.mockProgress.get(progressKey) || {};
+    existing[update.task_key] = update.completed;
+    this.mockProgress.set(progressKey, existing);
+
+    return { completed_tasks: { ...existing } };
+  }
+
+  async resetFlightPlanDefaults(companyName: string): Promise<OnboardingFlightPlanDTO> {
+    await sleep(50);
+    const cName = companyName || 'Sovereign Startup';
+    const key = cName.trim().toLowerCase();
+    const defaults = this._generateMockDefaults(cName);
+    this.mockFlightPlans.set(key, defaults);
+    return this.getFlightPlan(cName);
   }
 }

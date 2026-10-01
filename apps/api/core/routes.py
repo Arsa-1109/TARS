@@ -31,6 +31,10 @@ from apps.api.schemas.contracts import (
     ChatMessageDTO,
     ChatMessageCreate,
     AuditBlockDTO,
+    OnboardingFlightPlanDTO,
+    OnboardingFlightPlanCreate,
+    OnboardingProgressUpdateDTO,
+    OnboardingResetRequest,
 )
 from apps.api.schemas.core_contracts import AuditVerifyResponse
 from apps.api.core.audit_ledger import audit_ledger
@@ -40,6 +44,7 @@ from apps.api.core.session import session_manager, SessionData, user_manager
 from apps.api.core.ollama_client import ollama_client
 from apps.api.core.search import search_service
 from apps.api.core.company import company_repo
+from apps.api.core.onboarding import onboarding_repo
 from apps.api.core.db import db
 from apps.api.core.actions import action_hub
 from apps.api.core.policies import policy_engine
@@ -797,6 +802,95 @@ async def reset_workspace(payload: WorkspaceResetRequest):
         message=msg,
         cleared=cleared,
         timestamp=now_ts,
+    )
+
+
+# ============================================================
+# WORKSPACE 3: DYNAMIC ONBOARDING FLIGHT-PLANS
+# ============================================================
+
+@router.get("/onboarding/flight-plan", response_model=OnboardingFlightPlanDTO)
+async def get_flight_plan(
+    company_name: Optional[str] = Query(None),
+    company_id: Optional[str] = Query(None),
+    user_id: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    """
+    Retrieves the company-scoped onboarding flight-plan and user progress.
+    If company modules are not yet initialised, synthesises intelligent defaults.
+    """
+    target_company = company_name or x_company_name
+    if not target_company or not target_company.strip():
+        active_prof = company_repo.get_profile()
+        target_company = active_prof.get("company_name") if active_prof else "AetherFlow Technologies, Inc."
+
+    target_user = user_id or x_user_id or "usr-chloe"
+    return onboarding_repo.get_flight_plan(
+        company_name=target_company,
+        company_id=company_id,
+        user_id=target_user,
+    )
+
+
+@router.post("/onboarding/flight-plan", response_model=OnboardingFlightPlanDTO)
+async def save_flight_plan(
+    payload: OnboardingFlightPlanCreate,
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+):
+    """
+    Founder configuration studio endpoint to save and publish customized flight plans.
+    """
+    if not payload.company_name and x_company_name:
+        payload.company_name = x_company_name
+    if not payload.company_name or not payload.company_name.strip():
+        active_prof = company_repo.get_profile()
+        payload.company_name = active_prof.get("company_name") if active_prof else "Sovereign Startup"
+
+    return onboarding_repo.save_flight_plan(payload)
+
+
+@router.post("/onboarding/progress")
+async def update_task_progress(
+    payload: OnboardingProgressUpdateDTO,
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    """
+    Updates completion status of an onboarding task item for a user and company.
+    """
+    target_company = payload.company_name or x_company_name
+    if not target_company or not target_company.strip():
+        active_prof = company_repo.get_profile()
+        target_company = active_prof.get("company_name") if active_prof else "Sovereign Startup"
+
+    target_user = payload.user_id or x_user_id or "usr-default"
+    completed_tasks = onboarding_repo.update_progress(
+        company_name=target_company,
+        task_key=payload.task_key,
+        completed=payload.completed,
+        user_id=target_user,
+    )
+    return {"completed_tasks": completed_tasks}
+
+
+@router.post("/onboarding/reset-defaults", response_model=OnboardingFlightPlanDTO)
+async def reset_flight_plan_defaults(
+    payload: OnboardingResetRequest,
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+):
+    """
+    Resets the company's flight plan to Genesis-calibrated intelligent defaults.
+    """
+    target_company = payload.company_name or x_company_name
+    if not target_company or not target_company.strip():
+        active_prof = company_repo.get_profile()
+        target_company = active_prof.get("company_name") if active_prof else "Sovereign Startup"
+
+    return onboarding_repo.reset_to_defaults(
+        company_name=target_company,
+        company_id=payload.company_id,
     )
 
 
