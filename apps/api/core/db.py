@@ -69,6 +69,22 @@ class LocalDB:
         conn.execute('PRAGMA journal_mode=WAL;')
         conn.execute('PRAGMA foreign_keys = ON;')
 
+        # Non-destructive pre-migration schema parity for action_receipts
+        try:
+            cur = conn.cursor()
+            cur.execute("PRAGMA table_info(action_receipts);")
+            existing_rcpt_cols = {row[1] for row in cur.fetchall()}
+            if existing_rcpt_cols:
+                for col in ["tool", "payload_hash", "timestamp", "policy_version", "rollback_hook", "chain_hash", "prev_chain_hash", "status", "executed_at", "duration_ms", "parameters_hash", "result_summary", "rollback_payload", "audit_block_id", "organisation_id"]:
+                    if col not in existing_rcpt_cols:
+                        try:
+                            cur.execute(f"ALTER TABLE action_receipts ADD COLUMN {col} TEXT;")
+                        except Exception:
+                            pass
+                conn.commit()
+        except Exception:
+            pass
+
         # Run formal ordered migrations (Item 105)
         try:
             from apps.api.core.migration_runner import migration_runner
