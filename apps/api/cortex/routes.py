@@ -331,6 +331,12 @@ async def create_decision(payload: AddDecisionRequest, background_tasks: Backgro
             "lifecycle_status": "ACTIVE",
         })
 
+    try:
+        from apps.api.core.strategic_advisor import strategic_advisor
+        strategic_advisor.trigger_autonomous_pulse(reason=f"New Decision Created: {payload.title}")
+    except Exception:
+        pass
+
     return DecisionItem(
         id=decision_id,
         title=payload.title,

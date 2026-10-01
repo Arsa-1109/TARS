@@ -99,6 +99,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [recFilterTab, setRecFilterTab] = useState<string>('ALL');
   const [radarNotice, setRadarNotice] = useState<string | null>(null);
   const [selectedRec, setSelectedRec] = useState<StrategicRecommendation | null>(null);
+  const [lastPulseTime, setLastPulseTime] = useState<Date | null>(new Date());
 
   const fetchRecommendations = async () => {
     setLoadingRecs(true);
@@ -118,6 +119,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     try {
       const data = await decisionsApi.generateRecommendations();
       setRecommendations(data);
+      setLastPulseTime(new Date());
       setRadarNotice('Fresh strategic suggestions synthesized by local Qwen 3 model from institutional memory.');
       setTimeout(() => setRadarNotice(null), 6000);
     } catch (err) {
@@ -168,13 +170,29 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   useEffect(() => {
     fetchDecisions();
     fetchRecommendations();
+
+    // Autonomous background sync heartbeat (every 60s)
+    const interval = setInterval(() => {
+      fetchRecommendations();
+    }, 60000);
+
     const unsub = realtimeBus.subscribe((evt) => {
       if (evt.event === 'DECISION_MUTATION') {
         fetchDecisions();
         fetchRecommendations();
+      } else if (evt.event === 'STRATEGIC_RADAR_UPDATED') {
+        fetchRecommendations();
+        setLastPulseTime(new Date());
+        const theme = evt.data?.focus_theme ? ` (${evt.data.focus_theme})` : '';
+        setRadarNotice(`Autonomous Radar Pulse: Fresh vectors synthesized${theme}`);
+        setTimeout(() => setRadarNotice(null), 7000);
       }
     });
-    return unsub;
+
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
   }, [activeDecisionId]);
 
   const runContradictionCheck = async () => {
@@ -368,17 +386,25 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
               <Sparkles className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[14px] font-bold text-black dark:text-white tracking-tight">
                   Strategic Growth Radar
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Qwen 3 (Local ML Connected)
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20 shadow-xs">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Autonomous Radar Active · Auto-evolving
                 </span>
+                {lastPulseTime && (
+                  <span className="text-[10px] font-mono text-[#8E8E93] dark:text-[#8E8E93]">
+                    · Synced {lastPulseTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
               </div>
               <span className="text-[11px] text-[#86868B] dark:text-[#8E8E93] block">
-                Autonomous optimization vectors synthesized from sovereign company memory, financial runway ($666k / -$74k burn), and active ADR invariants.
+                Continuous local ML agent actively synthesizing high-leverage growth vectors from sovereign company memory, financial runway ($666k / -$74k burn), and active graph invariants.
               </span>
             </div>
           </div>

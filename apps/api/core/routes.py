@@ -789,6 +789,13 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
                 "title": decision_title,
                 "lifecycle_status": "ACTIVE",
             })
+
+        # Trigger autonomous strategic radar pulse to reflect newly taught decision
+        try:
+            from apps.api.core.strategic_advisor import strategic_advisor
+            strategic_advisor.trigger_autonomous_pulse(reason=f"New Decision Ratified via /teach: {decision_title}")
+        except Exception as pulse_err:
+            logger.debug(f"Notice: Strategic radar trigger note: {pulse_err}")
     except Exception as dec_err:
         logger.warning(f"Notice: Failed to register decision node for /teach: {dec_err}")
 
@@ -1596,3 +1603,11 @@ async def dismiss_core_strategic_recommendation(rec_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return {"status": "dismissed", "id": rec_id}
+
+
+@router.get("/decisions/recommendations/status")
+async def get_core_strategic_recommendations_status():
+    """Returns autonomous radar health and worker pulse status."""
+    from apps.api.core.strategic_advisor import strategic_advisor
+    return strategic_advisor.get_advisor_status()
+

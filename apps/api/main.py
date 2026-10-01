@@ -22,6 +22,15 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def startup_event():
+    try:
+        from apps.api.core.strategic_advisor import strategic_advisor
+        strategic_advisor.start_background_worker(interval_seconds=120)
+    except Exception as e:
+        print(f"Warning: Failed to start strategic advisor background worker: {e}")
+
+
 @app.get("/health")
 def health_check():
     return {

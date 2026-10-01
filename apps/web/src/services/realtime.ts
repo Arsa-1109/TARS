@@ -50,11 +50,13 @@ class RealtimeEventBus {
         'DECISION_MUTATION',
         'DOCUMENT_UPLOADED',
         'DOCUMENT_PROCESSED',
+        'DOCUMENT_INGESTED',
         'ACTION_ITEM_MUTATION',
         'THINKTANK_MESSAGE',
         'TRANSCRIPTION_COMPLETED',
         'CALL_DELETED',
         'DROP_EVENT',
+        'STRATEGIC_RADAR_UPDATED',
       ];
 
       eventTypes.forEach((type) => {

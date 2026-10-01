@@ -341,6 +341,13 @@ async def upload_document(
             },
         )
 
+        # Trigger autonomous strategic radar pulse to incorporate newly ingested document context
+        try:
+            from apps.api.core.strategic_advisor import strategic_advisor
+            strategic_advisor.trigger_autonomous_pulse(reason=f"Document Ingested: {safe_filename}")
+        except Exception as pulse_err:
+            pass
+
         preview = doc_record["content"][:400] + ("..." if len(doc_record["content"]) > 400 else "")
 
         return DocumentIngestResponse(
