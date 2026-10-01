@@ -805,10 +805,10 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
       {/* VIEW 1: PERSISTENT COMPANY KNOWLEDGE CHATBOT */}
       {activeView === 'chat' && (
-        <div className="flex-1 min-h-0 rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 min-h-[560px] rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-row overflow-hidden">
 
           {/* LEFT SIDEBAR: CONVERSATION LIST */}
-          <div className="w-full md:w-72 lg:w-80 shrink-0 border-b md:border-b-0 md:border-r border-black/[0.07] dark:border-white/[0.07] flex flex-col h-full overflow-hidden bg-black/[0.015] dark:bg-white/[0.01]">
+          <div className="w-72 lg:w-80 shrink-0 border-r border-black/[0.07] dark:border-white/[0.07] flex flex-col h-full overflow-hidden bg-black/[0.015] dark:bg-white/[0.01]">
             {/* Top Action Bar */}
             <div className="p-3.5 border-b border-black/[0.07] dark:border-white/[0.07] space-y-2.5">
               <div className="flex items-center justify-between">

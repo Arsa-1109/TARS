@@ -460,39 +460,45 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 No recommendations in this category. Click &quot;Analyze Opportunities&quot; to discover new growth vectors.
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredRecommendations.map((rec) => {
-                  const badgeStyle = recCategoryBadges[rec.category.toUpperCase()] || recCategoryBadges.STRATEGY;
+                  const catKey = (rec.category || 'STRATEGY').toUpperCase();
+                  const badgeStyle = recCategoryBadges[catKey] || recCategoryBadges.STRATEGY;
 
                   return (
                     <div
                       key={rec.id}
                       onClick={() => setSelectedRec(rec)}
-                      className="group relative flex flex-col justify-between rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1E1E20] hover:bg-black/[0.02] dark:hover:bg-[#252528] p-4 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-[#0071E3]/40 dark:hover:border-[#0A84FF]/40 hover:-translate-y-0.5 space-y-3"
+                      className="group relative flex flex-col justify-between rounded-[18px] border border-black/[0.08] dark:border-white/[0.12] bg-[#FBFBFD] dark:bg-[#242426] hover:bg-white dark:hover:bg-[#2C2C2E] p-4 sm:p-5 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-[#0071E3]/50 dark:hover:border-[#0A84FF]/50 hover:-translate-y-0.5 space-y-3.5"
                     >
                       <div className="space-y-2.5">
                         {/* Top Row: Category tag & View details hint */}
                         <div className="flex items-center justify-between gap-1.5">
                           <span
-                            className={`text-[9.5px] font-mono font-bold px-2 py-0.5 rounded-full border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
+                            className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}
                           >
-                            {rec.category}
+                            {rec.category || 'STRATEGY'}
                           </span>
-                          <span className="text-[10px] font-mono text-[#8E8E93] group-hover:text-black dark:group-hover:text-white flex items-center gap-1 transition-colors">
-                            Details <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                          <span className="text-[11px] font-mono text-[#8E8E93] group-hover:text-[#0071E3] dark:group-hover:text-[#0A84FF] flex items-center gap-1 transition-colors font-medium">
+                            Details <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                           </span>
                         </div>
 
                         {/* Bold Heading */}
-                        <h4 className="text-[13.5px] font-bold text-black dark:text-white leading-snug line-clamp-2 min-h-[38px]">
+                        <h4 className="text-[14px] font-bold text-[#1D1D1F] dark:text-[#FFFFFF] leading-snug line-clamp-2 min-h-[38px]">
                           {rec.title}
                         </h4>
+
+                        {/* Rationale Excerpt */}
+                        <p className="text-[12px] text-[#6E6E73] dark:text-[#A1A1A6] line-clamp-2 leading-relaxed">
+                          {rec.rationale}
+                        </p>
                       </div>
 
                       {/* Impact in Green */}
                       <div className="pt-1">
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.10] dark:bg-emerald-500/[0.15] border border-emerald-500/25 px-2.5 py-1.5 rounded-lg w-full">
-                          <TrendingUp className="w-3.5 h-3.5 shrink-0" />
+                        <div className="inline-flex items-center gap-2 text-[11.5px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/[0.12] dark:bg-emerald-500/[0.18] border border-emerald-500/30 px-3 py-2 rounded-xl w-full">
+                          <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="truncate">{rec.estimated_impact}</span>
                         </div>
                       </div>
