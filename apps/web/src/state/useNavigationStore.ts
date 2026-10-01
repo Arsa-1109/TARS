@@ -30,7 +30,7 @@ export function useNavigationStore() {
       setWorkspace('decisions');
     } else if (sourceType === 'ARCHITECTURE') {
       setActiveFindingId(sourceId);
-      setWorkspace('architecture');
+      setWorkspace('decisions');
     } else if (sourceType === 'CHAT') {
       setWorkspace('thinktank');
     }

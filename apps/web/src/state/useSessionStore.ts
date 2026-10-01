@@ -18,15 +18,15 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Executive & Strategy Domain',
     tagline: 'Strategic decisions, runway simulations & executive synthesis',
     allowedRoles: ['FOUNDER'],
-    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'],
     requiredClearance: 'EXECUTIVE_ONLY',
   },
   engineering: {
     id: 'engineering',
-    name: 'Engineering & Architecture Domain',
-    tagline: 'Code invariants, Git pre-commit tests & architectural topology',
+    name: 'Engineering & Systems Domain',
+    tagline: 'Code invariants, Git pre-commit tests & engineering topology',
     allowedRoles: ['FOUNDER', 'ENGINEER'],
-    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
   product: {
@@ -34,7 +34,7 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Product & Customer Intelligence Domain',
     tagline: 'Customer call studio, voice-to-spec & product synthesis',
     allowedRoles: ['FOUNDER', 'PRODUCT', 'SALES'],
-    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
   talent: {
@@ -42,16 +42,16 @@ export const WORKSPACE_DOMAINS: Record<WorkspaceDomain, WorkspaceDomainConfig> =
     name: 'Talent & Operations Domain',
     tagline: 'Team onboarding, company knowledge & culture flight plans',
     allowedRoles: ['FOUNDER', 'NEW_HIRE', 'ENGINEER', 'PRODUCT', 'SALES'],
-    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+    allowedWorkspaces: ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'],
     requiredClearance: 'ALL_TEAM',
   },
 };
 
 export const ROLE_WORKSPACES: Record<UserRole, WorkspaceId[]> = {
-  FOUNDER: ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'],
+  FOUNDER: ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'],
   PRODUCT: ['knowledge', 'calls', 'thinktank', 'onboarding'],
   SALES: ['knowledge', 'calls', 'thinktank', 'onboarding'],
-  ENGINEER: ['knowledge', 'architecture', 'thinktank', 'onboarding'],
+  ENGINEER: ['knowledge', 'thinktank', 'onboarding'],
   NEW_HIRE: ['knowledge', 'thinktank', 'onboarding'],
 };
 
@@ -304,12 +304,6 @@ export function useSessionStore() {
         return {
           allowed: false,
           reason: 'Executive Clearance Level 3 required. Strategic Decision Registry & What-If Runway Simulations are isolated to Founders and Sovereign Admins.',
-        };
-      }
-      if (ws === 'architecture') {
-        return {
-          allowed: false,
-          reason: 'Technical Clearance required. Architecture Cortex & AST Invariant analysis is isolated to Technical Founders and Software Engineers.',
         };
       }
       if (ws === 'calls') {

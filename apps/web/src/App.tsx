@@ -9,7 +9,6 @@ import { CallStudioWorkspace } from './components/workspaces/CallStudioWorkspace
 import { OnboardingWorkspace } from './components/workspaces/OnboardingWorkspace';
 import { ThinkTankWorkspace } from './components/workspaces/ThinkTankWorkspace';
 import { DecisionsWorkspace } from './components/workspaces/DecisionsWorkspace';
-import { ArchitectureWorkspace } from './components/workspaces/ArchitectureWorkspace';
 import { ActionHubDrawer } from './components/actions/ActionHubDrawer';
 import { CitationDrawer } from './components/provenance/CitationDrawer';
 import { CommandPalette } from './components/layout/CommandPalette';
@@ -53,8 +52,6 @@ export function App() {
     setActiveCallId,
     activeDecisionId,
     setActiveDecisionId,
-    activeFindingId,
-    setActiveFindingId,
     navigateToSource,
   } = useNavigationStore();
 
@@ -164,7 +161,6 @@ export function App() {
     if (!access.allowed) {
       const names: Record<WorkspaceId, string> = {
         decisions: 'Strategic Decision Registry & Simulation',
-        architecture: 'Tech & Architecture Cortex',
         calls: 'Client Call Intelligence Studio',
         knowledge: 'Universal Knowledge Base',
         thinktank: 'Collaborative Think Tank',
@@ -172,7 +168,6 @@ export function App() {
       };
       const clearanceReq: Record<WorkspaceId, string> = {
         decisions: 'EXECUTIVE_ONLY (Level 3 Clearance)',
-        architecture: 'TECHNICAL_ENGINEERING (Level 2 Clearance)',
         calls: 'COMMERCIAL_PRODUCT (Level 2 Clearance)',
         knowledge: 'ALL_TEAM',
         thinktank: 'ALL_TEAM',
@@ -391,14 +386,6 @@ export function App() {
           <DecisionsWorkspace
             activeDecisionId={activeDecisionId}
             onSelectDecision={setActiveDecisionId}
-          />
-        )}
-
-        {workspace === 'architecture' && (
-          <ArchitectureWorkspace
-            activeFindingId={activeFindingId}
-            onSelectFinding={setActiveFindingId}
-            onOpenCursorConfig={() => setCursorModalOpen(true)}
           />
         )}
       </div>

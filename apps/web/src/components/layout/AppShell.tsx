@@ -132,7 +132,6 @@ export const AppShell: React.FC<AppShellProps> = ({
                   knowledge:    { label: 'Knowledge Base', icon: '📚' },
                   calls:        { label: 'Client Calls',   icon: '📞' },
                   decisions:    { label: 'Decisions',      icon: '⚖️' },
-                  architecture: { label: 'Architecture',   icon: '🏛️' },
                   thinktank:    { label: 'Discussions',    icon: '💬' },
                   onboarding:   { label: 'Flight Plan',    icon: '🧭' },
                 };

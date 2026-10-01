@@ -346,8 +346,7 @@ export type WorkspaceId =
   | 'calls'
   | 'onboarding'
   | 'thinktank'
-  | 'decisions'
-  | 'architecture';
+  | 'decisions';
 
 // Genesis Onboarding & Sovereign Company Profile
 export interface CompanyProfile {

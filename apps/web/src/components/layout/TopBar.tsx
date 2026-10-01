@@ -13,7 +13,6 @@ import {
   Compass,
   MessageSquare,
   Scale,
-  Cpu,
   Search,
   Sliders,
   Mic,
@@ -88,12 +87,11 @@ export const TopBar: React.FC<TopBarProps> = ({
     knowledge:    { value: 'knowledge',    label: 'Knowledge',    icon: <Layers className="w-3.5 h-3.5" /> },
     calls:        { value: 'calls',        label: 'Calls',        icon: <Phone className="w-3.5 h-3.5" /> },
     decisions:    { value: 'decisions',    label: 'Decisions',    icon: <Scale className="w-3.5 h-3.5" /> },
-    architecture: { value: 'architecture', label: 'Architecture', icon: <Cpu className="w-3.5 h-3.5" /> },
     thinktank:    { value: 'thinktank',   label: 'Discussions',  icon: <MessageSquare className="w-3.5 h-3.5" /> },
     onboarding:   { value: 'onboarding',  label: 'Onboarding',   icon: <Compass className="w-3.5 h-3.5" /> },
   };
 
-  const allowedWorkspaces = ROLE_WORKSPACES[currentRole] || ['knowledge', 'calls', 'decisions', 'architecture', 'thinktank', 'onboarding'];
+  const allowedWorkspaces = ROLE_WORKSPACES[currentRole] || ['knowledge', 'calls', 'decisions', 'thinktank', 'onboarding'];
   const filteredOptions = allowedWorkspaces
     .map((wsId) => allWorkspaceOptions[wsId])
     .filter(Boolean);

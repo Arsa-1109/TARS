@@ -14,7 +14,7 @@ export interface SearchResultItem {
   subtitle: string;
   badge?: string;
   badgeColor?: string;
-  targetWorkspace: 'decisions' | 'knowledge' | 'calls' | 'architecture' | 'thinktank' | 'onboarding';
+  targetWorkspace: 'decisions' | 'knowledge' | 'calls' | 'thinktank' | 'onboarding';
   targetId?: string;
   metadata?: Record<string, any>;
 }

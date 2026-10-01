@@ -7,7 +7,6 @@ import {
   Compass,
   MessageSquare,
   Scale,
-  Cpu,
   CheckSquare,
   Sliders,
   Mic,
@@ -146,17 +145,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: <Scale className="w-4 h-4" />,
       action: () => {
         onNavigateWorkspace('decisions');
-        onClose();
-      },
-    },
-    {
-      id: 'architecture',
-      title: 'Architecture Cortex',
-      category: 'Workspace',
-      subtitle: 'Tree-sitter AST queries (<50ms) & live repository radar',
-      icon: <Cpu className="w-4 h-4" />,
-      action: () => {
-        onNavigateWorkspace('architecture');
         onClose();
       },
     },

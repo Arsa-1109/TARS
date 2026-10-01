@@ -1,7 +1,7 @@
 import React from 'react';
 import { WorkspaceId, UserRole } from '../../types/contracts';
 import { ROLE_WORKSPACES } from '../../state/useSessionStore';
-import { Layers, Phone, MessageSquare, Scale, Cpu, Compass, MoreHorizontal } from 'lucide-react';
+import { Layers, Phone, MessageSquare, Scale, Compass, MoreHorizontal } from 'lucide-react';
 
 interface MobileTabBarProps {
   currentWorkspace: WorkspaceId;
@@ -23,7 +23,6 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
     { id: 'calls',        label: 'Calls',     icon: <Phone className="w-5 h-5" /> },
     { id: 'thinktank',    label: 'Discuss',   icon: <MessageSquare className="w-5 h-5" /> },
     { id: 'decisions',    label: 'Decisions', icon: <Scale className="w-5 h-5" /> },
-    { id: 'architecture', label: 'Arch',      icon: <Cpu className="w-5 h-5" /> },
     { id: 'onboarding',   label: 'Flight',    icon: <Compass className="w-5 h-5" /> },
   ];
 
@@ -37,7 +36,10 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
       role="navigation"
       aria-label="Mobile Navigation"
     >
-      <div className="grid grid-cols-5 h-14 items-center px-1">
+      <div
+        className="grid h-14 items-center px-1"
+        style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
+      >
         {tabs.map((tab) => {
           const isActive = currentWorkspace === tab.id && !moreActive;
           return (
@@ -73,13 +75,13 @@ export const MobileTabBar: React.FC<MobileTabBarProps> = ({
         >
           <div className={[
             'w-8 h-8 rounded-[10px] flex items-center justify-center transition-all',
-            moreActive || ['onboarding', 'architecture'].includes(currentWorkspace)
+            moreActive || currentWorkspace === 'onboarding'
               ? 'bg-black/[0.07] dark:bg-white/[0.10]'
               : '',
           ].join(' ')}>
             <MoreHorizontal className={[
               'w-5 h-5',
-              moreActive || ['onboarding', 'architecture'].includes(currentWorkspace)
+              moreActive || currentWorkspace === 'onboarding'
                 ? 'text-black dark:text-white'
                 : 'text-[#8E8E93]',
             ].join(' ')} />
