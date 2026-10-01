@@ -123,8 +123,13 @@ class UnifiedSearchService:
         user_clearance: str = "ALL_TEAM",
         user_role: str = "ENGINEER",
         clearance: Optional[str] = None,
+<<<<<<< HEAD
         organisation_id: Optional[str] = None,
         as_of: Optional[int] = None,
+=======
+        as_of_date: Optional[int] = None,
+        temporal_mode: str = "CURRENT",
+>>>>>>> origin/feature/upgrades-delta-71-160
     ) -> List[SearchCitation]:
         res = await self.search_hybrid(
             query=query,
@@ -269,6 +274,7 @@ class UnifiedSearchService:
                         continue
                 filtered_memory_candidates.append(row)
 
+<<<<<<< HEAD
             # -------------------------------------------------------------
             # Channel 1: Lexical BM25 Matching
             # -------------------------------------------------------------
@@ -298,6 +304,31 @@ class UnifiedSearchService:
                     if row.get("source") and str(row["source"]).startswith("TEACH:"):
                         score += 6.0
                     vector_scores.append((score, row))
+=======
+                # Score based on exact word boundary regex matches
+                score = 0
+                matched_keywords = 0
+                for pattern in kw_patterns:
+                    t_matches = len(pattern.findall(title))
+                    c_matches = len(pattern.findall(content))
+                    if t_matches > 0 or c_matches > 0:
+                        matched_keywords += 1
+                    score += t_matches * 8
+                    score += min(c_matches * 2, 8)
+
+                if score > 0:
+                    coverage = matched_keywords / max(1, len(kw_patterns))
+                    score = int(score * (1.0 + coverage * 2.0))
+
+                    # Continuous learning & supersession boost:
+                    # Taught memories indicating updates ("switched from", "migrated", "updated to") take decisive priority
+                    supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
+                    is_supersede = any(sk in content.lower() for sk in supersede_keywords)
+                    supersede_bonus = (30 if is_supersede else 0) if coverage >= 0.5 else 0
+                    if row["source"] and str(row["source"]).startswith("TEACH:"):
+                        supersede_bonus += 6
+                    composite_score = score + supersede_bonus
+>>>>>>> origin/feature/upgrades-delta-71-160
 
             vector_scores.sort(key=lambda x: (x[0], x[1].get("timestamp", 0)), reverse=True)
             vector_channel_ranks: Dict[str, Tuple[int, float]] = {}
@@ -325,6 +356,7 @@ class UnifiedSearchService:
                     d_status = d.get("status", "ACTIVE")
                     d_ts = d.get("timestamp", 0)
 
+<<<<<<< HEAD
                     dec_score = 0.0
                     for pattern in kw_patterns:
                         if pattern.search(d_title):
@@ -333,8 +365,35 @@ class UnifiedSearchService:
                             dec_score += 6.0
                         if pattern.search(d_context):
                             dec_score += 4.0
+=======
+                    dec_score = 0
+                    matched_keywords = 0
+                    for pattern in kw_patterns:
+                        t_m = bool(pattern.search(d_title))
+                        c_m = bool(pattern.search(d_chosen))
+                        x_m = bool(pattern.search(d_context))
+                        if t_m or c_m or x_m:
+                            matched_keywords += 1
+                        if t_m:
+                            dec_score += 8  # Strong weight for direct decision matches
+                        if c_m:
+                            dec_score += 6
+                        if x_m:
+                            dec_score += 4
+>>>>>>> origin/feature/upgrades-delta-71-160
 
                     if dec_score > 0:
+                        coverage = matched_keywords / max(1, len(kw_patterns))
+                        dec_score = int(dec_score * (1.0 + coverage * 2.0))
+
+                        # Continuous learning & supersession boost for decisions (Item 115)
+                        supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
+                        is_supersede = any(sk in f"{d_chosen} {d_context} {d_title}".lower() for sk in supersede_keywords)
+                        supersede_bonus = (35 if is_supersede else 0) if coverage >= 0.5 else 0
+                        if d_status == "SUPERSEDED":
+                            supersede_bonus -= 20
+                        dec_score += supersede_bonus
+
                         snippet_body = f"[{d_status}] {d_chosen}. Context: {d_context}" if d_chosen else d_context
                         item_obj = {
                             "id": d_id,

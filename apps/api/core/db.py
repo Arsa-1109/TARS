@@ -36,6 +36,7 @@ class LocalDB:
             try:
                 conn.execute('PRAGMA journal_mode=WAL;')
                 conn.execute('PRAGMA busy_timeout=60000;')
+                conn.execute('PRAGMA foreign_keys = ON;')
             except Exception:
                 pass
             self.local.conn = conn
@@ -64,8 +65,16 @@ class LocalDB:
 
     def initialize(self):
         conn = self.get_connection()
-        # Ensure WAL mode for safe concurrency
+        # Ensure WAL mode for safe concurrency and foreign keys (Item 107)
         conn.execute('PRAGMA journal_mode=WAL;')
+        conn.execute('PRAGMA foreign_keys = ON;')
+
+        # Run formal ordered migrations (Item 105)
+        try:
+            from apps.api.core.migration_runner import migration_runner
+            migration_runner.run_migrations(conn)
+        except Exception as mig_err:
+            print(f"Notice: Migration runner execution: {mig_err}")
 
         cursor = conn.cursor()
         
@@ -112,28 +121,19 @@ class LocalDB:
         ''')
         cursor.execute("PRAGMA table_info(chat_messages)")
         msg_cols = [row[1] for row in cursor.fetchall()]
-        if "channel_id" in msg_cols:
-            cursor.execute("DROP TABLE chat_messages")
-            cursor.execute('''
-                CREATE TABLE chat_messages (
-                    id TEXT PRIMARY KEY,
-                    chat_id TEXT NOT NULL,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    citations TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    is_deleted INTEGER DEFAULT 0
-                )
-            ''')
-        else:
-            if "chat_id" not in msg_cols:
+        if "chat_id" not in msg_cols:
+            if "channel_id" in msg_cols:
+                # Non-destructive column addition and backfill without dropping data (Item 106)
                 cursor.execute("ALTER TABLE chat_messages ADD COLUMN chat_id TEXT")
-            if "role" not in msg_cols:
-                cursor.execute("ALTER TABLE chat_messages ADD COLUMN role TEXT")
-            if "citations" not in msg_cols:
-                cursor.execute("ALTER TABLE chat_messages ADD COLUMN citations TEXT")
-            if "is_deleted" not in msg_cols:
-                cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
+                cursor.execute("UPDATE chat_messages SET chat_id = channel_id WHERE chat_id IS NULL")
+            else:
+                cursor.execute("ALTER TABLE chat_messages ADD COLUMN chat_id TEXT")
+        if "role" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN role TEXT")
+        if "citations" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN citations TEXT")
+        if "is_deleted" not in msg_cols:
+            cursor.execute("ALTER TABLE chat_messages ADD COLUMN is_deleted INTEGER DEFAULT 0")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id, created_at ASC);")
         
         # Audit Log table (Legacy compatibility)
@@ -149,6 +149,29 @@ class LocalDB:
                 error TEXT
             )
         ''')
+
+        # Action Receipts table (Item 150: Cryptographic hash-chained receipts)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS action_receipts (
+                receipt_id TEXT PRIMARY KEY,
+                action_id TEXT,
+                actor TEXT NOT NULL,
+                tool TEXT NOT NULL,
+                payload_hash TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                policy_version TEXT NOT NULL,
+                rollback_hook TEXT,
+                chain_hash TEXT NOT NULL,
+                prev_chain_hash TEXT
+            )
+        ''')
+        cursor.execute("PRAGMA table_info(action_receipts);")
+        rcpt_cols = [row[1] for row in cursor.fetchall()]
+        if "prev_chain_hash" not in rcpt_cols:
+            try:
+                cursor.execute("ALTER TABLE action_receipts ADD COLUMN prev_chain_hash TEXT;")
+            except Exception:
+                pass
         
         # Tamper-Evident Chained SHA-256 Audit Ledger
         cursor.execute('''
@@ -189,9 +212,18 @@ class LocalDB:
                 session_id TEXT PRIMARY KEY,
                 tars_user TEXT NOT NULL,
                 tars_role TEXT NOT NULL,
-                created_at INTEGER NOT NULL
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER,
+                revoked_at INTEGER,
+                user_id TEXT,
+                organisation_id TEXT
             )
         ''')
+        for col, col_type in [("expires_at", "INTEGER"), ("revoked_at", "INTEGER"), ("user_id", "TEXT"), ("organisation_id", "TEXT")]:
+            try:
+                cursor.execute(f"ALTER TABLE sessions ADD COLUMN {col} {col_type};")
+            except Exception:
+                pass
 
         # Users table (Custom User Registry)
         cursor.execute('''
@@ -236,6 +268,39 @@ class LocalDB:
                 preview TEXT,
                 ingested_at INTEGER NOT NULL,
                 is_demo INTEGER DEFAULT 0
+            )
+        ''')
+
+        # Ingestion Deduplication Ledger (Item 82)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ingested_files_ledger (
+                file_hash TEXT PRIMARY KEY,
+                file_path TEXT,
+                filename TEXT,
+                file_size_bytes INTEGER,
+                status TEXT,
+                detected_at REAL,
+                organisation_id TEXT
+            )
+        ''')
+
+        # Call & Transcription Task Lifecycles (Item 85)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS call_lifecycles (
+                task_id TEXT PRIMARY KEY,
+                call_id TEXT NOT NULL,
+                company_id TEXT,
+                file_id TEXT,
+                file_path TEXT,
+                client_name TEXT,
+                status TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                started_at REAL,
+                completed_at REAL,
+                duration REAL,
+                transcript TEXT,
+                error TEXT,
+                spec_result TEXT
             )
         ''')
 

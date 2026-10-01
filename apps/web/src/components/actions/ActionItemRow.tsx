@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { ActionItemDTO } from '../../types/contracts';
 import { CheckCircle2, Circle, Clock, User, Calendar, Trash2 } from 'lucide-react';
 import { ProvenanceLink } from '../provenance/ProvenanceLink';
@@ -22,9 +22,9 @@ export const ActionItemRow: React.FC<ActionItemRowProps> = ({
     return 'OPEN';
   };
 
-  const isDone = item.status === 'DONE';
+  const isDone = item.status === 'DONE' || item.status === 'COMPLETED';
 
-  const statusConfig = {
+  const statusConfig: Record<string, { icon: React.ReactNode; badge: string; label: string }> = {
     OPEN: {
       icon: <Circle className="w-4 h-4 text-[#6E6E73] dark:text-[#8E8E93]" />,
       badge: 'text-[#6E6E73] dark:text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.06] border-black/[0.09] dark:border-white/[0.10]',
@@ -40,6 +40,41 @@ export const ActionItemRow: React.FC<ActionItemRowProps> = ({
       badge: 'text-[#0071E3] dark:text-[#0A84FF] bg-[#0A84FF]/[0.10] dark:bg-[#0A84FF]/[0.12] border-[#0A84FF]/[0.22] dark:border-[#0A84FF]/[0.22]',
       label: 'Done',
     },
+    DETECTED: {
+      icon: <Circle className="w-4 h-4 text-[#FF9500] dark:text-[#FF9F0A]" />,
+      badge: 'text-[#FF9500] dark:text-[#FF9F0A] bg-[#FF9500]/[0.10] border-[#FF9500]/[0.20]',
+      label: 'Detected',
+    },
+    PROPOSED: {
+      icon: <Circle className="w-4 h-4 text-[#5856D6] dark:text-[#5E5CE6]" />,
+      badge: 'text-[#5856D6] dark:text-[#5E5CE6] bg-[#5856D6]/[0.10] border-[#5856D6]/[0.20]',
+      label: 'Proposed',
+    },
+    REVIEW_REQUIRED: {
+      icon: <Clock className="w-4 h-4 text-[#FF9500] dark:text-[#FF9F0A]" />,
+      badge: 'text-[#FF9500] dark:text-[#FF9F0A] bg-[#FF9500]/[0.10] border-[#FF9500]/[0.20]',
+      label: 'Review Required',
+    },
+    APPROVED: {
+      icon: <CheckCircle2 className="w-4 h-4 text-[#34C759] dark:text-[#30D158]" />,
+      badge: 'text-[#34C759] dark:text-[#30D158] bg-[#34C759]/[0.10] border-[#34C759]/[0.20]',
+      label: 'Approved',
+    },
+    EXECUTING: {
+      icon: <Clock className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] animate-spin" />,
+      badge: 'text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/[0.10] border-[#0071E3]/[0.20]',
+      label: 'Executing',
+    },
+    COMPLETED: {
+      icon: <CheckCircle2 className="w-4 h-4 text-[#34C759] dark:text-[#30D158]" />,
+      badge: 'text-[#34C759] dark:text-[#30D158] bg-[#34C759]/[0.10] border-[#34C759]/[0.20]',
+      label: 'Completed',
+    },
+    FAILED: {
+      icon: <Circle className="w-4 h-4 text-[#FF3B30] dark:text-[#FF453A]" />,
+      badge: 'text-[#FF3B30] dark:text-[#FF453A] bg-[#FF3B30]/[0.10] border-[#FF3B30]/[0.20]',
+      label: 'Failed',
+    },
   };
 
   const priorityStyles: Record<string, string> = {
@@ -49,7 +84,7 @@ export const ActionItemRow: React.FC<ActionItemRowProps> = ({
     LOW: 'text-[#6E6E73] dark:text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.06] border-black/[0.08] dark:border-white/[0.08]',
   };
 
-  const config = statusConfig[item.status];
+  const config = statusConfig[item.status] || statusConfig.OPEN;
   const formattedDate = item.deadline
     ? new Date(item.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null;

@@ -1,6 +1,7 @@
 # apps/api/ingestion/voice_to_spec.py
 """
 Track 3: Voice-to-Spec Extractor
+Consolidated canonical service layer (Item 88).
 Extracts 4-part structured specification from transcripts:
 1. Executive Summary & Sentiment
 2. Unfiltered Customer Pain Points
@@ -17,6 +18,7 @@ import httpx
 
 from apps.api.schemas.contracts import VoiceToSpecResponse, ActionItemDTO
 from apps.api.ingestion.action_hub import action_hub_repo
+from apps.api.ingestion.spec_extractor import VoiceToSpecEngine
 
 logger = logging.getLogger("tars.ingestion.voice_to_spec")
 
@@ -148,10 +150,12 @@ Transcript:
             action_hub_repo.create(
                 ActionItemDTO(
                     id=f"ACT-CALL-{spec.call_id[-4:]}-{idx + 1}",
+                    title=f"Extracted Commitment ({spec.client_name})",
                     description=commitment,
-                    owner="Engineering Lead",
-                    deadline=None,
-                    status="OPEN",
+                    owner="unassigned",
+                    department="Engineering",
+                    priority="HIGH",
+                    status="REVIEW_REQUIRED",
                     source_type="CALL",
                     source_id=spec.call_id,
                     source_offset=f"Call offset ~{int(idx * 45)}s",

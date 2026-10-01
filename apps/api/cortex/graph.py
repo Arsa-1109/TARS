@@ -34,12 +34,126 @@ class EmbeddedQueryResult:
         return []
 
 
+import sqlite3
+import json
+
+
 class EmbeddedGraphConn:
-    def __init__(self):
+    def __init__(self, sqlite_path: Optional[str] = None):
+        self.sqlite_path = sqlite_path
         self.decisions: Dict[str, Dict[str, Any]] = {}
         self.invariants: Dict[str, Dict[str, Any]] = {}
         self.commitments: Dict[str, Dict[str, Any]] = {}
         self.supersedes: List[Tuple[str, str]] = []
+
+        if self.sqlite_path:
+            self._init_sqlite()
+
+    def _init_sqlite(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self.sqlite_path)), exist_ok=True)
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.execute("PRAGMA journal_mode = WAL;")
+                conn.execute("""
+                CREATE TABLE IF NOT EXISTS graph_nodes (
+                    node_type TEXT NOT NULL,
+                    id TEXT NOT NULL,
+                    data JSON NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (node_type, id)
+                );
+                """)
+                conn.execute("""
+                CREATE TABLE IF NOT EXISTS graph_edges (
+                    edge_type TEXT NOT NULL,
+                    from_type TEXT NOT NULL,
+                    from_id TEXT NOT NULL,
+                    to_type TEXT NOT NULL,
+                    to_id TEXT NOT NULL,
+                    data JSON,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (edge_type, from_type, from_id, to_type, to_id)
+                );
+                """)
+                # Hydrate in-memory state from disk
+                cur = conn.cursor()
+                cur.execute("SELECT node_type, id, data FROM graph_nodes;")
+                for node_type, node_id, data_str in cur.fetchall():
+                    try:
+                        d = json.loads(data_str)
+                        if node_type == "Decision":
+                            self.decisions[node_id] = d
+                        elif node_type == "Invariant":
+                            self.invariants[node_id] = d
+                        elif node_type == "ClientCommitment":
+                            self.commitments[node_id] = d
+                    except Exception:
+                        pass
+
+                cur.execute("SELECT from_id, to_id FROM graph_edges WHERE edge_type = 'SUPERSEDES';")
+                for from_id, to_id in cur.fetchall():
+                    self.supersedes.append((from_id, to_id))
+        except Exception:
+            pass
+
+    def _persist_node(self, node_type: str, node_id: str, data: Dict[str, Any]) -> None:
+        if not self.sqlite_path:
+            return
+        try:
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_nodes (node_type, id, data) VALUES (?, ?, ?);",
+                    (node_type, node_id, json.dumps(data))
+                )
+                conn.commit()
+        except Exception:
+            pass
+
+    def _persist_edge(self, edge_type: str, from_type: str, from_id: str, to_type: str, to_id: str, data: Optional[Dict[str, Any]] = None) -> None:
+        if not self.sqlite_path:
+            return
+        try:
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO graph_edges (edge_type, from_type, from_id, to_type, to_id, data) VALUES (?, ?, ?, ?, ?, ?);",
+                    (edge_type, from_type, from_id, to_type, to_id, json.dumps(data or {}))
+                )
+                conn.commit()
+        except Exception:
+            pass
+
+    def add_edge(self, source: str, target: str, label: str, properties: Optional[Dict[str, Any]] = None) -> None:
+        if not hasattr(self, 'edges'):
+            self.edges = []
+        for e in self.edges:
+            if e['source'] == source and e['target'] == target and e['label'] == label:
+                if properties:
+                    e.setdefault('properties', {}).update(properties)
+                self._persist_edge(label, "Node", source, "Node", target, e['properties'])
+                return
+        new_edge = {'source': source, 'target': target, 'label': label, 'properties': properties or {}}
+        self.edges.append(new_edge)
+        self._persist_edge(label, "Node", source, "Node", target, new_edge['properties'])
+
+    def _delete_node(self, node_type: str, node_id: str) -> None:
+        if not self.sqlite_path:
+            return
+        try:
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.execute("DELETE FROM graph_nodes WHERE node_type = ? AND id = ?;", (node_type, node_id))
+                conn.commit()
+        except Exception:
+            pass
+
+    def _clear_nodes(self, node_type: str) -> None:
+        if not self.sqlite_path:
+            return
+        try:
+            with sqlite3.connect(self.sqlite_path) as conn:
+                conn.execute("DELETE FROM graph_nodes WHERE node_type = ?;", (node_type,))
+                conn.commit()
+        except Exception:
+            pass
 
     def execute(self, query: str, params: Optional[Dict[str, Any]] = None) -> EmbeddedQueryResult:
         params = params or {}
@@ -51,7 +165,7 @@ class EmbeddedGraphConn:
         if "MERGE (d:Decision" in q:
             d_id = params.get("id")
             if d_id:
-                self.decisions[d_id] = {
+                node = {
                     "id": d_id,
                     "title": params.get("title", ""),
                     "category": params.get("category", "ENGINEERING"),
@@ -62,12 +176,14 @@ class EmbeddedGraphConn:
                     "status": params.get("status", "ACTIVE"),
                     "lifecycle_status": params.get("status", "ACTIVE"),
                 }
+                self.decisions[d_id] = node
+                self._persist_node("Decision", d_id, node)
             return EmbeddedQueryResult([])
 
         if "MERGE (i:Invariant" in q:
             i_id = params.get("id")
             if i_id:
-                self.invariants[i_id] = {
+                node = {
                     "id": i_id,
                     "name": params.get("name", ""),
                     "category": params.get("category", ""),
@@ -75,8 +191,10 @@ class EmbeddedGraphConn:
                     "rationale": params.get("rationale", ""),
                     "adr_ref": params.get("adr_ref", ""),
                 }
+                self.invariants[i_id] = node
+                self._persist_node("Invariant", i_id, node)
             elif "INV-GEN-001" in q:
-                self.invariants["INV-GEN-001"] = {
+                node = {
                     "id": "INV-GEN-001",
                     "name": "Zero Bespoke Enterprise Forks",
                     "category": "ARCHITECTURE",
@@ -84,18 +202,22 @@ class EmbeddedGraphConn:
                     "rationale": "Preserves engineering velocity and prevents technical debt accumulation.",
                     "adr_ref": "docs/adr/001-zero-custom-forks.md"
                 }
+                self.invariants["INV-GEN-001"] = node
+                self._persist_node("Invariant", "INV-GEN-001", node)
             return EmbeddedQueryResult([])
 
         if "MERGE (c:ClientCommitment" in q:
             c_id = params.get("id")
             if c_id:
-                self.commitments[c_id] = {
+                node = {
                     "id": c_id,
                     "client": params.get("client", ""),
                     "commitment": params.get("commitment", ""),
                     "value": params.get("value", ""),
                     "status": params.get("status", "ACTIVE")
                 }
+                self.commitments[c_id] = node
+                self._persist_node("ClientCommitment", c_id, node)
             return EmbeddedQueryResult([])
 
         if "SUPERSEDES" in q and "CREATE" in q:
@@ -103,6 +225,7 @@ class EmbeddedGraphConn:
             old_id = params.get("old_id")
             if new_id and old_id:
                 self.supersedes.append((new_id, old_id))
+                self._persist_edge("SUPERSEDES", "Decision", new_id, "Decision", old_id, {"reason": params.get("reason", "")})
             return EmbeddedQueryResult([])
 
         if "SET d.lifecycle_status = 'SUPERSEDED'" in q or "SET d.status = 'SUPERSEDED'" in q or params.get("status") == "SUPERSEDED" or params.get("lifecycle_status") == "SUPERSEDED":
@@ -112,22 +235,8 @@ class EmbeddedGraphConn:
                 self.decisions[target_id]["lifecycle_status"] = "SUPERSEDED"
                 if "superseded_by" in params:
                     self.decisions[target_id]["superseded_by"] = params.get("superseded_by")
+                self._persist_node("Decision", target_id, self.decisions[target_id])
                 return EmbeddedQueryResult([[target_id]])
-            return EmbeddedQueryResult([])
-
-        if "MATCH (d:Decision {id: $id}) SET" in q:
-            target_id = params.get("id")
-            if target_id in self.decisions:
-                for k, v in params.items():
-                    if k != "id":
-                        self.decisions[target_id][k] = v
-                return EmbeddedQueryResult([[target_id]])
-            return EmbeddedQueryResult([])
-
-        if "MATCH (d:Decision {id: $id}) DETACH DELETE d" in q:
-            target_id = params.get("id")
-            if target_id in self.decisions:
-                del self.decisions[target_id]
             return EmbeddedQueryResult([])
 
         if "MATCH (d:Decision {id: $id}) SET" in q:
@@ -139,10 +248,20 @@ class EmbeddedGraphConn:
                 if "SUPERSEDED" in q:
                     self.decisions[target_id]["status"] = "SUPERSEDED"
                     self.decisions[target_id]["lifecycle_status"] = "SUPERSEDED"
-            return EmbeddedQueryResult([[target_id]])
+                self._persist_node("Decision", target_id, self.decisions[target_id])
+                return EmbeddedQueryResult([[target_id]])
+            return EmbeddedQueryResult([])
+
+        if "MATCH (d:Decision {id: $id}) DETACH DELETE d" in q:
+            target_id = params.get("id")
+            if target_id in self.decisions:
+                del self.decisions[target_id]
+                self._delete_node("Decision", target_id)
+            return EmbeddedQueryResult([])
 
         if "MATCH (d:Decision) DETACH DELETE d" in q:
             self.decisions.clear()
+            self._clear_nodes("Decision")
             return EmbeddedQueryResult([])
 
         if "MATCH (d:Decision) RETURN count(d)" in q:
@@ -217,7 +336,8 @@ class TarsGraph:
             self.conn = self._conn_cache[self.db_path]
         else:
             if self.db_path not in self._conn_cache:
-                self._conn_cache[self.db_path] = EmbeddedGraphConn()
+                sqlite_path = os.path.join(os.path.dirname(self.db_path), "graph_store.db")
+                self._conn_cache[self.db_path] = EmbeddedGraphConn(sqlite_path=sqlite_path)
             self.conn = self._conn_cache[self.db_path]
             self.db = None
 
@@ -264,7 +384,11 @@ class TarsGraph:
         self._seed_golden_demo_state()
 
     def _seed_golden_demo_state(self) -> None:
-        """Pre-seeds Decision #14 and active client commitments for Track 2 (Sovereign Cortex)."""
+        """Pre-seeds Decision #14 and active client commitments for Track 2 (Item 96)."""
+        mode = os.getenv("TARS_MODE", "DEMO").upper()
+        if mode in ("EMPTY", "CLEAN", "PRODUCTION") and not os.getenv("PYTEST_CURRENT_TEST"):
+            return
+
         # 1. Pre-seed Decision #14
         try:
             self.add_decision(
@@ -643,5 +767,38 @@ class TarsGraph:
             "nodes": nodes,
             "edges": edges,
             "descriptions": node_descriptions,
+        }
+
+    def propagate_decision_impact(self, decision_id: str) -> Dict[str, Any]:
+        """
+        Items 155 & 156: Policy & Decision Impact Propagation across Graph Traversal.
+        When a Decision is modified or superseded, propagates outward along [:SUPERSEDES],
+        [:RELATES_TO], and [:ENFORCES] edges to find all affected decisions and downstream entities.
+        """
+        impacted_decisions = []
+        superseded_decisions = []
+
+        for from_id, to_id in self.supersedes_cache:
+            if from_id == decision_id:
+                superseded_decisions.append(to_id)
+            elif to_id == decision_id:
+                impacted_decisions.append(from_id)
+
+        try:
+            if hasattr(self.conn, "edges"):
+                for edge in self.conn.edges:
+                    if edge.get("from_id") == decision_id:
+                        if edge.get("edge_type") == "SUPERSEDES":
+                            superseded_decisions.append(edge.get("to_id"))
+                        else:
+                            impacted_decisions.append(edge.get("to_id"))
+        except Exception:
+            pass
+
+        return {
+            "root_decision_id": decision_id,
+            "superseded_decisions": list(set(superseded_decisions)),
+            "impacted_decisions": list(set(impacted_decisions)),
+            "total_impacted": len(set(superseded_decisions)) + len(set(impacted_decisions)),
         }
 

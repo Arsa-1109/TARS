@@ -211,6 +211,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     content: string;
     pageCount?: number;
     chunkCount?: number;
+    organisationId?: string;
+    validFrom?: number | string;
+    validUntil?: number | string;
   }>({
     open: false,
     title: '',
@@ -1469,12 +1472,22 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                               content,
                               pageCount: pages,
                               chunkCount: doc.chunk_count || 1,
+                              organisationId: doc.organisation_id,
+                              validFrom: doc.valid_from,
+                              validUntil: doc.valid_until,
                             })
                           }
                         >
                           <td className="py-3 px-4 font-semibold text-black dark:text-white flex items-center gap-2">
                             <FileText className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
-                            <span className="truncate max-w-xs">{title}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate max-w-xs">{title}</span>
+                              <span className="text-[10px] text-[#8E8E93] font-mono">
+                                {doc.organisation_id ? `Tenant: ${doc.organisation_id} • ` : ''}
+                                {doc.valid_from ? `Effective: ${new Date(doc.valid_from * 1000).toLocaleDateString()}` : (doc.ingested_at ? `Ingested: ${new Date(doc.ingested_at * 1000).toLocaleDateString()}` : '')}
+                                {doc.is_demo ? ' • DEMO' : ''}
+                              </span>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-[#3C3C43] dark:text-[#EBEBF5]">{dept}</td>
                           <td className="py-3 px-4 text-[#6E6E73] dark:text-[#8E8E93] font-mono">{docType}</td>
@@ -1603,6 +1616,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
         content={readerModal.content}
         pageCount={readerModal.pageCount}
         chunkCount={readerModal.chunkCount}
+        organisationId={readerModal.organisationId}
+        validFrom={readerModal.validFrom}
+        validUntil={readerModal.validUntil}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 import json
+import uuid
 from .registry import registry
 from .permissions import permission_manager
 from .audit import audit_logger
@@ -36,7 +37,7 @@ class MCPExecutor:
         handler = registry.get_handler(tool_name)
         try:
             result = await handler(arguments)
-            # 6. Audit
+            # 6. Audit & Linear Hash-Chained Receipt (Item 150)
             audit_logger.log(
                 tool_name=tool_name,
                 arguments=arguments,
@@ -45,6 +46,19 @@ class MCPExecutor:
                 result=json.dumps(result.data) if result.success else None,
                 error=result.error if not result.success else None
             )
+            if result.success:
+                try:
+                    receipt = audit_logger.create_receipt(
+                        action_id=f"act-{uuid.uuid4().hex[:6]}",
+                        actor=session_id,
+                        tool=tool_name,
+                        payload=arguments,
+                        policy_version="v1.0",
+                    )
+                    if isinstance(result.data, dict):
+                        result.data["receipt"] = receipt
+                except Exception:
+                    pass
             return result
         except Exception as e:
             return self._fail(tool_name, arguments, session_id, "EXECUTION_ERROR", str(e))

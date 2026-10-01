@@ -1,16 +1,10 @@
-from fastapi import FastAPI
-from apps.api.core.events.models import Event
-from apps.api.core.orchestrator import orchestrator, OrchestrationResult
-from apps.api.core.routes import router as core_router
+"""
+apps/api/core/gateway.py
+Canonical entrypoint re-export for TARS (Item 73).
+The sole authoritative FastAPI application instance is apps/api/main:app.
+This module preserves backward compatibility for existing callers.
+"""
+from apps.api.main import app
 
-app = FastAPI(
-    title="TARS API Gateway",
-    description="Local-first Core API Gateway for TARS",
-    version="1.0.0"
-)
+__all__ = ["app"]
 
-app.include_router(core_router, prefix="/api/core", tags=["Core"])
-
-@app.post("/events", response_model=OrchestrationResult)
-async def process_event(event: Event):
-    return await orchestrator.process_event(event)

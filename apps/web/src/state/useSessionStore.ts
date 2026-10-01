@@ -118,19 +118,39 @@ export const DEFAULT_CLEAN_PROFILE: UserProfile = {
   company_id: '',
 };
 
+const STORAGE_CANONICAL_KEY = 'tars_session_storage';
 const STORAGE_ROLE_KEY = 'tars_current_role';
 const STORAGE_DOMAIN_KEY = 'tars_current_domain';
 const STORAGE_AUTH_KEY = 'tars_is_authenticated';
 const STORAGE_USER_KEY = 'tars_current_user_profile';
 const STORAGE_ONBOARDING_KEY = 'tars_onboarding_completed';
 
+function _loadCanonicalState(): any {
+  try {
+    const raw = localStorage.getItem(STORAGE_CANONICAL_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return parsed.state || parsed;
+    }
+  } catch {}
+  return null;
+}
+
 export function useSessionStore() {
+  const canonical = _loadCanonicalState();
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    if (canonical && typeof canonical.isAuthenticated === 'boolean') {
+      return canonical.isAuthenticated;
+    }
     const saved = localStorage.getItem(STORAGE_AUTH_KEY);
     return saved === 'true';
   });
 
   const [onboardingCompleted, setOnboardingCompletedState] = useState<boolean>(() => {
+    if (canonical && typeof canonical.onboardingCompleted === 'boolean') {
+      return canonical.onboardingCompleted;
+    }
     const saved = localStorage.getItem(STORAGE_ONBOARDING_KEY);
     return saved === 'true';
   });
@@ -141,6 +161,9 @@ export function useSessionStore() {
   };
 
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    if (canonical && canonical.currentRole && ROLE_WORKSPACES[canonical.currentRole as UserRole]) {
+      return canonical.currentRole as UserRole;
+    }
     const saved = localStorage.getItem(STORAGE_ROLE_KEY) as UserRole;
     return saved && ROLE_WORKSPACES[saved] ? saved : 'FOUNDER';
   });
@@ -248,6 +271,25 @@ export function useSessionStore() {
   };
 
   const currentDomainConfig = WORKSPACE_DOMAINS[activeDomain];
+
+  // Item 135: Unify session state into canonical storage key
+  // Item 136: Role selection in Cockpit acts as a persona preview filter,
+  // while server-side session tokens govern true authorization.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_CANONICAL_KEY, JSON.stringify({
+        state: {
+          isAuthenticated,
+          onboardingCompleted,
+          currentRole,
+          profile,
+          activeDomain,
+        },
+        profile,
+        role: currentRole,
+      }));
+    } catch {}
+  }, [isAuthenticated, onboardingCompleted, currentRole, profile, activeDomain]);
 
   // Check if current user role has clearance for a given workspace
   const canAccessWorkspace = (ws: WorkspaceId): { allowed: boolean; reason?: string } => {

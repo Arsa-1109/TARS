@@ -82,7 +82,7 @@ class MarkitdownParser:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
-    def parse_file(self, file_path: str, department: str = "GENERAL", clearance: str = "ALL_TEAM", is_demo: bool = False) -> Dict[str, Any]:
+    def parse_file(self, file_path: str, department: str = "GENERAL", clearance: str = "ALL_TEAM", is_demo: bool = False, original_filename: Optional[str] = None) -> Dict[str, Any]:
         """
         Main entry point for parsing any supported document format into Markdown.
         Returns document metadata and markdown content.
@@ -98,9 +98,11 @@ class MarkitdownParser:
                 cached["department"] = department
             if clearance != "ALL_TEAM":
                 cached["clearance"] = clearance
+            if original_filename:
+                cached["filename"] = original_filename
             return cached
 
-        filename = os.path.basename(file_path)
+        filename = original_filename or os.path.basename(file_path)
         ext = os.path.splitext(filename)[1].lower()
         file_size = os.path.getsize(file_path)
 

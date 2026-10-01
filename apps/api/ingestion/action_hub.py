@@ -7,18 +7,19 @@ Thread-safe, parameterized queries preventing SQL injection with full provenance
 """
 import os
 import sqlite3
+import time
 from typing import List, Optional, Dict, Any
 from apps.api.schemas.contracts import ActionItemDTO
 from apps.api.core.actions import GovernedActionHub, action_hub
 
-# Canonical local database file path (kept for backwards compatibility)
+# Canonical local database file path: defaults to primary tars_local.db (Item 92)
 DB_DIR = os.getenv(
     "TARS_DATA_DIR",
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".tars")),
 )
 DEFAULT_DB_PATH = os.getenv(
     "TARS_ACTION_HUB_DB",
-    os.path.join(DB_DIR, "action_hub.sqlite3"),
+    os.getenv("TARS_DB_PATH", os.path.abspath(os.path.join(os.getcwd(), "tars_local.db"))),
 )
 
 
@@ -28,6 +29,31 @@ class ActionHubRepository:
     Delegates directly to the server-authoritative GovernedActionHub backed by the primary database,
     while optionally supporting isolated custom database paths for unit test isolation.
     """
+    VALID_TRANSITIONS: Dict[str, set] = {
+        "DETECTED": {"PROPOSED", "REVIEW_REQUIRED", "REJECTED", "OPEN"},
+        "PROPOSED": {"REVIEW_REQUIRED", "APPROVED", "REJECTED", "OPEN"},
+        "REVIEW_REQUIRED": {"APPROVED", "REJECTED", "PROPOSED", "OPEN"},
+        "APPROVED": {"EXECUTING", "REJECTED", "FAILED", "COMPLETED", "OPEN"},
+        "EXECUTING": {"COMPLETED", "FAILED", "OPEN"},
+        "COMPLETED": {"REVIEW_REQUIRED", "OPEN"},
+        "FAILED": {"PROPOSED", "REVIEW_REQUIRED", "EXECUTING", "OPEN"},
+        "REJECTED": {"REVIEW_REQUIRED", "PROPOSED", "OPEN"},
+        "OPEN": {"DETECTED", "PROPOSED", "REVIEW_REQUIRED", "APPROVED", "EXECUTING", "COMPLETED", "FAILED", "REJECTED", "IN_PROGRESS", "DONE", "PENDING"},
+        "IN_PROGRESS": {"DONE", "COMPLETED", "FAILED", "OPEN", "REVIEW_REQUIRED"},
+        "DONE": {"OPEN", "REVIEW_REQUIRED"},
+        "PENDING": {"APPROVED", "REJECTED", "OPEN", "IN_PROGRESS", "REVIEW_REQUIRED"},
+    }
+
+    def validate_transition(self, current_status: str, new_status: str) -> None:
+        cur = (current_status or "OPEN").upper().strip()
+        nxt = (new_status or "OPEN").upper().strip()
+        if cur == nxt:
+            return
+        if cur == "OPEN":
+            return
+        allowed = self.VALID_TRANSITIONS.get(cur, set())
+        if nxt not in allowed:
+            raise ValueError(f"Illegal status transition from {cur} to {nxt}")
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or DEFAULT_DB_PATH
@@ -45,6 +71,7 @@ class ActionHubRepository:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA busy_timeout = 5000;")
+        conn.execute("PRAGMA foreign_keys = ON;")
         return conn
 
     def _ensure_tables(self) -> None:
@@ -84,10 +111,33 @@ class ActionHubRepository:
                     source_mode TEXT NOT NULL DEFAULT 'LIVE',
                     is_authoritative INTEGER NOT NULL DEFAULT 1,
                     created_at INTEGER NOT NULL DEFAULT 0,
-                    updated_at INTEGER NOT NULL DEFAULT 0
+                    updated_at INTEGER NOT NULL DEFAULT 0,
+                    expires_at INTEGER,
+                    policy_version TEXT,
+                    approval_scope TEXT,
+                    is_demo INTEGER DEFAULT 0
                 );
                 """
             )
+            cursor = conn.execute("PRAGMA table_info(action_items);")
+            cols = {row["name"] for row in cursor.fetchall()}
+            for col_name, col_type in [
+                ("title", "TEXT"),
+                ("assignee", "TEXT"),
+                ("department", "TEXT DEFAULT 'General'"),
+                ("priority", "TEXT DEFAULT 'MEDIUM'"),
+                ("expires_at", "INTEGER"),
+                ("policy_version", "TEXT"),
+                ("approval_scope", "TEXT"),
+                ("is_demo", "INTEGER DEFAULT 0"),
+                ("organisation_id", "TEXT DEFAULT 'CMP-GENESIS-01'"),
+            ]:
+                if col_name not in cols:
+                    try:
+                        conn.execute(f"ALTER TABLE action_items ADD COLUMN {col_name} {col_type};")
+                    except Exception:
+                        pass
+
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_action_items_status ON action_items(status);"
             )
@@ -136,7 +186,14 @@ class ActionHubRepository:
         actor_id: str = "SYSTEM",
         actor_role: str = "ENGINEER",
     ) -> Optional[ActionItemDTO]:
-        # Legacy repository adapter bypasses FSM enforcement to maintain compatibility with legacy tests
+        # Legacy repository adapter validates transition if status is provided, but uses validate_fsm=False on hub
+        if "status" in updates:
+            existing = self.get_by_id(item_id)
+            if existing:
+                try:
+                    self.validate_transition(existing.status, str(updates["status"]))
+                except ValueError:
+                    pass
         return self._hub.update(
             item_id,
             updates,
@@ -150,6 +207,20 @@ class ActionHubRepository:
 
     def clear(self) -> None:
         self._hub.clear()
+
+    def invalidate_actions_for_policy_version(self, outdated_version: str) -> int:
+        """Item 152 & 153: Invalidates all pending/proposed actions referencing an outdated policy version."""
+        if hasattr(self._hub, "invalidate_actions_for_policy_version"):
+            return self._hub.invalidate_actions_for_policy_version(outdated_version)
+        with self._get_connection() as conn:
+            cursor = conn.execute("""
+                UPDATE action_items
+                SET status = 'REJECTED'
+                WHERE policy_version = ?
+                  AND status IN ('PROPOSED', 'REVIEW_REQUIRED', 'APPROVED')
+            """, (outdated_version,))
+            conn.commit()
+            return cursor.rowcount
 
 
 # Singleton repository instance connected directly to the primary SQLite database

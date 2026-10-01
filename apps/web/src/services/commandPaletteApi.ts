@@ -51,12 +51,24 @@ export class CommandPaletteApiService {
         try {
           const trimmed = query.trim().toLowerCase();
 
-          // Concurrently fetch from Core Search, Cortex Decisions, and Action Items
+          // Resolve session profile for authoritative clearance (Item 128)
+          let sessionClearance = 'ALL_TEAM';
+          try {
+            const rawProfile = localStorage.getItem('tars_current_user_profile');
+            if (rawProfile) {
+              const parsed = JSON.parse(rawProfile);
+              sessionClearance = parsed.clearance || 'ALL_TEAM';
+            }
+          } catch {
+            // fallback
+          }
+
+          // Concurrently fetch from Core Search, Cortex Decisions, and Canonical Action Hub
           const [searchRes, decisionsRes, actionsRes] = await Promise.allSettled([
             fetch('/api/core/search', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: trimmed, clearance: 'ALL_TEAM' }),
+              body: JSON.stringify({ query: trimmed, clearance: sessionClearance }),
               signal,
             }).then((r) => (r.ok ? r.json() : { citations: [] })),
 
@@ -64,8 +76,8 @@ export class CommandPaletteApiService {
               r.ok ? r.json() : []
             ),
 
-            fetch('/api/core/action-hub/items', { signal })
-              .catch(() => fetch('/api/core/action-items', { signal }))
+            // Item 127: Canonical Action Hub route
+            fetch('/api/core/action_hub', { signal })
               .then((r) => (r && r.ok ? r.json() : [])),
           ]);
 

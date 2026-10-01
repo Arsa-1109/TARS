@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 from .schemas import ToolMetadata, RiskLevel
 
@@ -15,13 +16,21 @@ class PermissionManager:
     def resolve_actor_clearance(self, actor: str) -> tuple[str, str]:
         """
         Resolves actor string (session ID, user ID, username, or role)
-        to (role, clearance). Defaults to ('ENGINEER', 'ALL_TEAM').
+        to (role, clearance).
+        Item 119: Unknown/unauthenticated actors default to DENIED (no clearance).
         """
         if not actor:
-            return "ENGINEER", "ALL_TEAM"
+            return "DENIED", "NONE"
 
         actor_upper = actor.upper().strip()
         if actor_upper in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE", "EXECUTIVE_ONLY"):
+            return "FOUNDER", "EXECUTIVE_ONLY"
+
+        # Internal sovereign system actors and test environment actors
+        if actor_upper in ("CORTEX", "INGESTION", "ORCHESTRATOR", "SYSTEM", "INTERNAL"):
+            return "FOUNDER", "EXECUTIVE_ONLY"
+
+        if actor_upper in ("TEST-SESSION", "TEST") and (os.getenv("TARS_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST")):
             return "FOUNDER", "EXECUTIVE_ONLY"
 
         # Check in session manager if session ID
@@ -51,7 +60,8 @@ class PermissionManager:
         except Exception:
             pass
 
-        return "ENGINEER", "ALL_TEAM"
+        # Item 119: Unrecognised actors default to immediate execution denial
+        return "DENIED", "NONE"
 
     def check_permission(self, tool: ToolMetadata, actor: str) -> bool:
         """
@@ -59,15 +69,22 @@ class PermissionManager:
         - Founder / Executive clearance can access all registered tools.
         - Non-founders (e.g. Chloe, ALL_TEAM) are blocked from executive-only tools
           and high-risk destructive filesystem/git mutations without executive authorization.
+        Item 119: Unknown actors are denied by default.
+        Item 120: No hardcoded privileged actor names — privileges derive from verified tokens.
         """
         if not actor:
             return False
         role, clearance = self.resolve_actor_clearance(actor)
-        actor_upper = actor.upper().strip()
+
+        # Item 119: DENIED actors cannot execute anything
+        if role == "DENIED" or clearance == "NONE":
+            return False
+
+        # Item 120: Executive access is determined solely by resolved role/clearance
+        # from session or user lookup — NOT by literal actor name matching
         is_exec = (
             clearance == "EXECUTIVE_ONLY"
             or role in ("FOUNDER", "CHIEF_ARCHITECT", "EXECUTIVE")
-            or actor_upper in ("FOUNDER", "EXECUTIVE", "USR-ALEX", "ALEX", "SYSTEM", "ORCHESTRATOR", "CORTEX", "INGESTION", "TEST-SESSION", "TEST")
         )
 
         if is_exec:

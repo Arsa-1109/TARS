@@ -64,6 +64,16 @@ except Exception:
 
 router = APIRouter()
 
+_AETHERFLOW_NAMES = {"aetherflow", "aetherflow ai", "aetherflow technologies", "aetherflow technologies, inc."}
+
+
+def _is_aetherflow_company(company_name: Optional[str]) -> bool:
+    """Returns True only when the active company is Aetherflow (golden demo tenant)."""
+    if not company_name:
+        return False
+    clean = company_name.strip().lower()
+    return clean in _AETHERFLOW_NAMES or "aetherflow" in clean
+
 
 def _is_lightweight_query(query: str) -> bool:
     """Classifies whether a query is a casual greeting or lightweight conversational ping."""
@@ -96,8 +106,19 @@ def _is_lightweight_query(query: str) -> bool:
 GREETINGS = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon"}
 
 @router.post("/search", response_model=SearchResponse)
-async def search_knowledge(req: SearchRequest):
+async def search_knowledge(
+    req: SearchRequest,
+    x_user_id: Optional[str] = Header(None)
+):
     start_time = time.perf_counter()
+    
+    # Item 110: Client-supplied roles are ignored for security
+    if x_user_id:
+        session_data = session_manager.get_session(x_user_id)
+        if session_data:
+            req.user_role = session_data.tars_role
+            req.clearance = "EXECUTIVE_ONLY" if session_data.tars_role == "FOUNDER" else "ALL_TEAM"
+            
     print(f"[SEARCH DEBUG] Incoming search query: {req.query}", flush=True)
 
     # 1. Greeting Interception (Bug 18 / Joel's "hi" search quality fix)
@@ -918,7 +939,17 @@ class TeachMemoryResponse(BaseModel):
     decision_id: Optional[str] = None
 
 @router.post("/teach", response_model=TeachMemoryResponse)
-async def teach_institutional_memory(req: TeachMemoryRequest):
+async def teach_institutional_memory(
+    req: TeachMemoryRequest,
+    x_user_id: Optional[str] = Header(None)
+):
+    uid = req.user_id or x_user_id
+    if uid:
+        session_data = session_manager.get_session(uid)
+        if session_data:
+            # Item 110: Client-supplied roles are ignored for security
+            req.user_role = session_data.tars_role
+            req.clearance = "EXECUTIVE_ONLY" if session_data.tars_role == "FOUNDER" else "ALL_TEAM"
     """
     Directly teaches TARS institutional knowledge (e.g. '/teach Our payment provider is Stripe').
     Persists to SQLite memories with clearance level, tags, and audit telemetry.
@@ -934,10 +965,11 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
 
     # 1. Distill formal decision artifact via local ML model (qwen3:8b)
     # The ML model reasons over user intent and strips conversational meta-language
-    ml_title = None
+    explicit_title = req.title.strip() if req.title and req.title.strip() else None
+    ml_title = explicit_title
     ml_policy = None
     ml_context = None
-    ml_category = None
+    ml_category = req.category.strip().upper() if req.category and req.category.strip() else None
 
     try:
         distill_prompt = (
@@ -968,13 +1000,13 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         )
         if ml_res.get("success") and isinstance(ml_res.get("response"), dict):
             resp_dict = ml_res["response"]
-            if resp_dict.get("title"):
+            if not explicit_title and resp_dict.get("title"):
                 ml_title = str(resp_dict["title"]).strip().strip('"')
             if resp_dict.get("chosen_policy"):
                 ml_policy = str(resp_dict["chosen_policy"]).strip().strip('"')
             if resp_dict.get("context_drivers"):
                 ml_context = str(resp_dict["context_drivers"]).strip()
-            if resp_dict.get("category"):
+            if not ml_category and resp_dict.get("category"):
                 cat_cand = str(resp_dict["category"]).upper().strip()
                 if cat_cand in ("STRATEGY", "ENGINEERING", "SECURITY", "PRODUCT"):
                     ml_category = cat_cand
@@ -1000,7 +1032,7 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
             cleaned = raw_content
 
         if not ml_title:
-            ml_title = f"{cleaned.capitalize()} Initiative" if len(cleaned.split()) <= 4 else cleaned[:60].capitalize()
+            ml_title = explicit_title or (f"{cleaned} Initiative" if len(cleaned.split()) <= 4 else cleaned[:60])
         if not ml_policy:
             ml_policy = f"Officially ratified institutional policy: {cleaned}."
         if not ml_context:
@@ -1018,9 +1050,9 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
             else:
                 ml_category = "STRATEGY"
 
-    title = req.title or ml_title
+    title = explicit_title or req.title or ml_title
     chosen_policy = ml_policy
-    category = req.category or ml_category
+    category = req.category or ml_category or "STRATEGY"
     context_desc = ml_context or f"Ratified via Collaborative Think Tank by {req.user_name or 'Team Member'}."
     source = f"TEACH:{req.user_name or req.user_role or 'USER'}"
     tags = f"teach,learned,decision,{category.lower()}"
@@ -1034,20 +1066,19 @@ async def teach_institutional_memory(req: TeachMemoryRequest):
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (mem_id, "INSTITUTIONAL_FACT", title, content_record, source, now_ts, tags, req.clearance or "ALL_TEAM"))
 
-    # Log to interaction_logs telemetry
-    cursor.execute('''
-        INSERT INTO interaction_logs (id, session_id, user_name, user_role, clearance, event_type, query, response)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        f"LOG-{uuid.uuid4().hex[:8]}",
-        req.user_id,
-        req.user_name or "Anonymous",
-        req.user_role or "ENGINEER",
-        req.clearance or "ALL_TEAM",
-        "TEACH",
-        title,
-        chosen_policy
-    ))
+    # Log to interaction_logs telemetry using normalized service (Item 118)
+    from apps.api.core.telemetry import telemetry_service
+    telemetry_query = req.title if req.title else (title or raw_content)
+    telemetry_service.log_interaction(
+        event_type="TEACH",
+        query=telemetry_query,
+        response=chosen_policy,
+        user_name=req.user_name,
+        user_role=req.user_role,
+        clearance=req.clearance or "ALL_TEAM",
+        session_id=req.user_id,
+        user_id=req.user_id
+    )
     conn.commit()
 
     # 3. Automatically instantiate a durable Decision in Workspace 5 (Kùzu Graph & MADR)
@@ -1178,19 +1209,24 @@ async def list_thinktank_channels():
 
 @router.post("/thinktank/channels", response_model=ThinkTankChannelDTO)
 async def create_thinktank_channel(payload: ThinkTankChannelCreate):
-    """Creates a new persistent Think Tank channel."""
+    """Creates a new persistent Think Tank channel (Item 112: 409 Conflict on collision)."""
     clean_name = payload.name.strip()
     if not clean_name.startswith("#"):
         clean_name = "#" + clean_name
     ch_id = clean_name.lstrip("#").lower().replace(" ", "-") or f"ch-{uuid.uuid4().hex[:6]}"
     conn = db.get_connection()
     cursor = conn.cursor()
+    cursor.execute("SELECT id FROM thinktank_channels WHERE id = ? AND is_deleted = 0", (ch_id,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=409, detail=f"Channel '{clean_name}' already exists.")
+
     cursor.execute('''
         INSERT OR REPLACE INTO thinktank_channels (id, name, topic, is_deleted)
         VALUES (?, ?, ?, 0)
     ''', (ch_id, clean_name, payload.topic or ""))
     conn.commit()
-    return ThinkTankChannelDTO(id=ch_id, name=clean_name, topic=payload.topic or "", created_at=str(time.time()))
+    iso_now = datetime.now(timezone.utc).isoformat()
+    return ThinkTankChannelDTO(id=ch_id, name=clean_name, topic=payload.topic or "", created_at=iso_now)
 
 @router.get("/thinktank/messages", response_model=List[ThinkTankMessageDTO])
 async def list_thinktank_messages(channel_id: str = "general"):
@@ -1426,7 +1462,7 @@ def _resolve_user_id(
     """Determines the active user ID with sovereign fallback."""
     uid = query_user_id or body_user_id or header_user_id
     if not uid or uid.strip() in ("", "undefined", "null"):
-        return "usr-alex"
+        raise HTTPException(status_code=401, detail="Unauthorized: User ID required")
     return uid.strip()
 
 
@@ -1671,8 +1707,16 @@ async def send_chat_message(
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
 
     uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id, body_user_id=payload.user_id)
-    u_role = payload.user_role or x_user_role or "ENGINEER"
-    u_clearance = payload.clearance or x_user_clearance or "ALL_TEAM"
+    
+    # Item 110: Client-supplied roles are ignored for security. Look up from session.
+    session_data = session_manager.get_session(uid)
+    if session_data:
+        u_role = session_data.tars_role
+        u_clearance = "EXECUTIVE_ONLY" if u_role == "FOUNDER" else "ALL_TEAM"
+    else:
+        u_role = "ENGINEER"
+        u_clearance = "ALL_TEAM"
+        
     u_name = payload.user_name or uid
 
     conn = db.get_connection()
@@ -1743,21 +1787,36 @@ async def send_chat_message(
                 user_role=u_role
             )
 
-            # Retrieve company profile facts for grounding
+            # Retrieve company profile facts for grounding (Item 114: Tenant-isolated dynamic facts)
             company = company_repo.get_profile() or {}
             comp_name = company.get("company_name", "AetherFlow Technologies, Inc.")
             team_size = company.get("team_size", "12 FTE")
             runway_m = company.get("runway_months", 9.0)
+            is_aetherflow_tenant = _is_aetherflow_company(comp_name)
 
-            company_facts = (
-                f"Company Name: {comp_name}\n"
-                f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
-                f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
-                f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
-                f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
-                f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
-                f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
-            )
+            if is_aetherflow_tenant:
+                company_facts = (
+                    f"Company Name: {comp_name}\n"
+                    f"Current Team Size: {team_size} (12 full-time employees: Alex Vance CEO, Dr. Elena Rostova CTO, Marcus Chen Product, Sarah Jenkins Sales, Liam Patel Senior Backend, Chloe Dubois Engineer, and 6 core contributors)\n"
+                    f"Financial Runway: {runway_m} months remaining ($666,000 liquid cash in bank, -$74,000/mo net burn)\n"
+                    f"Key Metrics: $82,000 MRR ($984K ARR), 72 active enterprise customers, 108% net revenue retention\n"
+                    f"Core Enterprise Policy (BDR-014): Zero custom enterprise feature forks or bespoke SSO customisations (SAML SSO exception allowed under BDR-018)\n"
+                    f"Architecture Invariant (INV-017): Outbox pattern required, outbound HTTP calls strictly prohibited inside DB transactions\n"
+                    f"Tech Stack: Python, TypeScript, FastAPI, React 19, SQLite WAL, Tree-sitter AST, local SLMs\n"
+                )
+            else:
+                core_thesis = company.get("core_thesis", "")
+                tech_stack_raw = company.get("tech_stack", "Modern Stack")
+                tech_stack_str = tech_stack_raw if isinstance(tech_stack_raw, str) else ", ".join(tech_stack_raw or [])
+                burn = company.get("monthly_burn", "N/A")
+                company_facts = (
+                    f"Company Name: {comp_name}\n"
+                    f"Core Thesis: {core_thesis}\n"
+                    f"Target Runway: {runway_m} months\n"
+                    f"Team Size: {team_size}\n"
+                    f"Monthly Burn: {burn}\n"
+                    f"Tech Stack: {tech_stack_str}\n"
+                )
             user_context = f"\nActive User Context: The current user is '{u_name}' with the assigned role '{u_role}' and clearance level '{u_clearance}'.\n"
 
             # 6. Local Ollama Synthesis & Outage Handling (Feature 14)
@@ -1922,3 +1981,9 @@ async def get_audit_trail(limit: int = 100, entity_id: Optional[str] = None):
     events = audit_ledger.get_events(limit=limit, entity_id=entity_id)
     return [AuditBlockDTO(**e) for e in events]
 
+
+@router.post("/reconciliation/run")
+async def run_reconciliation():
+    """Item 148: Triggers an on-demand reconciliation sweep across storage and graph."""
+    from apps.api.core.reconciliation import reconciliation_worker
+    return reconciliation_worker.reconcile()

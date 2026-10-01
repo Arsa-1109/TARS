@@ -6,10 +6,25 @@ in <45ms with 0% false positives and zero hallucinations.
 """
 import re
 from typing import List, Dict, Any, Optional
-import tree_sitter
-import tree_sitter_python
-import tree_sitter_typescript
-import tree_sitter_javascript
+try:
+    import tree_sitter
+except ImportError:
+    tree_sitter = None
+
+try:
+    import tree_sitter_python
+except ImportError:
+    tree_sitter_python = None
+
+try:
+    import tree_sitter_typescript
+except ImportError:
+    tree_sitter_typescript = None
+
+try:
+    import tree_sitter_javascript
+except ImportError:
+    tree_sitter_javascript = None
 
 
 class TarsASTParser:
@@ -22,30 +37,56 @@ class TarsASTParser:
         self.py_parser = None
         self.ts_parser = None
         self.js_parser = None
+        self._missing_grammars: List[str] = []
 
-        try:
-            self.py_lang = tree_sitter.Language(tree_sitter_python.language())
-            self.py_parser = tree_sitter.Parser(self.py_lang)
-        except Exception as e:
-            self.py_lang = None
-            self.py_parser = None
-            print(f"Warning: Failed to load Tree-sitter Python grammar: {e}")
+        if tree_sitter is None:
+            self._missing_grammars.append("tree_sitter_core")
+        else:
+            if tree_sitter_python is not None:
+                try:
+                    self.py_lang = tree_sitter.Language(tree_sitter_python.language())
+                    self.py_parser = tree_sitter.Parser(self.py_lang)
+                except Exception as e:
+                    self._missing_grammars.append("python")
+                    print(f"Warning: Failed to load Tree-sitter Python grammar: {e}")
+            else:
+                self._missing_grammars.append("python")
 
-        try:
-            self.ts_lang = tree_sitter.Language(tree_sitter_typescript.language_typescript())
-            self.ts_parser = tree_sitter.Parser(self.ts_lang)
-        except Exception as e:
-            self.ts_lang = None
-            self.ts_parser = None
-            print(f"Warning: Failed to load Tree-sitter TypeScript grammar: {e}")
+            if tree_sitter_typescript is not None:
+                try:
+                    self.ts_lang = tree_sitter.Language(tree_sitter_typescript.language_typescript())
+                    self.ts_parser = tree_sitter.Parser(self.ts_lang)
+                except Exception as e:
+                    self._missing_grammars.append("typescript")
+                    print(f"Warning: Failed to load Tree-sitter TypeScript grammar: {e}")
+            else:
+                self._missing_grammars.append("typescript")
 
-        try:
-            self.js_lang = tree_sitter.Language(tree_sitter_javascript.language())
-            self.js_parser = tree_sitter.Parser(self.js_lang)
-        except Exception as e:
-            self.js_lang = None
-            self.js_parser = None
-            print(f"Warning: Failed to load Tree-sitter JavaScript grammar: {e}")
+            if tree_sitter_javascript is not None:
+                try:
+                    self.js_lang = tree_sitter.Language(tree_sitter_javascript.language())
+                    self.js_parser = tree_sitter.Parser(self.js_lang)
+                except Exception as e:
+                    self._missing_grammars.append("javascript")
+                    print(f"Warning: Failed to load Tree-sitter JavaScript grammar: {e}")
+            else:
+                self._missing_grammars.append("javascript")
+
+    def get_capability_status(self) -> Dict[str, Any]:
+        """Returns machine-readable degraded or operational capability state."""
+        if tree_sitter is None or self._missing_grammars:
+            return {
+                "available": False,
+                "reason": "tree_sitter_grammar_missing",
+                "missing": self._missing_grammars,
+                "mode": "DEGRADED"
+            }
+        return {
+            "available": True,
+            "reason": "all_grammars_loaded",
+            "missing": [],
+            "mode": "OPERATIONAL"
+        }
 
     def parse_code(self, code: str, file_path: str) -> Optional[tree_sitter.Tree]:
         """Parses source code into a Tree-sitter AST based on file extension."""

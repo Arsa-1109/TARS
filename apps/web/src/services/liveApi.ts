@@ -276,9 +276,13 @@ export class LiveTarsApi implements TarsApi {
       }
     }
 
+    if (finalTask?.status === "FAILED" || !finalTask?.transcript) {
+      throw new Error(finalTask?.error || "Audio transcription failed or timed out.");
+    }
+
     const clientName = file.name.replace(/\.[^/.]+$/, "");
     const spec = finalTask?.spec_result || {};
-    const transcriptText = finalTask?.transcript || "Audio transcribed locally by Faster-Whisper.";
+    const transcriptText = finalTask.transcript;
     const sentences = transcriptText.split(".").filter((s: string) => s.trim().length > 0);
     const transcriptSegments = sentences.map((s: string, idx: number) => ({
       speaker: idx % 2 === 0 ? "Customer" : "Founder",
@@ -358,8 +362,10 @@ export class LiveTarsApi implements TarsApi {
     try {
       const data = await this.fetchJson<DecisionItem[]>('/cortex/decisions');
       return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
+    } catch (err) {
+      console.error('getDecisions failed (outage or network failure):', err);
+      // Item 137: Re-throw to distinguish outages from genuine empty lists
+      throw err;
     }
   }
 
@@ -378,13 +384,15 @@ export class LiveTarsApi implements TarsApi {
         method: 'POST',
         body: JSON.stringify({ proposal, severity_threshold: severity }),
       });
-    } catch {
+    } catch (err: any) {
+      // Item 130: Never set has_conflict = false on error. Report explicit CHECK_FAILED state.
       return {
         has_conflict: false,
         severity: "BALANCED",
         conflicting_decision_id: null,
-        explanation: "No conflicting decisions registered in local graph store.",
-      };
+        status: "CHECK_FAILED",
+        explanation: `Contradiction check failed: ${err?.message || 'Cortex engine unreachable'}`,
+      } as any;
     }
   }
 
@@ -476,8 +484,10 @@ export class LiveTarsApi implements TarsApi {
     try {
       const data = await this.fetchJson<ActionItemDTO[]>('/ingestion/actions');
       return Array.isArray(data) ? data : [];
-    } catch {
-      return [];
+    } catch (err) {
+      console.error('getActionItems failed (outage or network failure):', err);
+      // Item 137: Re-throw to distinguish outages from genuine empty lists
+      throw err;
     }
   }
 

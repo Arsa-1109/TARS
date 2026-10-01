@@ -81,6 +81,7 @@ class KuzuGraphEngine:
                 valid_from INT64,
                 valid_until INT64,
                 lifecycle_status STRING,
+                organisation_id STRING,
                 PRIMARY KEY (id)
             );""",
             """CREATE NODE TABLE IF NOT EXISTS Decision (
@@ -93,6 +94,7 @@ class KuzuGraphEngine:
                 timestamp INT64,
                 stale_review_date INT64,
                 clearance STRING,
+                organisation_id STRING,
                 PRIMARY KEY (id)
             );""",
             """CREATE NODE TABLE IF NOT EXISTS ActionItem (
@@ -104,6 +106,7 @@ class KuzuGraphEngine:
                 source_type STRING,
                 source_id STRING,
                 timestamp_offset STRING,
+                organisation_id STRING,
                 PRIMARY KEY (id)
             );""",
             """CREATE NODE TABLE IF NOT EXISTS ClientCall (
@@ -113,6 +116,7 @@ class KuzuGraphEngine:
                 audio_path STRING,
                 transcript_summary STRING,
                 date INT64,
+                organisation_id STRING,
                 PRIMARY KEY (id)
             );""",
             """CREATE NODE TABLE IF NOT EXISTS Invariant (
@@ -199,8 +203,10 @@ class KuzuGraphEngine:
         parent_doc_id: Optional[str] = None,
     ) -> bool:
         now_ts = int(time.time())
-        eff_from = effective_from or valid_from or now_ts
+        valid_from = valid_from or now_ts
+        eff_from = effective_from or valid_from
         eff_to = effective_to or valid_until
+        # Item 97: Permanent institutional knowledge remains valid indefinitely unless explicitly specified
 
         with self._lock:
             if self.use_native and self._conn:
@@ -210,7 +216,7 @@ class KuzuGraphEngine:
                     ON CREATE SET d.title = $title, d.department = $department, d.clearance = $clearance,
                                   d.valid_from = $valid_from, d.valid_until = $valid_until, d.lifecycle_status = $status
                     ON MATCH SET d.title = $title, d.department = $department, d.clearance = $clearance,
-                                 d.lifecycle_status = $status;
+                                 d.valid_from = $valid_from, d.valid_until = $valid_until, d.lifecycle_status = $status;
                     """
                     self._conn.execute(
                         query,
@@ -426,7 +432,9 @@ class KuzuGraphEngine:
                         ON CREATE SET d.title = $title, d.category = $category, d.status = $status,
                                       d.context = $context, d.chosen_option = $opt, d.timestamp = $ts,
                                       d.stale_review_date = $stale, d.clearance = $clearance
-                        ON MATCH SET d.title = $title, d.status = $status, d.chosen_option = $opt;
+                        ON MATCH SET d.title = $title, d.category = $category, d.status = $status,
+                                     d.context = $context, d.chosen_option = $opt, d.timestamp = $ts,
+                                     d.stale_review_date = $stale, d.clearance = $clearance;
                         """,
                         {
                             "id": decision_id,
@@ -444,7 +452,9 @@ class KuzuGraphEngine:
                         self._conn.execute(
                             """
                             MATCH (newD:Decision {id: $new_id}), (oldD:Decision {id: $old_id})
-                            CREATE (newD)-[:SUPERSEDES {reason: $reason, timestamp: $ts}]->(oldD)
+                            MERGE (newD)-[r:SUPERSEDES]->(oldD)
+                            ON CREATE SET r.reason = $reason, r.timestamp = $ts
+                            ON MATCH SET r.reason = $reason, r.timestamp = $ts
                             SET oldD.status = 'SUPERSEDED';
                             """,
                             {
@@ -511,7 +521,8 @@ class KuzuGraphEngine:
                         MERGE (c:ClientCall {id: $id})
                         ON CREATE SET c.client_name = $name, c.sentiment = $sentiment, c.audio_path = $path,
                                       c.transcript_summary = $summary, c.date = $date
-                        ON MATCH SET c.sentiment = $sentiment, c.transcript_summary = $summary;
+                        ON MATCH SET c.client_name = $name, c.sentiment = $sentiment, c.audio_path = $path,
+                                     c.transcript_summary = $summary, c.date = $date;
                         """,
                         {
                             "id": call_id,
@@ -601,7 +612,9 @@ class KuzuGraphEngine:
                         ON CREATE SET a.description = $description, a.owner = $owner, a.deadline = $deadline,
                                       a.status = $status, a.source_type = $stype, a.source_id = $sid,
                                       a.timestamp_offset = $offset
-                        ON MATCH SET a.description = $description, a.owner = $owner, a.status = $status;
+                        ON MATCH SET a.description = $description, a.owner = $owner, a.deadline = $deadline,
+                                     a.status = $status, a.source_type = $stype, a.source_id = $sid,
+                                     a.timestamp_offset = $offset;
                         """,
                         {
                             "id": item_id,
@@ -618,7 +631,9 @@ class KuzuGraphEngine:
                         self._conn.execute(
                             """
                             MATCH (a:ActionItem {id: $aid}), (c:ClientCall {id: $cid})
-                            CREATE (a)-[:EXTRACTED_FROM {timestamp_offset: $offset}]->(c);
+                            MERGE (a)-[r:EXTRACTED_FROM]->(c)
+                            ON CREATE SET r.timestamp_offset = $offset
+                            ON MATCH SET r.timestamp_offset = $offset;
                             """,
                             {"aid": item_id, "cid": source_id, "offset": timestamp_offset},
                         )

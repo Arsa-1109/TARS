@@ -27,6 +27,9 @@ interface DocumentReaderModalProps {
   content: string;
   pageCount?: number;
   chunkCount?: number;
+  organisationId?: string;
+  validFrom?: number | string;
+  validUntil?: number | string;
 }
 
 export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
@@ -38,6 +41,9 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
   content,
   pageCount,
   chunkCount,
+  organisationId,
+  validFrom,
+  validUntil,
 }) => {
   const isPdf = docTitle.toLowerCase().endsWith('.pdf') || content.trim().startsWith('%PDF');
   const [viewMode, setViewMode] = useState<'pdf' | 'text'>(isPdf ? 'pdf' : 'text');
@@ -289,6 +295,20 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                 <span className="px-1.5 py-0.5 rounded-[4px] bg-black/[0.05] dark:bg-white/[0.08] font-mono text-[10px] font-semibold text-black dark:text-white">
                   {clearance}
                 </span>
+                {organisationId && (
+                  <>
+                    <span>•</span>
+                    <span className="font-mono text-[10px] text-[#3C3C43] dark:text-[#D1D1D8]">Tenant: {organisationId}</span>
+                  </>
+                )}
+                {validFrom && (
+                  <>
+                    <span>•</span>
+                    <span className="font-mono text-[10px] text-[#3C3C43] dark:text-[#D1D1D8]">
+                      Valid: {typeof validFrom === 'number' ? new Date(validFrom * 1000).toLocaleDateString() : validFrom}
+                    </span>
+                  </>
+                )}
                 <span>•</span>
                 <span className="text-[#0071E3] dark:text-[#2997FF] flex items-center gap-1">
                   <Shield className="w-3 h-3" />

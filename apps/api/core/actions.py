@@ -136,6 +136,10 @@ def ensure_action_items_schema(conn: sqlite3.Connection) -> None:
         "is_authoritative": "INTEGER NOT NULL DEFAULT 1",
         "created_at": "INTEGER NOT NULL DEFAULT 0",
         "updated_at": "INTEGER NOT NULL DEFAULT 0",
+        "expires_at": "INTEGER",
+        "policy_version": "TEXT",
+        "approval_scope": "TEXT",
+        "is_demo": "INTEGER DEFAULT 0",
     }
     for col_name, col_type in col_defs.items():
         if col_name not in cols:
@@ -269,8 +273,8 @@ class GovernedActionHub:
                 approver_id, approved_at, execution_time_ms, rollback_handler,
                 audit_block_id, organisation_id, lifecycle_status, effective_from,
                 effective_to, confidence_state, source_mode, is_authoritative,
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                created_at, updated_at, expires_at, policy_version, approval_scope, is_demo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 item_id,
@@ -304,8 +308,12 @@ class GovernedActionHub:
                 item.confidence_state or "CONFIRMED",
                 item.source_mode or "LIVE",
                 1 if item.is_authoritative else 0,
+                item.created_at or now,
                 now,
-                now,
+                item.expires_at,
+                item.policy_version,
+                item.approval_scope,
+                item.is_demo or 0,
             ),
         )
         conn.commit()
@@ -433,6 +441,10 @@ class GovernedActionHub:
             "audit_block_id",
             "organisation_id",
             "confidence_state",
+            "expires_at",
+            "policy_version",
+            "approval_scope",
+            "is_demo",
         }
 
         filtered = {}
@@ -697,6 +709,19 @@ class GovernedActionHub:
         cursor.execute("DELETE FROM action_items;")
         conn.commit()
 
+    def invalidate_actions_for_policy_version(self, outdated_version: str) -> int:
+        """Invalidates all pending/proposed actions referencing an outdated policy version."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE action_items
+            SET status = 'REJECTED', lifecycle_status = 'REJECTED'
+            WHERE policy_version = ?
+              AND status IN ('PROPOSED', 'REVIEW_REQUIRED', 'APPROVED', 'OPEN')
+        """, (outdated_version,))
+        conn.commit()
+        return cursor.rowcount
+
     def _row_to_dto(self, row: sqlite3.Row) -> ActionItemDTO:
         d = dict(row)
         params = {}
@@ -744,6 +769,11 @@ class GovernedActionHub:
             confidence_state=d.get("confidence_state", "CONFIRMED"),
             source_mode=d.get("source_mode", "LIVE"),
             is_authoritative=bool(d.get("is_authoritative", 1)),
+            created_at=d.get("created_at"),
+            expires_at=d.get("expires_at"),
+            policy_version=d.get("policy_version"),
+            approval_scope=d.get("approval_scope"),
+            is_demo=d.get("is_demo", 0),
         )
 
 
