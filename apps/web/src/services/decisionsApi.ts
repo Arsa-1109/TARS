@@ -161,11 +161,15 @@ export class DecisionsApi {
   }
 
   /**
-   * Fetches active AI strategic growth & optimization recommendations.
+   * Fetches active AI strategic growth & optimization recommendations, scoped to company.
    */
-  async getRecommendations(): Promise<StrategicRecommendation[]> {
+  async getRecommendations(companyName?: string): Promise<StrategicRecommendation[]> {
     try {
-      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations');
+      const compName = companyName || this._getActiveCompanyName();
+      const url = compName
+        ? `/core/decisions/recommendations?company_name=${encodeURIComponent(compName)}`
+        : '/core/decisions/recommendations';
+      const data = await this.fetchJson<StrategicRecommendation[]>(url);
       return Array.isArray(data) ? data : [];
     } catch (err) {
       console.warn('Failed to fetch recommendations:', err);
@@ -175,11 +179,15 @@ export class DecisionsApi {
 
   /**
    * Proactively triggers local Qwen3 model to analyze current company state
-   * and generate fresh strategic optimization vectors.
+   * and generate fresh strategic optimization vectors, scoped to company.
    */
-  async generateRecommendations(): Promise<StrategicRecommendation[]> {
+  async generateRecommendations(companyName?: string): Promise<StrategicRecommendation[]> {
     try {
-      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations/generate', {
+      const compName = companyName || this._getActiveCompanyName();
+      const url = compName
+        ? `/core/decisions/recommendations/generate?company_name=${encodeURIComponent(compName)}`
+        : '/core/decisions/recommendations/generate';
+      const data = await this.fetchJson<StrategicRecommendation[]>(url, {
         method: 'POST',
       });
       return Array.isArray(data) ? data : [];

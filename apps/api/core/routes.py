@@ -1582,17 +1582,26 @@ async def delete_single_chat_message(
 
 
 @router.get("/decisions/recommendations")
-async def get_core_strategic_recommendations(status: str = "ACTIVE"):
-    """Returns stored strategic growth and runway recommendations."""
+async def get_core_strategic_recommendations(
+    status: str = "ACTIVE",
+    company_name: Optional[str] = Query(None, description="Company name for tenant isolation"),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Returns stored strategic growth and runway recommendations, strictly scoped to company."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return strategic_advisor.list_recommendations(status=status)
+    active_company = company_name or x_company_name
+    return strategic_advisor.list_recommendations(company_name=active_company, status=status)
 
 
 @router.post("/decisions/recommendations/generate")
-async def generate_core_strategic_recommendations():
-    """Triggers autonomous strategic analysis using local Qwen3 model."""
+async def generate_core_strategic_recommendations(
+    company_name: Optional[str] = Query(None, description="Company name for tenant isolation"),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Triggers autonomous strategic analysis using local Qwen3 model, strictly scoped to company."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return await strategic_advisor.generate_recommendations()
+    active_company = company_name or x_company_name
+    return await strategic_advisor.generate_recommendations(company_name=active_company)
 
 
 @router.post("/decisions/recommendations/{rec_id}/dismiss")
@@ -1606,8 +1615,13 @@ async def dismiss_core_strategic_recommendation(rec_id: str):
 
 
 @router.get("/decisions/recommendations/status")
-async def get_core_strategic_recommendations_status():
-    """Returns autonomous radar health and worker pulse status."""
+async def get_core_strategic_recommendations_status(
+    company_name: Optional[str] = Query(None, description="Company name for tenant isolation"),
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
+    """Returns autonomous radar health and worker pulse status for company."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return strategic_advisor.get_advisor_status()
+    active_company = company_name or x_company_name
+    return strategic_advisor.get_advisor_status(company_name=active_company)
+
 

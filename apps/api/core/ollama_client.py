@@ -49,7 +49,11 @@ class OllamaClient:
             if system:
                 payload["system"] = system
             if structured_format:
-                payload["format"] = "json"
+                # Ollama's grammar-constrained format="json" breaks reasoning models like qwen3 / r1
+                # because it suppresses thinking tokens (<think>), forcing premature termination ({}).
+                is_reasoning_model = any(m in chosen_model.lower() for m in ["qwen3", "r1", "deepseek"])
+                if not is_reasoning_model:
+                    payload["format"] = "json"
                 
             # Allow longer timeout for deep reasoning tasks on local machines
             request_timeout = self.timeout

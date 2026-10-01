@@ -43,6 +43,7 @@ import {
 interface DecisionsWorkspaceProps {
   activeDecisionId: string | null;
   onSelectDecision: (id: string) => void;
+  companyName?: string;
 }
 
 type FilterTab = 'ALL' | 'ACTIVE' | 'SUPERSEDED' | 'STRATEGY' | 'ENGINEERING';
@@ -51,6 +52,7 @@ type DensityMode = 'comfortable' | 'compact';
 export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   activeDecisionId,
   onSelectDecision,
+  companyName,
 }) => {
   const [decisions, setDecisions] = useState<DecisionItem[]>([]);
   const [selectedDecision, setSelectedDecision] = useState<DecisionItem | null>(null);
@@ -91,6 +93,21 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [supersededByVal, setSupersededByVal] = useState('');
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 
+  // Active tenant / company resolution
+  const effectiveCompanyName = useMemo(() => {
+    if (companyName && companyName.trim()) return companyName.trim();
+    try {
+      const stored = localStorage.getItem('tars_current_user_profile');
+      if (stored) {
+        const prof = JSON.parse(stored);
+        if (prof?.company_name) return prof.company_name;
+      }
+    } catch {
+      // ignore
+    }
+    return '';
+  }, [companyName]);
+
   // Strategic Growth Radar State
   const [recommendations, setRecommendations] = useState<StrategicRecommendation[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
@@ -104,7 +121,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const fetchRecommendations = async () => {
     setLoadingRecs(true);
     try {
-      const data = await decisionsApi.getRecommendations();
+      const data = await decisionsApi.getRecommendations(effectiveCompanyName);
       setRecommendations(data);
     } catch (err) {
       console.warn('Failed to load recommendations:', err);
@@ -117,10 +134,14 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     setGeneratingRecs(true);
     setRadarNotice(null);
     try {
-      const data = await decisionsApi.generateRecommendations();
+      const data = await decisionsApi.generateRecommendations(effectiveCompanyName);
       setRecommendations(data);
       setLastPulseTime(new Date());
-      setRadarNotice('Fresh strategic suggestions synthesized by local Qwen 3 model from institutional memory.');
+      if (data.length > 0) {
+        setRadarNotice(`Fresh strategic suggestions synthesized by local Qwen 3 model for ${effectiveCompanyName || 'company'}.`);
+      } else {
+        setRadarNotice(`No recommendations available yet for ${effectiveCompanyName || 'this company'}. Ingest documents or record decisions to build tailored vectors.`);
+      }
       setTimeout(() => setRadarNotice(null), 6000);
     } catch (err) {
       console.error('Failed to generate suggestions:', err);
@@ -181,11 +202,14 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
         fetchDecisions();
         fetchRecommendations();
       } else if (evt.event === 'STRATEGIC_RADAR_UPDATED') {
-        fetchRecommendations();
-        setLastPulseTime(new Date());
-        const theme = evt.data?.focus_theme ? ` (${evt.data.focus_theme})` : '';
-        setRadarNotice(`Autonomous Radar Pulse: Fresh vectors synthesized${theme}`);
-        setTimeout(() => setRadarNotice(null), 7000);
+        const targetComp = evt.data?.company_name;
+        if (!targetComp || !effectiveCompanyName || targetComp.toLowerCase() === effectiveCompanyName.toLowerCase()) {
+          fetchRecommendations();
+          setLastPulseTime(new Date());
+          const theme = evt.data?.focus_theme ? ` (${evt.data.focus_theme})` : '';
+          setRadarNotice(`Autonomous Radar Pulse: Fresh vectors synthesized${theme}`);
+          setTimeout(() => setRadarNotice(null), 7000);
+        }
       }
     });
 
@@ -193,7 +217,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
       clearInterval(interval);
       unsub();
     };
-  }, [activeDecisionId]);
+  }, [activeDecisionId, effectiveCompanyName]);
 
   const runContradictionCheck = async () => {
     if (!testProposal.trim()) return;
@@ -404,7 +428,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 )}
               </div>
               <span className="text-[11px] text-[#86868B] dark:text-[#8E8E93] block">
-                Continuous local ML agent actively synthesizing high-leverage growth vectors from sovereign company memory, financial runway ($666k / -$74k burn), and active graph invariants.
+                Continuous local ML agent actively synthesizing high-leverage growth vectors from sovereign company memory, active documents, and graph invariants.
               </span>
             </div>
           </div>
@@ -478,8 +502,10 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 <span>Synthesizing company strategic vectors...</span>
               </div>
             ) : filteredRecommendations.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#8E8E93] rounded-[16px] border border-dashed border-black/[0.08] dark:border-white/[0.08]">
-                No recommendations in this category. Click &quot;Analyze Opportunities&quot; to discover new growth vectors.
+              <div className="py-8 text-center text-xs text-[#8E8E93] rounded-[16px] border border-dashed border-black/[0.08] dark:border-white/[0.08] px-4">
+                {recommendations.length === 0
+                  ? `No strategic recommendations available yet for ${effectiveCompanyName || 'this company'}. Ingest documents or record decisions to generate tailored growth vectors.`
+                  : 'No recommendations in this category. Click "Analyze Opportunities" to discover new growth vectors.'}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5">

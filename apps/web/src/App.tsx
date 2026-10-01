@@ -391,6 +391,7 @@ export function App() {
           <DecisionsWorkspace
             activeDecisionId={activeDecisionId}
             onSelectDecision={setActiveDecisionId}
+            companyName={profile?.company_name}
           />
         )}
 
