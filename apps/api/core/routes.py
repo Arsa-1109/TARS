@@ -1066,6 +1066,18 @@ async def teach_institutional_memory(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (mem_id, "INSTITUTIONAL_FACT", title, content_record, source, now_ts, tags, req.clearance or "ALL_TEAM"))
 
+    # Link and mark supersession if statement declares switching or replacing a prior provider/entity
+    switch_match = re.search(r"\b(?:switched|switch|replaced|replace|migrated|migrate|moved|now using)\b.*?\bfrom\s+([A-Za-z0-9_-]+)", raw_content, re.IGNORECASE) or re.search(r"\b(?:replacing|superseding)\s+([A-Za-z0-9_-]+)", raw_content, re.IGNORECASE)
+    if switch_match:
+        old_entity = switch_match.group(1).strip()
+        cursor.execute(
+            """UPDATE memories 
+               SET superseded_by = ?, superseded_at = ? 
+               WHERE id != ? AND superseded_by IS NULL AND record_type = 'INSTITUTIONAL_FACT' 
+               AND (content LIKE ? OR title LIKE ?)""",
+            (mem_id, now_ts, mem_id, f"%{old_entity}%", f"%{old_entity}%")
+        )
+
     # Log to interaction_logs telemetry using normalized service (Item 118)
     from apps.api.core.telemetry import telemetry_service
     telemetry_query = req.title if req.title else (title or raw_content)
@@ -1938,24 +1950,40 @@ async def delete_single_chat_message(
 
 
 @router.get("/decisions/recommendations")
-async def get_core_strategic_recommendations(status: str = "ACTIVE"):
-    """Returns stored strategic growth and runway recommendations."""
+async def get_core_strategic_recommendations(
+    status: str = "ACTIVE",
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
+):
+    """Returns stored strategic growth and runway recommendations scoped strictly to tenant."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return strategic_advisor.list_recommendations(status=status)
+    target_comp = company_name or x_company_name or x_organisation_id
+    return strategic_advisor.list_recommendations(status=status, company_name=target_comp)
 
 
 @router.post("/decisions/recommendations/generate")
-async def generate_core_strategic_recommendations():
-    """Triggers autonomous strategic analysis using local Qwen3 model."""
+async def generate_core_strategic_recommendations(
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
+):
+    """Triggers autonomous strategic analysis using local Qwen3 model scoped strictly to tenant."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return await strategic_advisor.generate_recommendations()
+    target_comp = company_name or x_company_name or x_organisation_id
+    return await strategic_advisor.generate_recommendations(company_name=target_comp)
 
 
 @router.post("/decisions/recommendations/{rec_id}/dismiss")
-async def dismiss_core_strategic_recommendation(rec_id: str):
+async def dismiss_core_strategic_recommendation(
+    rec_id: str,
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+):
     """Dismisses a strategic recommendation."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    success = strategic_advisor.dismiss_recommendation(rec_id)
+    target_comp = company_name or x_company_name
+    success = strategic_advisor.dismiss_recommendation(rec_id, company_name=target_comp)
     if not success:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return {"status": "dismissed", "id": rec_id}

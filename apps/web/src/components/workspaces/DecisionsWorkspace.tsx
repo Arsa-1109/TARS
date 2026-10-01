@@ -15,6 +15,7 @@ import {
 } from '../../types/contracts';
 import { decisionsApi } from '../../services/decisionsApi';
 import { realtimeBus } from '../../services/realtime';
+import { useSessionStore } from '../../state/useSessionStore';
 import {
   Scale,
   Play,
@@ -92,6 +93,9 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
 
   // Strategic Growth Radar State
+  const { profile } = useSessionStore();
+  const activeCompanyName = profile?.company_name || localStorage.getItem('tars_company_name') || 'AetherFlow Technologies, Inc.';
+
   const [recommendations, setRecommendations] = useState<StrategicRecommendation[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
   const [generatingRecs, setGeneratingRecs] = useState(false);
@@ -103,7 +107,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const fetchRecommendations = async () => {
     setLoadingRecs(true);
     try {
-      const data = await decisionsApi.getRecommendations();
+      const data = await decisionsApi.getRecommendations(activeCompanyName);
       setRecommendations(data);
     } catch (err) {
       console.warn('Failed to load recommendations:', err);
@@ -116,9 +120,9 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     setGeneratingRecs(true);
     setRadarNotice(null);
     try {
-      const data = await decisionsApi.generateRecommendations();
+      const data = await decisionsApi.generateRecommendations(activeCompanyName);
       setRecommendations(data);
-      setRadarNotice('Fresh strategic suggestions synthesized by local Qwen 3 model from institutional memory.');
+      setRadarNotice(`Fresh strategic suggestions synthesized by local Qwen 3 model for ${activeCompanyName}.`);
       setTimeout(() => setRadarNotice(null), 6000);
     } catch (err) {
       console.error('Failed to generate suggestions:', err);
@@ -130,7 +134,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const handleDismissRec = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setRecommendations((prev) => prev.filter((r) => r.id !== id));
-    await decisionsApi.dismissRecommendation(id);
+    await decisionsApi.dismissRecommendation(id, activeCompanyName);
   };
 
   const handlePromoteToDecision = (rec: StrategicRecommendation) => {
@@ -175,7 +179,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
       }
     });
     return unsub;
-  }, [activeDecisionId]);
+  }, [activeDecisionId, activeCompanyName]);
 
   const runContradictionCheck = async () => {
     if (!testProposal.trim()) return;

@@ -294,26 +294,42 @@ async def get_decisions(
 
 @router.get("/decisions/recommendations")
 @router.get("/recommendations")
-async def get_strategic_recommendations(status: str = "ACTIVE"):
-    """Returns stored strategic growth and runway recommendations."""
+async def get_strategic_recommendations(
+    status: str = "ACTIVE",
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
+):
+    """Returns stored strategic growth and runway recommendations scoped strictly to tenant."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return strategic_advisor.list_recommendations(status=status)
+    target_comp = company_name or x_company_name or x_organisation_id
+    return strategic_advisor.list_recommendations(status=status, company_name=target_comp)
 
 
 @router.post("/decisions/recommendations/generate")
 @router.post("/recommendations/generate")
-async def generate_strategic_recommendations():
-    """Triggers autonomous strategic analysis using local Qwen3 model."""
+async def generate_strategic_recommendations(
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
+):
+    """Triggers autonomous strategic analysis using local Qwen3 model scoped strictly to tenant."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    return await strategic_advisor.generate_recommendations()
+    target_comp = company_name or x_company_name or x_organisation_id
+    return await strategic_advisor.generate_recommendations(company_name=target_comp)
 
 
 @router.post("/decisions/recommendations/{rec_id}/dismiss")
 @router.post("/recommendations/{rec_id}/dismiss")
-async def dismiss_strategic_recommendation(rec_id: str):
+async def dismiss_strategic_recommendation(
+    rec_id: str,
+    company_name: Optional[str] = Query(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+):
     """Dismisses a strategic recommendation."""
     from apps.api.core.strategic_advisor import strategic_advisor
-    success = strategic_advisor.dismiss_recommendation(rec_id)
+    target_comp = company_name or x_company_name
+    success = strategic_advisor.dismiss_recommendation(rec_id, company_name=target_comp)
     if not success:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return {"status": "dismissed", "id": rec_id}

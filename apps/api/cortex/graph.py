@@ -575,7 +575,7 @@ class TarsGraph:
                     "status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
                     "lifecycle_status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
                 })
-            return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
+            return sorted(decisions, key=lambda x: (x.get("timestamp") or 0), reverse=True)
         except Exception:
             try:
                 result = self.conn.execute("MATCH (d:Decision) RETURN d.id, d.title, d.category, d.context, d.chosen_option, d.timestamp, d.clearance")
@@ -593,7 +593,7 @@ class TarsGraph:
                         "status": "ACTIVE",
                         "lifecycle_status": "ACTIVE",
                     })
-                return sorted(decisions, key=lambda x: x["timestamp"], reverse=True)
+                return sorted(decisions, key=lambda x: (x.get("timestamp") or 0), reverse=True)
             except Exception as e:
                 print(f"Error fetching decisions: {e}")
                 return []

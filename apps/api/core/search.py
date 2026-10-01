@@ -183,7 +183,8 @@ class UnifiedSearchService:
             stop_words = {
                 "the", "and", "for", "with", "what", "how", "our", "are",
                 "from", "that", "this", "can", "you", "about", "we", "do",
-                "is", "of", "in", "to", "a", "an", "use"
+                "is", "was", "were", "be", "been", "being", "have", "has", "had",
+                "of", "in", "to", "a", "an", "use", "by", "at", "on", "or", "as", "if", "it", "its"
             }
             keywords = [t for t in raw_tokens if t not in stop_words]
             if not keywords:
@@ -327,12 +328,12 @@ class UnifiedSearchService:
                     d_clearance = (d.get("clearance") or "ALL_TEAM").upper()
                     if not has_exec_clearance and d_clearance in ("EXECUTIVE_ONLY", "CONFIDENTIAL"):
                         continue
-                    d_id = d.get("id", "")
-                    d_title = d.get("title", "")
-                    d_context = d.get("context", "")
-                    d_chosen = d.get("chosen_option", "")
-                    d_status = d.get("status", "ACTIVE")
-                    d_ts = d.get("timestamp", 0)
+                    d_id = d.get("id") or ""
+                    d_title = d.get("title") or ""
+                    d_context = d.get("context") or ""
+                    d_chosen = d.get("chosen_option") or ""
+                    d_status = d.get("status") or "ACTIVE"
+                    d_ts = d.get("timestamp") or 0
 
                     dec_score = 0.0
                     matched_keywords = 0

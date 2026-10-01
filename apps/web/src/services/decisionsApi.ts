@@ -161,11 +161,16 @@ export class DecisionsApi {
   }
 
   /**
-   * Fetches active AI strategic growth & optimization recommendations.
+   * Fetches active AI strategic growth & optimization recommendations scoped to tenant.
    */
-  async getRecommendations(): Promise<StrategicRecommendation[]> {
+  async getRecommendations(companyName?: string): Promise<StrategicRecommendation[]> {
     try {
-      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations');
+      const comp = companyName || this._getActiveCompanyName() || localStorage.getItem('tars_company_name') || 'AetherFlow Technologies, Inc.';
+      const query = comp ? `?company_name=${encodeURIComponent(comp)}` : '';
+      const headers = comp ? { 'X-Company-Name': comp } : undefined;
+      const data = await this.fetchJson<StrategicRecommendation[]>(`/core/decisions/recommendations${query}`, {
+        headers,
+      });
       return Array.isArray(data) ? data : [];
     } catch (err) {
       console.warn('Failed to fetch recommendations:', err);
@@ -175,12 +180,16 @@ export class DecisionsApi {
 
   /**
    * Proactively triggers local Qwen3 model to analyze current company state
-   * and generate fresh strategic optimization vectors.
+   * and generate fresh strategic optimization vectors scoped to tenant.
    */
-  async generateRecommendations(): Promise<StrategicRecommendation[]> {
+  async generateRecommendations(companyName?: string): Promise<StrategicRecommendation[]> {
     try {
-      const data = await this.fetchJson<StrategicRecommendation[]>('/core/decisions/recommendations/generate', {
+      const comp = companyName || this._getActiveCompanyName() || localStorage.getItem('tars_company_name') || 'AetherFlow Technologies, Inc.';
+      const query = comp ? `?company_name=${encodeURIComponent(comp)}` : '';
+      const headers = comp ? { 'X-Company-Name': comp } : undefined;
+      const data = await this.fetchJson<StrategicRecommendation[]>(`/core/decisions/recommendations/generate${query}`, {
         method: 'POST',
+        headers,
       });
       return Array.isArray(data) ? data : [];
     } catch (err) {
@@ -192,10 +201,14 @@ export class DecisionsApi {
   /**
    * Dismisses a strategic suggestion.
    */
-  async dismissRecommendation(id: string): Promise<boolean> {
+  async dismissRecommendation(id: string, companyName?: string): Promise<boolean> {
     try {
-      await this.fetchJson<{ status: string; id: string }>(`/core/decisions/recommendations/${id}/dismiss`, {
+      const comp = companyName || this._getActiveCompanyName() || localStorage.getItem('tars_company_name') || '';
+      const query = comp ? `?company_name=${encodeURIComponent(comp)}` : '';
+      const headers = comp ? { 'X-Company-Name': comp } : undefined;
+      await this.fetchJson<{ status: string; id: string }>(`/core/decisions/recommendations/${id}/dismiss${query}`, {
         method: 'POST',
+        headers,
       });
       return true;
     } catch (err) {

@@ -150,6 +150,10 @@ class KuzuGraphEngine:
             except Exception as e:
                 # Table might already exist or DDL not supported with IF NOT EXISTS
                 logger.debug(f"DDL notice: {e}")
+        try:
+            self._conn.execute("ALTER TABLE SUPERSEDES ADD FROM Document TO Document;")
+        except Exception:
+            pass
 
     # ========================================================
     # EMBEDDED FALLBACK GRAPH SCHEMA

@@ -101,19 +101,17 @@ def app_server():
 def test_onboarding_flight_plans_e2e(app_server):
     """Executes full end-to-end user journey across Founder and New Hire roles."""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        try:
+            browser = p.chromium.launch(headless=True)
+        except Exception:
+            browser = p.chromium.launch(headless=True, channel="chrome")
         context = browser.new_context(viewport={"width": 1280, "height": 800})
         page = context.new_page()
 
         # Step 1: Initialize Founder session in localStorage
         page.goto(app_server)
         page.evaluate("""() => {
-            localStorage.setItem('tars_is_authenticated', 'true');
-            localStorage.setItem('tars_onboarding_completed', 'true');
-            localStorage.setItem('tars_genesis_completed', 'true');
-            localStorage.setItem('tars_genesis_completed_aetherflow_technologies,_inc.', 'true');
-            localStorage.setItem('tars_current_role', 'FOUNDER');
-            localStorage.setItem('tars_current_user_profile', JSON.stringify({
+            const profile = {
                 id: 'usr-alex',
                 name: 'Alex Vance',
                 role: 'FOUNDER',
@@ -121,6 +119,23 @@ def test_onboarding_flight_plans_e2e(app_server):
                 clearance: 'EXECUTIVE_ONLY',
                 company_name: 'AetherFlow Technologies, Inc.',
                 company_id: 'CMP-GENESIS-01'
+            };
+            localStorage.setItem('tars_is_authenticated', 'true');
+            localStorage.setItem('tars_onboarding_completed', 'true');
+            localStorage.setItem('tars_genesis_completed', 'true');
+            localStorage.setItem('tars_genesis_completed_aetherflow_technologies,_inc.', 'true');
+            localStorage.setItem('tars_current_role', 'FOUNDER');
+            localStorage.setItem('tars_current_user_profile', JSON.stringify(profile));
+            localStorage.setItem('tars_session_storage', JSON.stringify({
+                state: {
+                    isAuthenticated: true,
+                    onboardingCompleted: true,
+                    currentRole: 'FOUNDER',
+                    profile: profile,
+                    activeDomain: 'executive'
+                },
+                profile: profile,
+                role: 'FOUNDER'
             }));
         }""")
 
@@ -165,10 +180,7 @@ def test_onboarding_flight_plans_e2e(app_server):
 
         # Step 5: Switch role to New Hire (Chloe Dubois)
         page.evaluate("""() => {
-            localStorage.setItem('tars_current_role', 'NEW_HIRE');
-            localStorage.setItem('tars_genesis_completed', 'true');
-            localStorage.setItem('tars_genesis_completed_aetherflow_technologies,_inc.', 'true');
-            localStorage.setItem('tars_current_user_profile', JSON.stringify({
+            const profile = {
                 id: 'usr-chloe',
                 name: 'Chloe Dubois',
                 role: 'NEW_HIRE',
@@ -176,6 +188,21 @@ def test_onboarding_flight_plans_e2e(app_server):
                 clearance: 'ALL_TEAM',
                 company_name: 'AetherFlow Technologies, Inc.',
                 company_id: 'CMP-GENESIS-01'
+            };
+            localStorage.setItem('tars_current_role', 'NEW_HIRE');
+            localStorage.setItem('tars_genesis_completed', 'true');
+            localStorage.setItem('tars_genesis_completed_aetherflow_technologies,_inc.', 'true');
+            localStorage.setItem('tars_current_user_profile', JSON.stringify(profile));
+            localStorage.setItem('tars_session_storage', JSON.stringify({
+                state: {
+                    isAuthenticated: true,
+                    onboardingCompleted: true,
+                    currentRole: 'NEW_HIRE',
+                    profile: profile,
+                    activeDomain: 'executive'
+                },
+                profile: profile,
+                role: 'NEW_HIRE'
             }));
         }""")
         page.reload()
