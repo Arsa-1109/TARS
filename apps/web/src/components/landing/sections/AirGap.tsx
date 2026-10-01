@@ -33,7 +33,7 @@ export function AirGap() {
         <Eyebrow testId="airgap-eyebrow">Chapter 03 — The air-gap</Eyebrow>
         <h2 className="tl-serif mt-8 text-5xl sm:text-6xl lg:text-7xl leading-[0.95] text-[var(--tl-star)]">
           <MaskLine i={0}>Pull the cable.</MaskLine>
-          <MaskLine i={1}><em className="italic text-white">TARS keeps thinking.</em></MaskLine>
+          <MaskLine i={1}><em className="italic text-[var(--tl-ice)]">TARS keeps thinking.</em></MaskLine>
         </h2>
 
         <Reveal delay={0.15}>
@@ -57,13 +57,13 @@ export function AirGap() {
           <div className="mt-10 tl-glass rounded-[22px] p-5 sm:p-6 max-w-xl" data-testid="airgap-terminal">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/[0.07]">
               <span className="tl-mono text-[12px] text-[var(--tl-star)]">tars-host-doctor --verify-airgap</span>
-              <span className="tl-mono text-[9.5px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border border-white/40 text-white">sealed</span>
+              <span className="tl-mono text-[9.5px] uppercase tracking-[0.2em] px-2 py-0.5 rounded-full border border-[var(--tl-ice)]/40 text-[var(--tl-ice)]">sealed</span>
             </div>
             <div className="space-y-1.5">
               {LOG.map((l, i) => (
                 <motion.div
                   key={l}
-                  className={`tl-mono text-[11.5px] whitespace-pre ${i === LOG.length - 1 ? 'text-white' : 'text-[#888888]'}`}
+                  className={`tl-mono text-[11.5px] whitespace-pre ${i === LOG.length - 1 ? 'text-[var(--tl-amber)]' : 'text-[var(--tl-mute)]'}`}
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}

@@ -20,20 +20,20 @@ export function Hero({ ready, onLaunchDemo, onOpenAuth }: Props) {
   return (
     <section id="arrival" data-chapter="0" data-testid="section-hero" className="relative min-h-screen flex items-end lg:items-center px-6 sm:px-10 lg:px-20 pt-32 pb-28">
       <div className="relative max-w-[52rem]">
-        <motion.div {...fade(0.2)} className="tl-mono flex items-center gap-3 text-[11px] uppercase tracking-[0.3em] text-[#888888] mb-8">
-          <span className="h-1.5 w-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
+        <motion.div {...fade(0.2)} className="tl-mono flex items-center gap-3 text-[11px] uppercase tracking-[0.3em] text-[var(--tl-mute)] mb-8">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--tl-amber)] shadow-[0_0_12px_#F2C689]" />
           TARS 2.0 — Sovereign startup brain
         </motion.div>
 
-        <h1 data-testid="hero-title" className="tl-serif text-[3.3rem] leading-[0.95] sm:text-7xl lg:text-[7.4rem] lg:leading-[0.9] text-white">
+        <h1 data-testid="hero-title" className="tl-serif text-[3.3rem] leading-[0.95] sm:text-7xl lg:text-[7.4rem] lg:leading-[0.9] text-[var(--tl-star)]">
           <MaskLine show={ready} i={0} delay={0.15}>Your company's</MaskLine>
           <MaskLine show={ready} i={1} delay={0.15}>memory, kept in</MaskLine>
           <MaskLine show={ready} i={2} delay={0.15}>
-            <em className="italic text-white">its own orbit.</em>
+            <em className="italic text-[var(--tl-amber)]">its own orbit.</em>
           </MaskLine>
         </h1>
 
-        <motion.p {...fade(0.75)} className="mt-9 max-w-xl text-base sm:text-lg leading-relaxed text-[#AAAAAA]">
+        <motion.p {...fade(0.75)} className="mt-9 max-w-xl text-base sm:text-lg leading-relaxed text-[var(--tl-mute)]">
           An air-gapped intelligence that remembers every call, decision and line of code — running entirely on
           your own silicon. Nothing leaves the room. Not even a kilobyte.
         </motion.p>
@@ -60,17 +60,17 @@ export function Hero({ ready, onLaunchDemo, onOpenAuth }: Props) {
         <motion.div {...fade(1.15)} className="mt-14 flex flex-wrap gap-x-10 gap-y-3">
           {TELEMETRY.map(([k, v]) => (
             <div key={k} className="tl-mono text-[11px] uppercase tracking-[0.2em]" data-testid={`hero-telemetry-${k.replace(/\W+/g, '-').toLowerCase()}`}>
-              <span className="text-[#888888]">{k}</span>
-              <span className="ml-3 text-white">{v}</span>
+              <span className="text-[var(--tl-mute)]">{k}</span>
+              <span className="ml-3 text-[var(--tl-star)]">{v}</span>
             </div>
           ))}
         </motion.div>
       </div>
 
       <motion.div {...fade(1.4)} className="absolute bottom-8 right-6 sm:right-10 lg:right-20 flex items-center gap-4">
-        <span className="tl-mono text-[10px] uppercase tracking-[0.3em] text-[#888888]">Scroll — walk with TARS</span>
+        <span className="tl-mono text-[10px] uppercase tracking-[0.3em] text-[var(--tl-mute)]">Scroll — walk with TARS</span>
         <span className="relative block h-12 w-px bg-white/15 overflow-hidden">
-          <span className="tl-scrollhint absolute inset-x-0 top-0 h-1/2 bg-white" />
+          <span className="tl-scrollhint absolute inset-x-0 top-0 h-1/2 bg-[var(--tl-amber)]" />
         </span>
       </motion.div>
     </section>

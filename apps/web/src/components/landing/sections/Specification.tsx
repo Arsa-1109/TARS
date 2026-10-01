@@ -5,7 +5,7 @@ import { EASE, Eyebrow, MaskLine } from '../motion';
 const PHRASES = ['Local silicon', 'Zero cloud egress', 'Deterministic memory', 'Whisper on-device', 'Tree-sitter in 38 ms', 'Git-backed decisions'];
 
 const Star = () => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-8 sm:h-8 mx-8 sm:mx-12 shrink-0 text-white/40" aria-hidden>
+  <svg viewBox="0 0 24 24" className="w-6 h-6 sm:w-8 sm:h-8 mx-8 sm:mx-12 shrink-0 text-[var(--tl-amber)]" aria-hidden>
     <path fill="currentColor" d="M12 0c.6 6.4 5.6 11.4 12 12-6.4.6-11.4 5.6-12 12-.6-6.4-5.6-11.4-12-12C6.4 11.4 11.4 6.4 12 0z" />
   </svg>
 );
@@ -46,7 +46,7 @@ const Cell = ({ className, value, unit, label, note, i, testId, big }: CellProps
     <div>
       <div className={`tl-serif leading-[0.85] text-[var(--tl-star)] ${big ? 'text-[6rem] sm:text-[9rem]' : 'text-6xl sm:text-7xl'}`}>
         {value}
-        {unit && <span className="text-white/60 text-[0.45em] ml-2">{unit}</span>}
+        {unit && <span className="text-[var(--tl-amber)] text-[0.45em] ml-2">{unit}</span>}
       </div>
       <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--tl-mute)]">{note}</p>
     </div>

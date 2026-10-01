@@ -12,7 +12,7 @@ export function Launch({ onLaunchDemo, onOpenAuth }: Props) {
         <Eyebrow testId="launch-eyebrow">Chapter 06 — Launch</Eyebrow>
         <h2 className="tl-serif mt-8 text-5xl sm:text-7xl lg:text-8xl leading-[0.92] text-[var(--tl-star)]">
           <MaskLine i={0}>Give your startup a memory</MaskLine>
-          <MaskLine i={1}><em className="italic text-white">that never leaves the room.</em></MaskLine>
+          <MaskLine i={1}><em className="italic text-[var(--tl-amber)]">that never leaves the room.</em></MaskLine>
         </h2>
         <Reveal delay={0.2}>
           <p className="mt-8 max-w-xl mx-auto text-base leading-relaxed text-[var(--tl-mute)]">
@@ -39,7 +39,7 @@ export function Launch({ onLaunchDemo, onOpenAuth }: Props) {
       <footer data-testid="landing-footer" className="mt-auto pt-40 pb-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-t border-white/[0.07] pt-10">
           <div className="flex items-center gap-3">
-            <img src="/tars-logo.jpg" alt="TARS" className="w-9 h-9 rounded-[10px] object-cover ring-1 ring-white/10 grayscale" />
+            <img src="/tars-logo.jpg" alt="TARS" className="w-9 h-9 rounded-[10px] object-cover ring-1 ring-white/10" />
             <div>
               <div className="tl-serif text-2xl leading-none text-[var(--tl-star)]">TARS</div>
               <div className="tl-mono text-[10px] uppercase tracking-[0.22em] text-[var(--tl-mute)] mt-1">Sovereign OS</div>

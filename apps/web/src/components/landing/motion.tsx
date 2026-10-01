@@ -61,7 +61,7 @@ export const Magnetic = ({ children, strength = 0.3, className }: MagneticProps)
 export const Eyebrow = ({ children, testId }: { children: React.ReactNode; testId?: string }) => (
   <Reveal>
     <div data-testid={testId} className="tl-mono flex items-center gap-3 text-[11px] uppercase tracking-[0.28em] text-[var(--tl-mute)]">
-      <span className="h-px w-10 bg-white/40" />
+      <span className="h-px w-10 bg-[var(--tl-amber)]/70" />
       {children}
     </div>
   </Reveal>

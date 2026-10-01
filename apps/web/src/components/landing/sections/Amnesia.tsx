@@ -36,7 +36,7 @@ export function Amnesia() {
               />
               <Reveal delay={0.1 + i * 0.12} y={20}>
                 <div className="grid grid-cols-[3rem_1fr] sm:grid-cols-[4rem_12rem_1fr] gap-x-6 gap-y-2 items-baseline">
-                  <span className="tl-mono text-[11px] text-[#CCCCCC]">{f.no}</span>
+                  <span className="tl-mono text-[11px] text-[var(--tl-amber)]">{f.no}</span>
                   <h3 className="tl-serif text-3xl text-[var(--tl-star)]">{f.title}</h3>
                   <p className="col-start-2 sm:col-start-3 text-sm leading-relaxed text-[var(--tl-mute)]">{f.body}</p>
                 </div>
