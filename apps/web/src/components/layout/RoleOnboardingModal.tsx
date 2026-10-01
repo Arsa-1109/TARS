@@ -245,7 +245,7 @@ const ONBOARDING_TRACKS: Record<UserRole, TrackData> = {
     role: 'NEW_HIRE',
     roleTitle: 'New Hire Sovereign Flight-Plan',
     badge: 'Talent & Culture Track',
-    icon: <Users className="w-4 h-4 text-emerald-400" />,
+    icon: <Users className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
     audioTour: {
       title: 'Operating with Uncompromising Intellectual Honesty',
       speaker: 'Founder & Executive',
@@ -497,9 +497,9 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                   )}
                 </button>
                 {isPlayingAudio && (
-                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span>Playing local lossless audio (100% offline)...</span>
+                  <div className="flex items-center gap-1.5 text-[11px] text-[#0071E3] dark:text-[#0A84FF]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Playing audio guide...</span>
                   </div>
                 )}
               </div>
@@ -507,8 +507,8 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
 
             {/* 14-Day Flight Plan Modules */}
             <div>
-              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-mono mb-3">
-                Curated 14-Day Flight Plan Checklist
+              <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                14-Day Onboarding Plan
               </div>
               <div className="space-y-3">
                 {currentTrack.modules.map((mod) => {
@@ -529,9 +529,9 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-medium ${
                               isDone
-                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30'
+                                ? 'bg-black/[0.04] dark:bg-white/[0.06] text-[#0071E3] dark:text-[#0A84FF] border border-black/[0.06] dark:border-white/[0.08]'
                                 : isCurrent
                                 ? 'bg-black text-white dark:bg-white dark:text-black font-semibold'
                                 : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
@@ -544,16 +544,16 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                           </span>
                         </div>
                         {isDone ? (
-                          <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">
+                          <span className="flex items-center gap-1 text-[11px] text-[#0071E3] dark:text-[#0A84FF]">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Passed</span>
+                            <span>Completed</span>
                           </span>
                         ) : isCurrent ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30 font-semibold">
+                          <span className="px-2 py-0.5 rounded text-[10px] bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF] border border-[#0071E3]/20 font-medium">
                             In Progress
                           </span>
                         ) : (
-                          <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">Upcoming</span>
+                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">Upcoming</span>
                         )}
                       </div>
 
@@ -563,7 +563,7 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                         {mod.tasks.map((task, idx) => (
                           <div key={idx} className="flex items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
                             {isDone ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0 mt-0.5" />
                             ) : (
                               <Circle className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500 shrink-0 mt-0.5" />
                             )}
@@ -587,8 +587,8 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
                 <Sparkles className="w-4 h-4 text-amber-500" />
                 <span className="text-xs font-semibold text-zinc-900 dark:text-white">Socratic Knowledge Mentor</span>
               </div>
-              <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">
-                Grounded in Lake
+              <span className="text-[10px] text-[#6E6E73] dark:text-[#8E8E93] bg-black/[0.04] dark:bg-white/[0.06] px-2 py-0.5 rounded border border-black/[0.06] dark:border-white/[0.08] font-medium">
+                Verified Knowledge
               </span>
             </div>
 

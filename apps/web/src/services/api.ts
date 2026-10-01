@@ -14,6 +14,18 @@ import {
   OnboardingFlightPlanDTO,
   OnboardingFlightPlanCreate,
   OnboardingProgressUpdateDTO,
+  ActionReceipt,
+  ActionTransitionRequest,
+  ActionExecuteRequest,
+  ActionRollbackRequest,
+  AuditBlockDTO,
+  AuditVerifyResponse,
+  UnverifiedFactDTO,
+  FactTransitionRequest,
+  FactTransitionResponse,
+  PolicyRule,
+  PolicyDecision,
+  PolicyEvaluateRequest,
 } from '../types/contracts';
 
 export interface TarsApi {
@@ -54,6 +66,20 @@ export interface TarsApi {
   getActionItems(): Promise<ActionItemDTO[]>;
   updateActionStatus(id: string, status: ActionItemDTO['status']): Promise<ActionItemDTO>;
   createActionItem(item: Omit<ActionItemDTO, 'id'>): Promise<ActionItemDTO>;
+  transitionAction(id: string, req: ActionTransitionRequest): Promise<ActionItemDTO>;
+  executeAction(id: string, req?: ActionExecuteRequest): Promise<ActionReceipt>;
+  rollbackAction(id: string, req?: ActionRollbackRequest): Promise<ActionReceipt>;
+  getActionReceipts(id: string): Promise<ActionReceipt[]>;
+
+  // Governance: Cryptographic Audit Ledger & Integrity
+  getAuditTrail(limit?: number, entityId?: string): Promise<AuditBlockDTO[]>;
+  verifyAuditLedger(): Promise<AuditVerifyResponse>;
+
+  // Governance: Fact-Confidence Lifecycle & Policy Engine
+  getUnverifiedFacts(orgId?: string, limit?: number): Promise<UnverifiedFactDTO[]>;
+  transitionFactConfidence(req: FactTransitionRequest): Promise<FactTransitionResponse>;
+  getPolicies(orgId?: string): Promise<PolicyRule[]>;
+  evaluatePolicy(req: PolicyEvaluateRequest): Promise<PolicyDecision>;
 
   // User & Identity Registry
   getUsers(companyIdOrName?: string): Promise<import('../types/contracts').UserDTO[]>;

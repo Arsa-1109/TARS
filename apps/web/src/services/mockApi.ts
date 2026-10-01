@@ -16,6 +16,18 @@ import {
   OnboardingFlightPlanCreate,
   OnboardingProgressUpdateDTO,
   OnboardingModuleDTO,
+  ActionReceipt,
+  ActionTransitionRequest,
+  ActionExecuteRequest,
+  ActionRollbackRequest,
+  AuditBlockDTO,
+  AuditVerifyResponse,
+  UnverifiedFactDTO,
+  FactTransitionRequest,
+  FactTransitionResponse,
+  PolicyRule,
+  PolicyDecision,
+  PolicyEvaluateRequest,
 } from '../types/contracts';
 import {
   MOCK_SEARCH_RESULTS,
@@ -435,6 +447,266 @@ export class MockTarsApi implements TarsApi {
     };
     this.actions.unshift(newItem);
     return newItem;
+  }
+
+  private mockReceipts: Map<string, ActionReceipt[]> = new Map();
+
+  async transitionAction(id: string, req: ActionTransitionRequest): Promise<ActionItemDTO> {
+    await sleep(35);
+    const item = this.actions.find((a) => a.id === id);
+    if (!item) throw new Error("Action item not found");
+    item.status = req.target_status as any;
+    return { ...item };
+  }
+
+  async executeAction(id: string, req?: ActionExecuteRequest): Promise<ActionReceipt> {
+    await sleep(65);
+    const item = this.actions.find((a) => a.id === id);
+    if (item) {
+      item.status = 'COMPLETED';
+    }
+    const receipt: ActionReceipt = {
+      receipt_id: `RCP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      action_id: id,
+      status: 'EXECUTED',
+      actor: req?.actor_id || 'Alex Vance (CEO)',
+      executed_at: Date.now(),
+      duration_ms: 42,
+      parameters_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      result_summary: `Governed action ${id} executed deterministically with full policy clearance.`,
+      rollback_payload: { previous_state: 'APPROVED', rollback_action: `REVERT_${id}` },
+      audit_block_id: 'EVT-1004',
+      organisation_id: 'CMP-GENESIS-01',
+    };
+    const current = this.mockReceipts.get(id) || [];
+    this.mockReceipts.set(id, [receipt, ...current]);
+    return receipt;
+  }
+
+  async rollbackAction(id: string, req?: ActionRollbackRequest): Promise<ActionReceipt> {
+    await sleep(50);
+    const item = this.actions.find((a) => a.id === id);
+    if (item) {
+      item.status = 'ROLLED_BACK';
+    }
+    const receipt: ActionReceipt = {
+      receipt_id: `RCP-${Math.random().toString(36).substring(2, 10).toUpperCase()}`,
+      action_id: id,
+      status: 'ROLLED_BACK',
+      actor: req?.actor_id || 'Alex Vance (CEO)',
+      executed_at: Date.now(),
+      duration_ms: 28,
+      parameters_hash: 'd41d8cd98f00b204e9800998ecf8427e',
+      result_summary: `Compensating rollback applied: ${req?.reason || 'Manual user rollback'}`,
+      rollback_payload: null,
+      audit_block_id: 'EVT-1005',
+      organisation_id: 'CMP-GENESIS-01',
+    };
+    const current = this.mockReceipts.get(id) || [];
+    this.mockReceipts.set(id, [receipt, ...current]);
+    return receipt;
+  }
+
+  async getActionReceipts(id: string): Promise<ActionReceipt[]> {
+    await sleep(20);
+    return this.mockReceipts.get(id) || [
+      {
+        receipt_id: `RCP-${id.slice(-4)}-01`,
+        action_id: id,
+        status: 'EXECUTED',
+        actor: 'Alex Vance (CEO)',
+        executed_at: Date.now() - 3600000,
+        duration_ms: 38,
+        parameters_hash: 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
+        result_summary: 'Deterministic execution verified against company policies.',
+        rollback_payload: { revert_patch: 'PATCH_BACK' },
+        audit_block_id: 'EVT-1001',
+        organisation_id: 'CMP-GENESIS-01',
+      },
+    ];
+  }
+
+  private mockAuditBlocks: AuditBlockDTO[] = [
+    {
+      event_id: 'EVT-GENESIS-001',
+      sequence_id: 1,
+      timestamp: Date.now() - 86400000 * 2,
+      actor: 'SYSTEM',
+      organisation_id: 'CMP-GENESIS-01',
+      action: 'LEDGER_INITIALIZED',
+      source: 'CORE_GATEWAY',
+      input_hash: '0000000000000000000000000000000000000000000000000000000000000000',
+      result_hash: 'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0',
+      previous_hash: '0000000000000000000000000000000000000000000000000000000000000000',
+      event_hash: '8f434346648f6b96df89dda901c5176b10e6d83961dd3c1ac88b59b2dc327aa4',
+      is_valid: true,
+    },
+    {
+      event_id: 'EVT-0002',
+      sequence_id: 2,
+      timestamp: Date.now() - 86400000,
+      actor: 'Alex Vance',
+      organisation_id: 'CMP-GENESIS-01',
+      action: 'POLICY_RATIFIED:BDR-014',
+      source: 'DECISION_REGISTRY',
+      input_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      result_hash: 'f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2',
+      previous_hash: '8f434346648f6b96df89dda901c5176b10e6d83961dd3c1ac88b59b2dc327aa4',
+      event_hash: 'c5d143003024be51bf141753147814b7e3e29fcf95371bbab72ff2751508dae6',
+      is_valid: true,
+    },
+    {
+      event_id: 'EVT-0003',
+      sequence_id: 3,
+      timestamp: Date.now() - 3600000 * 3,
+      actor: 'Dr. Elena Rostova',
+      organisation_id: 'CMP-GENESIS-01',
+      action: 'ACTION_EXECUTED:ACT-102',
+      source: 'GOVERNED_ACTION_HUB',
+      input_hash: 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb',
+      result_hash: '4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce',
+      previous_hash: 'c5d143003024be51bf141753147814b7e3e29fcf95371bbab72ff2751508dae6',
+      event_hash: '3a58cf09c73343cc770425a176d634cb94191d848773e35183ca6ed3260783f0',
+      is_valid: true,
+    },
+  ];
+
+  async getAuditTrail(limit: number = 100, entityId?: string): Promise<AuditBlockDTO[]> {
+    await sleep(40);
+    return [...this.mockAuditBlocks];
+  }
+
+  async verifyAuditLedger(): Promise<AuditVerifyResponse> {
+    await sleep(80);
+    return {
+      status: 'AUDIT_VALID',
+      total_events: this.mockAuditBlocks.length,
+      tip_hash: this.mockAuditBlocks[this.mockAuditBlocks.length - 1].event_hash,
+      message: 'Cryptographic ledger chain traverses Genesis to tip with 100% hash integrity.',
+    };
+  }
+
+  private mockUnverifiedFacts: UnverifiedFactDTO[] = [
+    {
+      entity_type: 'DOCUMENT',
+      entity_id: 'DOC-EXT-881',
+      title: 'Series Seed Cap Table Term Sheet',
+      content_preview: 'Proposed option pool expansion to 14.5% prior to lead investor close.',
+      confidence_state: 'REVIEW_REQUIRED',
+      timestamp: Date.now() - 7200000,
+      source: 'MarkItDown Ingestion (TermSheet_v2.pdf)',
+    },
+    {
+      entity_type: 'DECISION',
+      entity_id: 'DEC-PROP-402',
+      title: 'Deprecate Redis Outbox in Favor of SQLite WAL',
+      content_preview: 'Single-node sovereign deployment eliminates external distributed broker latency.',
+      confidence_state: 'EXTRACTED',
+      timestamp: Date.now() - 14400000,
+      source: 'Meeting Transcript (Engineering Sync)',
+    },
+  ];
+
+  async getUnverifiedFacts(orgId?: string, limit: number = 50): Promise<UnverifiedFactDTO[]> {
+    await sleep(35);
+    return [...this.mockUnverifiedFacts];
+  }
+
+  async transitionFactConfidence(req: FactTransitionRequest): Promise<FactTransitionResponse> {
+    await sleep(45);
+    const fact = this.mockUnverifiedFacts.find((f) => f.entity_id === req.entity_id);
+    const prev = fact?.confidence_state || 'REVIEW_REQUIRED';
+    if (fact) {
+      fact.confidence_state = req.new_state;
+    }
+    return {
+      entity_id: req.entity_id,
+      entity_type: req.entity_type,
+      previous_state: prev,
+      current_state: req.new_state,
+      audit_block_id: 'EVT-FACT-099',
+      timestamp: Date.now(),
+    };
+  }
+
+  private mockPolicies: PolicyRule[] = [
+    {
+      id: 'POL-001',
+      action_type: 'DEPLOY_CODE',
+      description: 'Enforce AST invariant validation and engineer/founder review before production commit',
+      allowed_roles: ['FOUNDER', 'ENGINEER'],
+      required_clearance: 'ALL_TEAM',
+      max_risk: 'HIGH',
+      requires_human: true,
+      allowed_tools: ['git_push', 'docker_build'],
+      conditions: { min_approvals: 1 },
+      organisation_id: 'CMP-GENESIS-01',
+      is_active: true,
+    },
+    {
+      id: 'POL-002',
+      action_type: 'CAP_TABLE_MUTATION',
+      description: 'Strict sovereign lock on founder equity, option pools, and cap table models',
+      allowed_roles: ['FOUNDER'],
+      required_clearance: 'EXECUTIVE_ONLY',
+      max_risk: 'CRITICAL',
+      requires_human: true,
+      allowed_tools: ['cap_table_writer'],
+      conditions: { multi_sig: false },
+      organisation_id: 'CMP-GENESIS-01',
+      is_active: true,
+    },
+    {
+      id: 'POL-003',
+      action_type: 'RECORD_DECISION',
+      description: 'Ratification of architectural decision records (MADRs)',
+      allowed_roles: ['FOUNDER', 'ENGINEER', 'PRODUCT'],
+      required_clearance: 'ALL_TEAM',
+      max_risk: 'LOW',
+      requires_human: false,
+      allowed_tools: ['kuzu_decision_insert'],
+      conditions: {},
+      organisation_id: 'CMP-GENESIS-01',
+      is_active: true,
+    },
+  ];
+
+  async getPolicies(orgId?: string): Promise<PolicyRule[]> {
+    await sleep(30);
+    return [...this.mockPolicies];
+  }
+
+  async evaluatePolicy(req: PolicyEvaluateRequest): Promise<PolicyDecision> {
+    await sleep(40);
+    const policy = this.mockPolicies.find((p) => p.action_type === req.action_type && p.is_active);
+    if (!policy) {
+      return {
+        is_allowed: true,
+        requires_human: false,
+        denial_reasons: [],
+        audit_ref: 'POL-DEFAULT-ALLOW',
+      };
+    }
+
+    const roleAllowed = policy.allowed_roles.includes(req.role);
+    const clearanceAllowed =
+      policy.required_clearance === 'ALL_TEAM' || req.clearance === policy.required_clearance;
+
+    const denials: string[] = [];
+    if (!roleAllowed) {
+      denials.push(`Role '${req.role}' is not in allowed roles: [${policy.allowed_roles.join(', ')}]`);
+    }
+    if (!clearanceAllowed) {
+      denials.push(`Clearance '${req.clearance || 'ALL_TEAM'}' is insufficient for required '${policy.required_clearance}'`);
+    }
+
+    return {
+      is_allowed: denials.length === 0,
+      requires_human: policy.requires_human,
+      matching_policy_id: policy.id,
+      denial_reasons: denials,
+      audit_ref: `DEC-${policy.id}`,
+    };
   }
 
   // --- User & Identity Registry ---

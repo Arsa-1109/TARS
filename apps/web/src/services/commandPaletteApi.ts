@@ -98,7 +98,7 @@ export class CommandPaletteApiService {
                 category: 'Decisions',
                 subtitle: d.chosen_option || d.context || 'Strategic architecture decision',
                 badge: status,
-                badgeColor: status === 'ACTIVE' ? 'emerald' : 'amber',
+                badgeColor: status === 'ACTIVE' ? 'blue' : 'amber',
                 targetWorkspace: 'decisions',
                 targetId: d.id,
               };

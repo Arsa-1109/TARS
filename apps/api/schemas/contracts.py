@@ -386,6 +386,7 @@ class ChatMessageCreate(BaseModel):
     user_role: Optional[str] = "ENGINEER"
     user_name: Optional[str] = None
     clearance: Optional[str] = "ALL_TEAM"
+    as_of: Optional[int] = None
 
 
 # Canonical aliases for Phase 2 contracts

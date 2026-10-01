@@ -16,6 +16,8 @@ import { SettingsModal } from './components/layout/SettingsModal';
 import { VoiceMemoModal } from './components/layout/VoiceMemoModal';
 import { GenesisOnboardingWizard } from './components/onboarding/GenesisOnboardingWizard';
 import { CursorConfigModal } from './components/layout/CursorConfigModal';
+import { AuditLedgerModal } from './components/governance/AuditLedgerModal';
+import { GovernanceInspectorModal } from './components/governance/GovernanceInspectorModal';
 import { useSessionStore, WORKSPACE_DOMAINS } from './state/useSessionStore';
 import { useThemeStore } from './state/useThemeStore';
 import { useNavigationStore } from './state/useNavigationStore';
@@ -94,6 +96,9 @@ export function App() {
   const [voiceMemoOpen, setVoiceMemoOpen] = useState(false);
   const [genesisWizardOpen, setGenesisWizardOpen] = useState(false);
   const [cursorModalOpen, setCursorModalOpen] = useState(false);
+  const [auditLedgerOpen, setAuditLedgerOpen] = useState(false);
+  const [targetAuditBlockId, setTargetAuditBlockId] = useState<string | null>(null);
+  const [governanceOpen, setGovernanceOpen] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
 
   useEffect(() => {
@@ -320,6 +325,11 @@ export function App() {
       onOpenOnboarding={() => setRoleOnboardingOpen(true)}
       onGoToLanding={() => transitionToLanding()}
       onOpenGenesis={() => setGenesisWizardOpen(true)}
+      onOpenAuditLedger={() => {
+        setTargetAuditBlockId(null);
+        setAuditLedgerOpen(true);
+      }}
+      onOpenGovernance={() => setGovernanceOpen(true)}
       companyName={companyProfile?.company_name || profile.company_name}
       currentRole={currentRole}
       profile={profile}
@@ -399,6 +409,10 @@ export function App() {
         onStatusChange={handleStatusChange}
         onNavigateSource={navigateToSource}
         onAddItem={handleCreateTask}
+        onViewInLedger={(blockId) => {
+          setTargetAuditBlockId(blockId);
+          setAuditLedgerOpen(true);
+        }}
       />
 
       {/* Global Citation / Provenance Drawer */}
@@ -417,6 +431,11 @@ export function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenMemo={() => setVoiceMemoOpen(true)}
         onOpenGenesis={() => setGenesisWizardOpen(true)}
+        onOpenAuditLedger={() => {
+          setTargetAuditBlockId(null);
+          setAuditLedgerOpen(true);
+        }}
+        onOpenGovernance={() => setGovernanceOpen(true)}
         onSelectDecision={setActiveDecisionId}
         onSelectDocument={(id) => navigateToSource(id, 'DOC')}
       />
@@ -426,6 +445,11 @@ export function App() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onOpenGenesis={() => setGenesisWizardOpen(true)}
+        onOpenAuditLedger={() => {
+          setTargetAuditBlockId(null);
+          setAuditLedgerOpen(true);
+        }}
+        onOpenGovernance={() => setGovernanceOpen(true)}
       />
 
       {/* 1-Click Cursor MCP Configuration Exporter Modal */}
@@ -498,6 +522,26 @@ export function App() {
           }).catch(() => {});
 
           // Refresh tasks with freshly configured role-based flight-plans
+          api.getActionItems().then((items) => setActionItems(items));
+        }}
+      />
+
+      {/* Cryptographic SHA-256 Audit Ledger Modal */}
+      <AuditLedgerModal
+        isOpen={auditLedgerOpen}
+        onClose={() => {
+          setAuditLedgerOpen(false);
+          setTargetAuditBlockId(null);
+        }}
+        targetBlockId={targetAuditBlockId}
+      />
+
+      {/* Fact-Confidence Lifecycle & Policy Engine Inspector Modal */}
+      <GovernanceInspectorModal
+        isOpen={governanceOpen}
+        onClose={() => setGovernanceOpen(false)}
+        currentUser={profile}
+        onFactConfirmed={() => {
           api.getActionItems().then((items) => setActionItems(items));
         }}
       />

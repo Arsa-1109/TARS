@@ -27,9 +27,10 @@ interface ActionHubDrawerProps {
   onNavigateSource: (sourceType: string, sourceId: string) => void;
   onAddItem: (item: Omit<ActionItemDTO, 'id'>) => void;
   onDeleteItem?: (id: string) => void;
+  onViewInLedger?: (blockId: string) => void;
 }
 
-type FilterStatus = 'ALL' | 'OPEN' | 'IN_PROGRESS' | 'DONE';
+type FilterStatus = 'ALL' | 'REVIEW_REQUIRED' | 'APPROVED' | 'IN_PROGRESS' | 'DONE' | 'ROLLED_BACK';
 type LayoutView = 'list' | 'kanban';
 
 export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
@@ -41,6 +42,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   onNavigateSource,
   onAddItem,
   onDeleteItem,
+  onViewInLedger,
 }) => {
   const [filter, setFilter] = useState<FilterStatus>('ALL');
   const [layout, setLayout] = useState<LayoutView>('list');
@@ -80,24 +82,27 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   });
 
   const openCount = actionItems.filter((i) => i.status === 'OPEN').length;
-  const inProgressCount = actionItems.filter((i) => i.status === 'IN_PROGRESS').length;
-  const doneCount = actionItems.filter((i) => i.status === 'DONE').length;
+  const reviewCount = actionItems.filter((i) => i.status === 'REVIEW_REQUIRED' || i.status === 'PROPOSED').length;
+  const approvedCount = actionItems.filter((i) => i.status === 'APPROVED').length;
+  const inProgressCount = actionItems.filter((i) => i.status === 'IN_PROGRESS' || i.status === 'EXECUTING').length;
+  const doneCount = actionItems.filter((i) => i.status === 'DONE' || i.status === 'COMPLETED').length;
+  const rolledBackCount = actionItems.filter((i) => i.status === 'ROLLED_BACK').length;
 
   const handleCopyStandup = () => {
     const standupText = `🚀 TARS Daily Standup Summary (${new Date().toLocaleDateString()}):\n\n` +
       `📌 IN PROGRESS (${inProgressCount}):\n` +
       actionItems
-        .filter((i) => i.status === 'IN_PROGRESS')
+        .filter((i) => i.status === 'IN_PROGRESS' || i.status === 'EXECUTING')
         .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description} (Source: ${i.source_id})`)
         .join('\n') +
-      `\n\n📋 OPEN BACKLOG (${openCount}):\n` +
+      `\n\n📋 REVIEW REQUIRED / APPROVED (${reviewCount + approvedCount}):\n` +
       actionItems
-        .filter((i) => i.status === 'OPEN')
-        .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description} (Source: ${i.source_id})`)
+        .filter((i) => i.status === 'REVIEW_REQUIRED' || i.status === 'PROPOSED' || i.status === 'APPROVED')
+        .map((i) => `• [${i.owner}] [${i.status}] ${i.title ? `${i.title}: ` : ''}${i.description} (Source: ${i.source_id})`)
         .join('\n') +
       `\n\n✅ COMPLETED (${doneCount}):\n` +
       actionItems
-        .filter((i) => i.status === 'DONE')
+        .filter((i) => i.status === 'DONE' || i.status === 'COMPLETED')
         .map((i) => `• [${i.owner}] ${i.title ? `${i.title}: ` : ''}${i.description}`)
         .join('\n');
 
@@ -129,8 +134,8 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title="Unified Action Hub"
-      subtitle="Cross-workspace execution checklist linked to source decisions & audio"
+      title="Actions & Tasks"
+      subtitle="Tasks and approvals linked to decisions and meetings"
       width="max-w-md sm:max-w-2xl"
       footer={
         <div className="flex items-center justify-between text-[12px] text-[#6E6E73] dark:text-[#8E8E93] w-full">
@@ -154,9 +159,11 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
           size="sm"
           options={[
             { value: 'ALL', label: 'All', badge: actionItems.length },
-            { value: 'OPEN', label: 'Open', badge: openCount },
+            { value: 'REVIEW_REQUIRED', label: 'Review', badge: reviewCount },
+            { value: 'APPROVED', label: 'Approved', badge: approvedCount },
             { value: 'IN_PROGRESS', label: 'In Progress', badge: inProgressCount },
             { value: 'DONE', label: 'Done', badge: doneCount },
+            { value: 'ROLLED_BACK', label: 'Reverted', badge: rolledBackCount },
           ]}
           value={filter}
           onChange={(v) => setFilter(v as FilterStatus)}
@@ -274,6 +281,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
                 onStatusChange={onStatusChange}
                 onNavigateSource={onNavigateSource}
                 onDelete={onDeleteItem}
+                onViewInLedger={onViewInLedger}
               />
             ))
           )}

@@ -20,6 +20,7 @@ import {
   ExternalLink,
   User,
   Sparkles,
+  FileCheck,
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -33,6 +34,8 @@ interface TopBarProps {
   onOpenOnboarding: () => void;
   onGoToLanding: () => void;
   onOpenGenesis?: () => void;
+  onOpenAuditLedger?: () => void;
+  onOpenGovernance?: () => void;
   companyName?: string;
   currentRole: UserRole;
   profile: UserProfile;
@@ -56,6 +59,8 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenOnboarding,
   onGoToLanding,
   onOpenGenesis,
+  onOpenAuditLedger,
+  onOpenGovernance,
   companyName,
   currentRole,
   profile,
@@ -189,6 +194,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           )}
         </button>
 
+        {/* Audit Trail quick button */}
+        {onOpenAuditLedger && (
+          <button
+            onClick={onOpenAuditLedger}
+            className="h-8 w-8 rounded-[10px] border border-black/[0.09] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.10] transition-all flex items-center justify-center"
+            title="Audit Trail"
+          >
+            <Shield className="w-3.5 h-3.5" />
+          </button>
+        )}
+
         {/* Company Setup direct button */}
         <button
           onClick={onOpenSettings}
@@ -275,6 +291,36 @@ export const TopBar: React.FC<TopBarProps> = ({
                       <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">14-day flight plan</div>
                     </div>
                   </button>
+
+                  {onOpenAuditLedger && (
+                    <button
+                      onClick={() => { onOpenAuditLedger(); setProfileOpen(false); }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center shrink-0 text-[#3C3C43] dark:text-[#EBEBF5]">
+                        <Shield className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-[12px] font-medium text-black dark:text-white">Audit Trail</div>
+                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">Activity history & verification</div>
+                      </div>
+                    </button>
+                  )}
+
+                  {onOpenGovernance && (
+                    <button
+                      onClick={() => { onOpenGovernance(); setProfileOpen(false); }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-[10px] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-[8px] bg-black/[0.05] dark:bg-white/[0.08] flex items-center justify-center shrink-0 text-[#3C3C43] dark:text-[#EBEBF5]">
+                        <FileCheck className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-[12px] font-medium text-black dark:text-white">Review & Policies</div>
+                        <div className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">Fact review & access policies</div>
+                      </div>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => { onOpenSettings(); setProfileOpen(false); }}

@@ -21,17 +21,26 @@ import {
   Trash2,
   RefreshCw,
   AlertCircle,
+  Scale,
 } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenGenesis?: () => void;
+  onOpenAuditLedger?: () => void;
+  onOpenGovernance?: () => void;
 }
 
-type SettingsTab = 'genesis' | 'governor' | 'airgap' | 'acronyms' | 'taxonomy' | 'data';
+type SettingsTab = 'genesis' | 'governor' | 'airgap' | 'governance' | 'acronyms' | 'taxonomy' | 'data';
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onOpenGenesis }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  onOpenGenesis,
+  onOpenAuditLedger,
+  onOpenGovernance,
+}) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('genesis');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
@@ -221,6 +230,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
               { value: 'genesis', label: 'Setup' },
               { value: 'governor', label: 'Limits' },
               { value: 'airgap', label: 'Security' },
+              { value: 'governance', label: 'Governance' },
               { value: 'acronyms', label: 'Dictionary' },
               { value: 'taxonomy', label: 'Tone' },
               { value: 'data', label: 'Workspace Data' },
@@ -498,6 +508,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                       {log}
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: GOVERNANCE & AUDIT LEDGER */}
+          {activeTab === 'governance' && (
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-[14px] border border-black/[0.08] dark:border-white/[0.10] bg-[#F5F5F7] dark:bg-[#2C2C2E]/60 space-y-1">
+                <div className="text-[11px] font-bold text-[#0071E3] dark:text-[#0A84FF] uppercase tracking-wider">
+                  Governance & Cryptographic Audit Hub
+                </div>
+                <p className="text-[#6E6E73] dark:text-[#8E8E93] leading-relaxed">
+                  Direct access to sovereign cryptographic validation, deterministic policy sandbox, and human-in-the-loop truth verification.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Shield className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
+                      <h5 className="text-[13px] font-semibold text-black dark:text-white">Audit Trail</h5>
+                    </div>
+                    <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
+                      View the tamper-evident activity history and verify system records and operational changes.
+                    </p>
+                  </div>
+                  {onOpenAuditLedger && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenAuditLedger();
+                      }}
+                      className="w-full"
+                    >
+                      Open Audit Trail
+                    </Button>
+                  )}
+                </div>
+
+                <div className="p-5 rounded-[18px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] space-y-3 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Scale className="w-5 h-5 text-[#0071E3] dark:text-[#0A84FF]" />
+                      <h5 className="text-[13px] font-semibold text-black dark:text-white">Review & Security Policies</h5>
+                    </div>
+                    <p className="text-xs text-[#6E6E73] dark:text-[#8E8E93] leading-snug">
+                      Review facts extracted from recordings and documents, and test access control policies.
+                    </p>
+                  </div>
+                  {onOpenGovernance && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenGovernance();
+                      }}
+                      className="w-full"
+                    >
+                      Open Policy Review
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

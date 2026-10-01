@@ -298,9 +298,9 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
       border: 'border-[#0071E3]/20 dark:border-[#0A84FF]/25',
     },
     RUNWAY: {
-      bg: 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]',
-      text: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-500/20 dark:border-emerald-500/25',
+      bg: 'bg-[#34C759]/[0.08] dark:bg-[#30D158]/[0.10]',
+      text: 'text-[#248A3D] dark:text-[#30D158]',
+      border: 'border-[#34C759]/20 dark:border-[#30D158]/25',
     },
     VELOCITY: {
       bg: 'bg-purple-500/[0.08] dark:bg-purple-500/[0.12]',
@@ -313,9 +313,9 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
       border: 'border-amber-500/20 dark:border-amber-500/25',
     },
     SECURITY: {
-      bg: 'bg-rose-500/[0.08] dark:bg-rose-500/[0.12]',
-      text: 'text-rose-600 dark:text-rose-400',
-      border: 'border-rose-500/20 dark:border-rose-500/25',
+      bg: 'bg-[#FF3B30]/[0.08] dark:bg-[#FF453A]/[0.10]',
+      text: 'text-[#D70015] dark:text-[#FF453A]',
+      border: 'border-[#FF3B30]/20 dark:border-[#FF453A]/25',
     },
     STRATEGY: {
       bg: 'bg-sky-500/[0.08] dark:bg-sky-500/[0.12]',
@@ -369,16 +369,16 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-black dark:text-white tracking-tight">
-                  Strategic Growth Radar
+                <span className="text-[14px] font-semibold text-black dark:text-white tracking-tight">
+                  Growth Opportunities
                 </span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Qwen 3 (Local ML Connected)
+                <span className="inline-flex items-center gap-1 text-[11px] text-[#6E6E73] dark:text-[#8E8E93] font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <span>On-Device Analysis</span>
                 </span>
               </div>
-              <span className="text-[11px] text-[#86868B] dark:text-[#8E8E93] block">
-                Autonomous optimization vectors synthesized from sovereign company memory, financial runway ($666k / -$74k burn), and active ADR invariants.
+              <span className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] block">
+                Opportunities synthesized from company decisions, financial runway ($666k), and active architectural standards.
               </span>
             </div>
           </div>
@@ -409,14 +409,14 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
           <div className="p-4 sm:p-5 space-y-4">
             {/* Notice banner if freshly generated */}
             {radarNotice && (
-              <div className="flex items-center justify-between text-[12px] px-3.5 py-2 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+              <div className="flex items-center justify-between text-[12px] px-3.5 py-2 rounded-xl bg-[#0071E3]/[0.08] border border-[#0071E3]/20 text-[#0051A2] dark:text-[#0A84FF]">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
                   <span>{radarNotice}</span>
                 </div>
                 <button
                   onClick={() => setRadarNotice(null)}
-                  className="text-emerald-600 dark:text-emerald-400 hover:opacity-75"
+                  className="text-[#0071E3] dark:text-[#0A84FF] hover:opacity-75"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -485,9 +485,9 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                         </h4>
                       </div>
 
-                      {/* Impact in Green */}
+                      {/* Impact in Subtle Blue */}
                       <div className="pt-1">
-                        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.10] dark:bg-emerald-500/[0.15] border border-emerald-500/25 px-2.5 py-1.5 rounded-lg w-full">
+                        <div className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] border border-[#0071E3]/20 px-2.5 py-1.5 rounded-lg w-full">
                           <TrendingUp className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate">{rec.estimated_impact}</span>
                         </div>
@@ -1295,31 +1295,31 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                 >
                   {selectedRec.category}
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
-                  {selectedRec.priority} PRIORITY
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93]">
+                  {selectedRec.priority} Priority
                 </span>
               </div>
-              <div className="inline-flex items-center gap-1.5 text-[12px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/[0.12] dark:bg-emerald-500/[0.18] border border-emerald-500/30 px-3 py-1 rounded-lg">
+              <div className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#0071E3] dark:text-[#0A84FF] bg-[#0071E3]/[0.08] dark:bg-[#0A84FF]/[0.10] border border-[#0071E3]/20 px-3 py-1 rounded-lg">
                 <TrendingUp className="w-4 h-4 shrink-0" />
                 <span>{selectedRec.estimated_impact}</span>
               </div>
             </div>
 
             {/* Strategic Rationale */}
-            <div className="space-y-1.5 p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.08]">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-[#8E8E93] font-semibold block">
-                Strategic Rationale & Grounding:
+            <div className="space-y-1.5 p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.08]">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[#8E8E93] block">
+                Rationale & Grounding:
               </span>
               <p className="text-[13px] text-[#3C3C43] dark:text-[#EBEBF5] leading-relaxed">
                 {selectedRec.rationale}
               </p>
             </div>
 
-            {/* Action Vectors Checklist */}
+            {/* Action Steps Checklist */}
             {selectedRec.actionable_steps && selectedRec.actionable_steps.length > 0 && (
               <div className="space-y-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#8E8E93] font-semibold block">
-                  Action Vectors & Execution Steps:
+                <span className="text-[11px] font-medium uppercase tracking-wider text-[#8E8E93] block">
+                  Action Steps:
                 </span>
                 <div className="space-y-1.5">
                   {selectedRec.actionable_steps.map((step, idx) => (
@@ -1327,7 +1327,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
                       key={idx}
                       className="flex items-start gap-2.5 p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06]"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF] shrink-0 mt-0.5" />
                       <span className="text-[12.5px] text-[#2C2C2E] dark:text-[#D1D1D6] leading-snug">
                         {step}
                       </span>

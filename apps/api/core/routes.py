@@ -1784,7 +1784,8 @@ async def send_chat_message(
                 query=raw_content,
                 limit=8,
                 user_clearance=u_clearance,
-                user_role=u_role
+                user_role=u_role,
+                as_of=payload.as_of
             )
 
             # Retrieve company profile facts for grounding (Item 114: Tenant-isolated dynamic facts)

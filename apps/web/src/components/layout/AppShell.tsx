@@ -24,6 +24,8 @@ interface AppShellProps {
   onOpenOnboarding: () => void;
   onGoToLanding: () => void;
   onOpenGenesis?: () => void;
+  onOpenAuditLedger?: () => void;
+  onOpenGovernance?: () => void;
   companyName?: string;
   currentRole: UserRole;
   profile: UserProfile;
@@ -48,6 +50,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   onOpenOnboarding,
   onGoToLanding,
   onOpenGenesis,
+  onOpenAuditLedger,
+  onOpenGovernance,
   companyName,
   currentRole,
   profile,
@@ -76,6 +80,8 @@ export const AppShell: React.FC<AppShellProps> = ({
         onOpenOnboarding={onOpenOnboarding}
         onGoToLanding={onGoToLanding}
         onOpenGenesis={onOpenGenesis}
+        onOpenAuditLedger={onOpenAuditLedger}
+        onOpenGovernance={onOpenGovernance}
         companyName={companyName}
         currentRole={currentRole}
         profile={profile}

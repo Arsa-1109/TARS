@@ -896,7 +896,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                 <span className="text-[11px] text-[#8E8E93]">Sovereign Onboarding Database · SQLite WAL</span>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-medium">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#0071E3] dark:text-[#0A84FF] text-[11px] font-medium border border-black/[0.06] dark:border-white/[0.08]">
               <Lock className="w-3 h-3" />
               Isolated
             </div>
@@ -907,8 +907,8 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
             <div
               className={`p-3 rounded-[12px] text-xs font-medium flex items-center justify-between ${
                 studioToast.type === 'success'
-                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20'
-                  : 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20'
+                  ? 'bg-[#0071E3]/10 text-[#0051A2] dark:text-[#0A84FF] border border-[#0071E3]/20'
+                  : 'bg-[#FF3B30]/10 text-[#D70015] dark:text-[#FF453A] border border-[#FF3B30]/20'
               }`}
             >
               <span>{studioToast.message}</span>
@@ -964,7 +964,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    className="text-[#6E6E73] dark:text-[#8E8E93] hover:text-[#D70015] dark:hover:text-[#FF453A] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                     icon={<Trash2 className="w-3.5 h-3.5" />}
                     onClick={() => handleDeleteDay(studioCurrentModule.day)}
                   >
@@ -1049,7 +1049,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
 
                       <button
                         onClick={() => handleDeleteTask(studioCurrentModule.day, tIdx)}
-                        className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-md shrink-0"
+                        className="p-1.5 text-[#8E8E93] hover:text-[#D70015] dark:hover:text-[#FF453A] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-md shrink-0"
                         title="Delete task"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

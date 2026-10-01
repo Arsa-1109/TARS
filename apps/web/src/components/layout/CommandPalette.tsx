@@ -28,6 +28,8 @@ interface CommandPaletteProps {
   onOpenSettings: () => void;
   onOpenMemo: () => void;
   onOpenGenesis?: () => void;
+  onOpenAuditLedger?: () => void;
+  onOpenGovernance?: () => void;
   onSelectDecision?: (id: string) => void;
   onSelectDocument?: (id: string) => void;
 }
@@ -51,6 +53,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenSettings,
   onOpenMemo,
   onOpenGenesis,
+  onOpenAuditLedger,
+  onOpenGovernance,
   onSelectDecision,
   onSelectDocument,
 }) => {
@@ -189,6 +193,28 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       icon: <Mic className="w-4 h-4 text-[#B25000] dark:text-[#FF9F0A]" />,
       action: () => {
         onOpenMemo();
+        onClose();
+      },
+    },
+    {
+      id: 'audit-ledger',
+      title: 'Audit Trail',
+      category: 'Security',
+      subtitle: 'View activity history and verify system records',
+      icon: <Shield className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
+      action: () => {
+        if (onOpenAuditLedger) onOpenAuditLedger();
+        onClose();
+      },
+    },
+    {
+      id: 'governance-policies',
+      title: 'Review & Security Policies',
+      category: 'Security',
+      subtitle: 'Review pending facts and test access control policies',
+      icon: <Scale className="w-4 h-4 text-[#0071E3] dark:text-[#0A84FF]" />,
+      action: () => {
+        if (onOpenGovernance) onOpenGovernance();
         onClose();
       },
     },

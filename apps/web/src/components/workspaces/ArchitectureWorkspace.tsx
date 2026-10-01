@@ -279,14 +279,13 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   return (
     <div className="h-full overflow-y-auto pr-1 space-y-5">
       <PageHeader
-        eyebrow="Workspace 6"
-        title="Tech & Architecture Workspace"
-        description="Deterministic architectural enforcement powered by Tree-sitter AST queries (<50ms) and embedded Kùzu call-graph analysis."
+        title="Architecture"
+        description="Codebase structure, architectural standards, and dependency graph analysis."
         actions={
           <div className="flex items-center gap-2">
             {executionTime && (
-              <span className="text-xs font-mono text-[#6E6E73] dark:text-[#8E8E93] bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-[10px] border border-black/[0.08] dark:border-white/[0.12] shadow-xs">
-                AST Scan: <span className="text-black dark:text-white font-bold">{executionTime} ms</span>
+              <span className="text-xs text-[#6E6E73] dark:text-[#8E8E93] bg-white dark:bg-[#1C1C1E] px-3 py-1.5 rounded-[10px] border border-black/[0.08] dark:border-white/[0.12] shadow-xs">
+                Scan Time: <span className="text-black dark:text-white font-medium">{executionTime} ms</span>
               </span>
             )}
             {onOpenCursorConfig && (
@@ -296,7 +295,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
                 icon={<Code2 className="w-3.5 h-3.5" />}
                 onClick={onOpenCursorConfig}
               >
-                Export Cursor MCP
+                Export Cursor Config
               </Button>
             )}
             <Button
@@ -306,21 +305,21 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
               icon={<RefreshCw className="w-3.5 h-3.5" />}
               onClick={handleRunASTCheck}
             >
-              Run AST Hook
+              Verify Architecture
             </Button>
           </div>
         }
       />
 
-      {/* Track 4: Live Push Sentinel Status Card */}
+      {/* Pre-Push Verification Status Card */}
       <div className="p-4 rounded-[18px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-[#30D158] animate-pulse" />
-            <span className="text-xs font-bold text-black dark:text-white uppercase tracking-wider font-mono">
-              Push Sentinel Active
+            <div className="w-2 h-2 rounded-full bg-[#0071E3] dark:bg-[#0A84FF]" />
+            <span className="text-xs font-semibold text-black dark:text-white">
+              Pre-Push Protection Active
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-medium bg-[#30D158]/10 text-[#30D158]">
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-black/[0.04] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] border border-black/[0.06] dark:border-white/[0.08]">
               scripts/hooks/pre-push
             </span>
           </div>

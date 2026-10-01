@@ -18,6 +18,18 @@ import {
   OnboardingFlightPlanDTO,
   OnboardingFlightPlanCreate,
   OnboardingProgressUpdateDTO,
+  ActionReceipt,
+  ActionTransitionRequest,
+  ActionExecuteRequest,
+  ActionRollbackRequest,
+  AuditBlockDTO,
+  AuditVerifyResponse,
+  UnverifiedFactDTO,
+  FactTransitionRequest,
+  FactTransitionResponse,
+  PolicyRule,
+  PolicyDecision,
+  PolicyEvaluateRequest,
 } from '../types/contracts';
 
 const API_BASE = '/api';
@@ -505,6 +517,99 @@ export class LiveTarsApi implements TarsApi {
         ...item,
         id: `ACT-${Date.now().toString().slice(-6)}`,
       }),
+    });
+  }
+
+  async transitionAction(id: string, req: ActionTransitionRequest): Promise<ActionItemDTO> {
+    return this.fetchJson<ActionItemDTO>(`/core/actions/${id}/transition`, {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  async executeAction(id: string, req?: ActionExecuteRequest): Promise<ActionReceipt> {
+    return this.fetchJson<ActionReceipt>(`/core/actions/${id}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(req || {}),
+    });
+  }
+
+  async rollbackAction(id: string, req?: ActionRollbackRequest): Promise<ActionReceipt> {
+    return this.fetchJson<ActionReceipt>(`/core/actions/${id}/rollback`, {
+      method: 'POST',
+      body: JSON.stringify(req || {}),
+    });
+  }
+
+  async getActionReceipts(id: string): Promise<ActionReceipt[]> {
+    try {
+      const data = await this.fetchJson<ActionReceipt[]>(`/core/actions/${id}/receipts`);
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // --- Cryptographic Audit Ledger & Integrity ---
+  async getAuditTrail(limit: number = 100, entityId?: string): Promise<AuditBlockDTO[]> {
+    try {
+      const query = entityId
+        ? `?limit=${limit}&entity_id=${encodeURIComponent(entityId)}`
+        : `?limit=${limit}`;
+      const data = await this.fetchJson<AuditBlockDTO[]>(`/core/audit/trail${query}`);
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async verifyAuditLedger(): Promise<AuditVerifyResponse> {
+    return this.fetchJson<AuditVerifyResponse>('/core/audit/verify');
+  }
+
+  // --- Fact-Confidence Lifecycle & Policy Engine ---
+  async getUnverifiedFacts(orgId?: string, limit: number = 50): Promise<UnverifiedFactDTO[]> {
+    try {
+      const query = orgId
+        ? `?org_id=${encodeURIComponent(orgId)}&limit=${limit}`
+        : `?limit=${limit}`;
+      const data = await this.fetchJson<any[]>(`/core/facts/unverified${query}`);
+      if (!Array.isArray(data)) return [];
+      return data.map((item) => ({
+        entity_type: item.entity_type || 'MEMORY',
+        entity_id: item.entity_id || item.id || '',
+        title: item.title || item.name || 'Unverified Fact',
+        content_preview: item.content_preview || item.content || item.snippet || '',
+        confidence_state: item.confidence_state || 'REVIEW_REQUIRED',
+        timestamp: item.timestamp || Date.now(),
+        source: item.source || 'EXTRACTED',
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async transitionFactConfidence(req: FactTransitionRequest): Promise<FactTransitionResponse> {
+    return this.fetchJson<FactTransitionResponse>('/core/facts/transition', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    });
+  }
+
+  async getPolicies(orgId?: string): Promise<PolicyRule[]> {
+    try {
+      const query = orgId ? `?org_id=${encodeURIComponent(orgId)}` : '';
+      const data = await this.fetchJson<PolicyRule[]>(`/core/policies${query}`);
+      return Array.isArray(data) ? data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async evaluatePolicy(req: PolicyEvaluateRequest): Promise<PolicyDecision> {
+    return this.fetchJson<PolicyDecision>('/core/policies/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(req),
     });
   }
 

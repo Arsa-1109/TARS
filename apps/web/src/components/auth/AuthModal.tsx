@@ -461,7 +461,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 />
 
                 {errorMsg && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-[12px]">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-[#FF3B30]/10 border border-[#FF3B30]/20 text-[#D70015] dark:text-[#FF453A] text-[12px]">
                     <AlertCircle className="w-4 h-4 shrink-0" />
                     <span>{errorMsg}</span>
                   </div>

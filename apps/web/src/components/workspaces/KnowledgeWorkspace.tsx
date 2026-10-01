@@ -38,6 +38,10 @@ import {
   HelpCircle,
   ExternalLink,
   AlertTriangle,
+  History,
+  Calendar,
+  Clock,
+  ChevronDown,
 } from 'lucide-react';
 
 interface KnowledgeWorkspaceProps {
@@ -175,6 +179,11 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const [sending, setSending] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [chatSearch, setChatSearch] = useState('');
+
+  // Temporal Bitemporal Search (AS_OF_DATE(t)) State
+  const [asOfDate, setAsOfDate] = useState<number | null>(null);
+  const [asOfDateInput, setAsOfDateInput] = useState<string>('');
+  const [temporalPopoverOpen, setTemporalPopoverOpen] = useState(false);
 
   // UI Interactive States
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -370,6 +379,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
         userRole: userRole || profile?.role || 'ENGINEER',
         userName: profile?.name || 'Team Member',
         clearance: clearance || profile?.clearance || 'ALL_TEAM',
+        as_of: asOfDate || undefined,
       });
 
       // Refresh list to update title if derived or timestamps
@@ -754,6 +764,97 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
             <span className="text-[10px] font-mono uppercase px-2 py-1 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] font-medium hidden sm:inline-block">
               {clearance}
             </span>
+            {/* Knowledge Date Filter Pill */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setTemporalPopoverOpen((prev) => !prev)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] text-xs font-medium border transition-all ${
+                  asOfDate
+                    ? 'border-[#0071E3] bg-[#0071E3]/10 text-[#0071E3] dark:text-[#0A84FF]'
+                    : 'border-black/[0.09] dark:border-white/[0.12] bg-black/[0.03] dark:bg-white/[0.06] text-[#6E6E73] dark:text-[#8E8E93] hover:text-black dark:hover:text-white'
+                }`}
+                title="Filter Knowledge by Date"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">
+                  {asOfDate ? `As of: ${new Date(asOfDate).toLocaleDateString()}` : 'All Time'}
+                </span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+
+              {/* Date Filter Selection Popover */}
+              {temporalPopoverOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 p-3 rounded-[16px] bg-white dark:bg-[#1C1C1E] border border-black/[0.12] dark:border-white/[0.15] shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.7)] z-50 animate-apple-in">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/[0.06] dark:border-white/[0.06]">
+                    <span className="text-[12px] font-semibold text-black dark:text-white flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                      <span>View Knowledge by Date</span>
+                    </span>
+                    {asOfDate && (
+                      <button
+                        onClick={() => {
+                          setAsOfDate(null);
+                          setTemporalPopoverOpen(false);
+                        }}
+                        className="text-[11px] text-[#0071E3] dark:text-[#0A84FF] hover:underline"
+                      >
+                        Reset to Present
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preset Buttons */}
+                  <div className="grid grid-cols-2 gap-1.5 mb-3 text-[11px]">
+                    <button
+                      onClick={() => {
+                        setAsOfDate(Date.now() - 86400000);
+                        setTemporalPopoverOpen(false);
+                      }}
+                      className="p-2 rounded-[8px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] text-left hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
+                    >
+                      <div className="font-medium text-black dark:text-white">Yesterday</div>
+                      <div className="text-[10px] text-[#8E8E93]">24 hours ago</div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setAsOfDate(Date.now() - 7 * 86400000);
+                        setTemporalPopoverOpen(false);
+                      }}
+                      className="p-2 rounded-[8px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.04] text-left hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors"
+                    >
+                      <div className="font-medium text-black dark:text-white">Last Week</div>
+                      <div className="text-[10px] text-[#8E8E93]">7 days ago</div>
+                    </button>
+                  </div>
+
+                  {/* Custom Date Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] text-[#6E6E73] dark:text-[#8E8E93] block">
+                      Specific Date:
+                    </label>
+                    <input
+                      type="date"
+                      value={asOfDateInput}
+                      onChange={(e) => setAsOfDateInput(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs rounded-[8px] border border-black/[0.1] dark:border-white/[0.1] bg-black/[0.02] dark:bg-white/[0.04] text-black dark:text-white"
+                    />
+                    <button
+                      onClick={() => {
+                        if (asOfDateInput) {
+                          setAsOfDate(new Date(asOfDateInput).getTime());
+                          setTemporalPopoverOpen(false);
+                        }
+                      }}
+                      className="w-full mt-1.5 py-1.5 rounded-[8px] bg-black dark:bg-white text-white dark:text-black text-[11px] font-medium"
+                    >
+                      Show Knowledge as of Date
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <SegmentedControl
               size="sm"
               options={[
@@ -782,6 +883,25 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           </div>
         }
       />
+
+      {/* Quiet Banner when Date Filter is Active */}
+      {asOfDate && (
+        <div className="p-2.5 px-4 rounded-[12px] border border-black/[0.08] dark:border-white/[0.10] bg-black/[0.02] dark:bg-white/[0.03] text-black dark:text-white text-xs flex items-center justify-between shrink-0 animate-slide-up">
+          <div className="flex items-center gap-2">
+            <Clock className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF] shrink-0" />
+            <span className="text-[#3C3C43] dark:text-[#D1D1D6]">
+              Viewing knowledge recorded prior to{' '}
+              <strong className="text-black dark:text-white">{new Date(asOfDate).toLocaleDateString()}</strong>. Newer documents and decisions are hidden.
+            </span>
+          </div>
+          <button
+            onClick={() => setAsOfDate(null)}
+            className="text-[11px] text-[#0071E3] dark:text-[#0A84FF] font-medium hover:underline ml-3 shrink-0"
+          >
+            Show All Time
+          </button>
+        </div>
+      )}
 
       {/* Upload Toast (For Document Lake view or subtle feedback) */}
       {uploadSuccess && (
@@ -975,9 +1095,9 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
                 <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#0071E3]/[0.10] text-[#0071E3] dark:text-[#0A84FF] shrink-0 font-medium">
                   {clearance}
                 </span>
-                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Qwen 3 (Local ML Connected)
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-[#6E6E73] dark:text-[#8E8E93] shrink-0 font-medium">
+                  <Sparkles className="w-3.5 h-3.5 text-[#0071E3] dark:text-[#0A84FF]" />
+                  <span>On-Device Intelligence</span>
                 </span>
               </div>
 
@@ -1334,13 +1454,13 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
                 <div className="flex items-center justify-between text-[11px] text-[#8E8E93] px-2">
                   <span>Press <kbd className="font-mono bg-black/[0.05] dark:bg-white/[0.08] px-1 py-0.5 rounded text-[10px]">Enter</kbd> to send</span>
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Local ML: Qwen 3 (Ollama Connected)
+                  <div className="flex items-center gap-2 text-[#8E8E93] text-[11px]">
+                    <span className="inline-flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-[#0071E3] dark:text-[#0A84FF]" />
+                      <span>Private On-Device Intelligence</span>
                     </span>
-                    <span className="text-[#8E8E93] text-[10px]">·</span>
-                    <span className="font-mono text-[10px]">Grounded in Sovereign Graph & Vector Store</span>
+                    <span>·</span>
+                    <span>Verified Company Knowledge</span>
                   </div>
                 </div>
               </form>

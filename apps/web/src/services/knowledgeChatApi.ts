@@ -108,6 +108,7 @@ export const knowledgeChatApi = {
       userRole?: string;
       userName?: string;
       clearance?: string;
+      as_of?: number;
     }
   ): Promise<ChatMessageDTO> {
     const url = params.userId
@@ -128,6 +129,7 @@ export const knowledgeChatApi = {
         user_role: params.userRole,
         user_name: params.userName,
         clearance: params.clearance,
+        as_of: params.as_of,
       }),
     });
     if (!res.ok) {

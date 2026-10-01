@@ -16,6 +16,7 @@ export interface SearchRequest {
   clearance?: string;
   user_role?: string;
   user_name?: string;
+  as_of?: number;
 }
 
 export interface SearchResponse {
@@ -244,9 +245,11 @@ export type ActionItemStatus =
   | 'REVIEW_REQUIRED'
   | 'APPROVED'
   | 'REJECTED'
+  | 'QUEUED'
   | 'EXECUTING'
   | 'COMPLETED'
   | 'FAILED'
+  | 'ROLLED_BACK'
   | 'OPEN'
   | 'IN_PROGRESS'
   | 'DONE'
@@ -271,6 +274,7 @@ export interface ActionItemDTO {
   approval_scope?: string;
   is_demo?: number;
   organisation_id?: string;
+  audit_block_id?: string | null;
 }
 
 export interface DocumentDTO {
@@ -461,5 +465,130 @@ export interface OnboardingResetRequest {
   company_name: string;
   company_id?: string;
 }
+
+// ==========================================
+// INTEGRATION-4: GOVERNED ACTION, AUDIT LEDGER, POLICY & FACT TYPES
+// ==========================================
+export interface ActionReceipt {
+  receipt_id: string;
+  action_id: string;
+  status: 'EXECUTED' | 'FAILED' | 'ROLLED_BACK' | string;
+  actor: string;
+  executed_at: number;
+  duration_ms?: number;
+  parameters_hash: string;
+  result_summary?: string;
+  rollback_payload?: Record<string, any> | null;
+  audit_block_id?: string | null;
+  organisation_id: string;
+}
+
+export interface ActionTransitionRequest {
+  target_status: string;
+  actor_id?: string;
+  actor_role?: string;
+  reason?: string;
+}
+
+export interface ActionExecuteRequest {
+  actor_id?: string;
+  actor_role?: string;
+  actor_clearance?: string;
+  rollback_handler?: Record<string, any>;
+}
+
+export interface ActionRollbackRequest {
+  actor_id?: string;
+  reason?: string;
+}
+
+export interface AuditBlockDTO {
+  event_id: string;
+  sequence_id: number;
+  timestamp: number;
+  actor: string;
+  organisation_id: string;
+  action: string;
+  source: string;
+  input_hash: string;
+  result_hash: string;
+  previous_hash: string;
+  event_hash: string;
+  is_valid?: boolean;
+  current_hash?: string | null;
+  sequence?: number | null;
+}
+
+export interface AuditVerifyResponse {
+  status: 'AUDIT_VALID' | 'AUDIT_INTEGRITY_FAILURE' | string;
+  total_events: number;
+  tip_hash: string;
+  message: string;
+  broken_at_sequence?: number | null;
+  event_id?: string | null;
+  reason?: string | null;
+  expected_previous_hash?: string | null;
+  stored_previous_hash?: string | null;
+}
+
+export interface UnverifiedFactDTO {
+  entity_type: 'MEMORY' | 'ACTION' | 'DOCUMENT' | 'DECISION' | string;
+  entity_id: string;
+  title: string;
+  content_preview: string;
+  confidence_state: string;
+  timestamp: number;
+  source: string;
+}
+
+export interface FactTransitionRequest {
+  entity_type: string;
+  entity_id: string;
+  new_state: 'CONFIRMED' | 'REJECTED' | 'REVIEW_REQUIRED' | 'SUPERSEDED' | string;
+  actor?: string;
+  reason?: string;
+  organisation_id?: string;
+}
+
+export interface FactTransitionResponse {
+  entity_id: string;
+  entity_type: string;
+  previous_state: string;
+  current_state: string;
+  audit_block_id?: string | null;
+  timestamp: number;
+}
+
+export interface PolicyRule {
+  id: string;
+  action_type: string;
+  description?: string;
+  allowed_roles: string[];
+  required_clearance: string;
+  max_risk: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | string;
+  requires_human: boolean;
+  allowed_tools: string[];
+  conditions?: Record<string, any>;
+  organisation_id: string;
+  is_active: boolean;
+}
+
+export interface PolicyDecision {
+  is_allowed: boolean;
+  requires_human: boolean;
+  matching_policy_id?: string | null;
+  denial_reasons: string[];
+  audit_ref?: string | null;
+}
+
+export interface PolicyEvaluateRequest {
+  action_type: string;
+  role: string;
+  clearance?: string;
+  risk_level?: string;
+  tool?: string;
+  payload?: Record<string, any>;
+}
+
 
 
