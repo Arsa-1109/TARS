@@ -550,7 +550,11 @@ class LocalDB:
         ''')
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_onboarding_progress_lookup ON onboarding_progress(company_name, user_id);")
 
-        # Seed default demo personas if table is empty
+        # Seed default demo personas only when demo mode is enabled
+        demo_enabled = (
+            os.getenv("TARS_DEMO_MODE", "true").lower() in ("true", "1", "yes")
+            and os.getenv("TARS_MODE", "DEMO").upper() not in ("EMPTY", "CLEAN", "PRODUCTION")
+        ) or bool(os.getenv("PYTEST_CURRENT_TEST"))
         default_personas = [
             ("usr-alex", "Alex Vance", "alex@aetherflow.ai", "FOUNDER", "Executive", "EXECUTIVE_ONLY"),
             ("usr-elena", "Dr. Elena Rostova", "elena@aetherflow.ai", "ENGINEER", "Engineering", "ALL_TEAM"),
@@ -561,14 +565,15 @@ class LocalDB:
         ]
         import time as _t
         now_ts = int(_t.time())
-        for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
-            cursor.execute('''
-                INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
+        if demo_enabled:
+            for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
+                cursor.execute('''
+                    INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
 
-        # Isolate legacy demo users to Aetherflow
-        cursor.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
+            # Isolate legacy demo users to Aetherflow
+            cursor.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
 
         # Seed default Think Tank channels
         default_channels = [
@@ -599,22 +604,24 @@ class LocalDB:
                 1
             ))
 
-        # Seed unredacted Cap Table memory with EXECUTIVE_ONLY clearance and is_demo=1
-        cursor.execute('''
-            INSERT OR IGNORE INTO memories (id, record_type, title, content, source, timestamp, tags, clearance, is_demo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            "MEM-CAP-TABLE-SEED",
-            "DOCUMENT",
-            "AetherFlow Cap Table & Founder Equity Allocation (Series Seed Unredacted)",
-            "Confidential Cap Table Series Seed Unredacted: Total Authorized Shares: 10,000,000. Alex Vance (Founder & CEO): 4,500,000 shares (45.0% founder equity). Dr. Elena Rostova (Co-Founder & CTO): 3,000,000 shares (30.0% equity). Seed Investor Syndicate: 1,500,000 shares (15.0% preferred stock). Unallocated Employee Stock Option Pool (ESOP): 1,000,000 shares (10.0%). Valuation: $15M post-money valuation at $1.50 per share. Restricted Founder and Executive Clearance Only.",
-            "CAP_TABLE_UNREDACTED",
-            now_ts,
-            "equity,cap_table,shares,executive,valuation",
-            "EXECUTIVE_ONLY",
-            1
-        ))
-        cursor.execute("UPDATE memories SET is_demo = 1 WHERE id = 'MEM-CAP-TABLE-SEED' OR title LIKE '%AetherFlow%';")
+        # Seed unredacted Cap Table memory with EXECUTIVE_ONLY clearance, is_demo=1, and strict CMP-GENESIS-01 tenant isolation
+        if demo_enabled:
+            cursor.execute('''
+                INSERT OR IGNORE INTO memories (id, record_type, title, content, source, timestamp, tags, clearance, is_demo, organisation_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                "MEM-CAP-TABLE-SEED",
+                "DOCUMENT",
+                "AetherFlow Cap Table & Founder Equity Allocation (Series Seed Unredacted)",
+                "Confidential Cap Table Series Seed Unredacted: Total Authorized Shares: 10,000,000. Alex Vance (Founder & CEO): 4,500,000 shares (45.0% founder equity). Dr. Elena Rostova (Co-Founder & CTO): 3,000,000 shares (30.0% equity). Seed Investor Syndicate: 1,500,000 shares (15.0% preferred stock). Unallocated Employee Stock Option Pool (ESOP): 1,000,000 shares (10.0%). Valuation: $15M post-money valuation at $1.50 per share. Restricted Founder and Executive Clearance Only.",
+                "CAP_TABLE_UNREDACTED",
+                now_ts,
+                "equity,cap_table,shares,executive,valuation",
+                "EXECUTIVE_ONLY",
+                1,
+                "CMP-GENESIS-01",
+            ))
+            cursor.execute("UPDATE memories SET is_demo = 1, organisation_id = 'CMP-GENESIS-01' WHERE id = 'MEM-CAP-TABLE-SEED' OR title LIKE '%AetherFlow%';")
 
         # ==========================================
         # PHASE 3: GOVERNED ACTION HUB TABLES (Points 11, 12, 90-94)
@@ -848,12 +855,13 @@ class LocalDB:
                     )
                 ''')
                 vault_conn.execute("CREATE INDEX IF NOT EXISTS idx_vault_onboarding_progress_lookup ON onboarding_progress(company_name, user_id);")
-                for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
-                    vault_conn.execute('''
-                        INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
-                vault_conn.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
+                if demo_enabled:
+                    for u_id, u_name, u_email, u_role, u_dept, u_clr in default_personas:
+                        vault_conn.execute('''
+                            INSERT OR IGNORE INTO users (id, name, email, role, department, clearance, created_at, company_id, company_name)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (u_id, u_name, u_email, u_role, u_dept, u_clr, now_ts, "CMP-GENESIS-01", "AetherFlow Technologies, Inc."))
+                    vault_conn.execute("UPDATE users SET company_id = 'CMP-GENESIS-01', company_name = 'AetherFlow Technologies, Inc.' WHERE (company_id IS NULL OR company_id = '') AND id LIKE 'usr-%'")
                 vault_conn.commit()
                 vault_conn.close()
         except Exception as vault_err:

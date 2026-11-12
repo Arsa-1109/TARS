@@ -105,4 +105,75 @@ class OllamaClient:
         finally:
             await governor.release()
 
+    def compute_embedding(self, text: str, dims: int = 64) -> list[float]:
+        """
+        Computes a normalized semantic embedding vector for `text`.
+        Attempts local Ollama `/api/embeddings` when `TARS_USE_OLLAMA_EMBEDDINGS=true`,
+        and falls back to deterministic character/word n-gram projection so offline
+        and low-latency hybrid search remains fast and deterministic.
+        """
+        import hashlib
+        import math
+        clean = (text or "").strip().lower()
+        if not clean:
+            return [0.0] * dims
+
+        if not hasattr(self, "_embed_cache"):
+            self._embed_cache: Dict[str, list[float]] = {}
+        cache_key = f"{dims}:{clean[:512]}"
+        if cache_key in self._embed_cache:
+            return self._embed_cache[cache_key]
+
+        if os.getenv("TARS_USE_OLLAMA_EMBEDDINGS", "").lower() in ("1", "true", "yes"):
+            embed_model = os.getenv("TARS_EMBED_MODEL", "nomic-embed-text")
+            try:
+                with httpx.Client(timeout=1.5) as client:
+                    resp = client.post(
+                        f"{self.base_url}/api/embeddings",
+                        json={"model": embed_model, "prompt": clean[:1000]},
+                    )
+                    if resp.status_code == 200:
+                        vec = resp.json().get("embedding")
+                        if isinstance(vec, list) and len(vec) > 0:
+                            norm = math.sqrt(sum(float(x) * float(x) for x in vec)) or 1.0
+                            normed = [float(x) / norm for x in vec]
+                            self._embed_cache[cache_key] = normed
+                            return normed
+            except Exception:
+                pass
+
+        # Deterministic character 3-gram + token projection
+        vec = [0.0] * dims
+        tokens = [t for t in clean.replace("-", " ").replace("_", " ").split() if len(t) >= 2]
+        features = list(tokens)
+        for tok in tokens:
+            if len(tok) >= 4:
+                features.append(tok[:4])
+            for i in range(max(0, len(tok) - 2)):
+                features.append(tok[i : i + 3])
+        if not features:
+            features = [clean]
+
+        for feat in features:
+            digest = hashlib.md5(feat.encode("utf-8")).digest()
+            idx = digest[0] % dims
+            sign = 1.0 if (digest[1] & 1) == 0 else -1.0
+            weight = 1.5 if feat in tokens else 0.6
+            vec[idx] += sign * weight
+
+        norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+        normed = [round(v / norm, 6) for v in vec]
+        if len(self._embed_cache) > 2048:
+            self._embed_cache.clear()
+        self._embed_cache[cache_key] = normed
+        return normed
+
+    def cosine_similarity(self, text_a: str, text_b: str) -> float:
+        vec_a = self.compute_embedding(text_a)
+        vec_b = self.compute_embedding(text_b, dims=len(vec_a))
+        if not vec_a or not vec_b or len(vec_a) != len(vec_b):
+            return 0.0
+        dot = sum(a * b for a, b in zip(vec_a, vec_b))
+        return max(0.0, min(1.0, float(dot)))
+
 ollama_client = OllamaClient()

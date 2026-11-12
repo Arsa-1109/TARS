@@ -104,7 +104,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   // Strategic Growth Radar State
   const { profile } = useSessionStore();
-  const activeCompanyName = profile?.company_name || localStorage.getItem('tars_company_name') || 'AetherFlow Technologies, Inc.';
+  const activeCompanyName = profile?.company_name || localStorage.getItem('tars_company_name') || '';
 
   const [recommendations, setRecommendations] = useState<StrategicRecommendation[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);

@@ -267,17 +267,33 @@ async def stream_ingestion_events(
 # --- Item 77: Admin authorization helper for QoS/watcher control endpoints ---
 def _require_admin_clearance(x_session_id: Optional[str] = None) -> Dict[str, Any]:
     """Verifies that the caller has ADMIN or FOUNDER role for instance-wide control endpoints (Item 77)."""
-    admin_roles = {"ADMIN", "FOUNDER", "CHIEF_ARCHITECT"}
-    if x_session_id:
+    admin_roles = {"ADMIN", "FOUNDER", "CHIEF_ARCHITECT", "ARCHITECT", "EXECUTIVE"}
+    token = (x_session_id or "").strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    if token:
         try:
-            from apps.api.core.session import session_manager
-            session = session_manager.get_session(x_session_id)
-            if session and session.get("tars_role", "").upper() in admin_roles:
-                return {"actor": session.get("tars_user", "unknown"), "role": session["tars_role"]}
+            from apps.api.core.session import session_manager, user_manager
+            session = session_manager.get_session(token)
+            if session:
+                s_role = getattr(session, "tars_role", None) or (session.get("tars_role") if isinstance(session, dict) else "")
+                s_user = getattr(session, "tars_user", None) or (session.get("tars_user") if isinstance(session, dict) else "unknown")
+                if str(s_role).upper() in admin_roles:
+                    return {"actor": s_user, "role": str(s_role).upper()}
+                # Explicit non-admin session must be rejected even in test mode
+                return {"actor": None, "role": None}
+            user = user_manager.get_user_by_id(token)
+            if user:
+                u_role = str(getattr(user, "role", "") or "").upper()
+                if u_role in admin_roles:
+                    return {"actor": user.name, "role": u_role}
+                return {"actor": None, "role": None}
         except Exception:
             pass
-    # In test/development mode, allow if no session system is active
-    if os.getenv("TARS_TESTING") == "1" or os.getenv("PYTEST_CURRENT_TEST"):
+        # Explicit invalid session token provided -> reject
+        return {"actor": None, "role": None}
+    # In pytest harness when no session header was passed by legacy unit tests
+    if os.getenv("TARS_TESTING") == "1" or (os.getenv("PYTEST_CURRENT_TEST") and os.getenv("TARS_REQUIRE_ADMIN_SESSION", "").lower() not in ("1", "true", "yes")):
         return {"actor": "test-admin", "role": "ADMIN"}
     # Item 77: Anonymous callers must not control global processing state
     return {"actor": None, "role": None}
@@ -524,7 +540,8 @@ def list_ingested_documents(
     Filters out demo documents for fresh non-Aetherflow company accounts.
     """
     active_company = company_name or x_company_name
-    is_aetherflow = not active_company or _is_aetherflow_company(active_company)
+    demo_flag = os.getenv("TARS_DEMO_MODE", "true").lower() in ("true", "1", "yes") and os.getenv("TARS_MODE", "DEMO").upper() not in ("EMPTY", "CLEAN", "PRODUCTION")
+    is_aetherflow = demo_flag and (not active_company or _is_aetherflow_company(active_company))
 
     docs = []
     try:
@@ -759,7 +776,8 @@ def list_call_tasks(
     Demo calls (Acme Corp, Nexus Labs) are isolated to AetherFlow/Genesis demo accounts.
     """
     active_company = company_name or x_company_name
-    is_aetherflow = not active_company or _is_aetherflow_company(active_company)
+    demo_flag = os.getenv("TARS_DEMO_MODE", "true").lower() in ("true", "1", "yes") and os.getenv("TARS_MODE", "DEMO").upper() not in ("EMPTY", "CLEAN", "PRODUCTION")
+    is_aetherflow = demo_flag and (not active_company or _is_aetherflow_company(active_company))
 
     tasks = whisper_transcriber.list_tasks()
     task_calls = []

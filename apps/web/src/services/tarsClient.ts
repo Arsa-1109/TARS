@@ -260,6 +260,59 @@ class TarsClient {
     return 'ALL_TEAM';
   }
 
+  public getActiveUserContext(): {
+    id: string;
+    name: string;
+    role: string;
+    clearance: string;
+    companyName: string;
+    companyId: string;
+    sessionId: string;
+  } {
+    let id = '';
+    let name = '';
+    let role = 'FOUNDER';
+    let clearance = 'ALL_TEAM';
+    let companyName = this.getActiveCompanyName();
+    let companyId = '';
+    let sessionId = '';
+    try {
+      sessionId = localStorage.getItem('tars_session_id') || '';
+      const rawSession = localStorage.getItem('tars_session_storage');
+      if (rawSession) {
+        const parsed = JSON.parse(rawSession);
+        const prof = parsed?.profile || parsed?.state?.profile;
+        if (prof) {
+          id = prof.id || id;
+          name = prof.name || name;
+          role = prof.role || role;
+          clearance = prof.clearance || clearance;
+          companyName = prof.company_name || companyName;
+          companyId = prof.company_id || companyId;
+        }
+      }
+      const rawUser = localStorage.getItem('tars_current_user_profile');
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        id = parsed?.id || id;
+        name = parsed?.name || name;
+        role = parsed?.role || role;
+        clearance = parsed?.clearance || clearance;
+        companyName = parsed?.company_name || companyName;
+        companyId = parsed?.company_id || companyId;
+      }
+    } catch {}
+    return {
+      id: id || 'usr-workspace',
+      name: name || 'Workspace Member',
+      role,
+      clearance,
+      companyName,
+      companyId,
+      sessionId,
+    };
+  }
+
   // --- Reactive Event Bus ---
   public on<T = unknown>(event: TarsEventType, handler: EventHandler<T>): () => void {
     if (!this.listeners.has(event)) {
@@ -295,7 +348,8 @@ class TarsClient {
 
   // --- Base HTTP Transport (Honest Failure, Zero False-Green) ---
   private async fetchResponse(path: string, init?: RequestInit): Promise<Response> {
-    const company = this.getActiveCompanyName();
+    const ctx = this.getActiveUserContext();
+    const company = ctx.companyName;
     const headers = new Headers(init?.headers);
 
     if (!headers.has('Content-Type') && !(init?.body instanceof FormData)) {
@@ -303,6 +357,15 @@ class TarsClient {
     }
     if (company && !headers.has('X-Company-Name')) {
       headers.set('X-Company-Name', company);
+    }
+    if (ctx.companyId && !headers.has('X-Organisation-ID')) {
+      headers.set('X-Organisation-ID', ctx.companyId);
+    }
+    if (ctx.sessionId && !headers.has('X-Session-Id')) {
+      headers.set('X-Session-Id', ctx.sessionId);
+    }
+    if (ctx.id && ctx.id !== 'usr-workspace' && !headers.has('X-User-Id')) {
+      headers.set('X-User-Id', ctx.id);
     }
 
     const url = path.startsWith('http') ? path : `${this.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
@@ -995,13 +1058,14 @@ class TarsClient {
           reply_to_id: paramsOrChannelId.reply_to_id || null,
         };
       } else {
+        const ctx = this.getActiveUserContext();
         payload = {
           channel_id: paramsOrChannelId,
           text: maybeText || '',
           content: maybeText || '',
-          sender: options?.sender || 'Alex Vance',
-          sender_role: options?.senderRole || 'FOUNDER',
-          user_id: options?.userId || 'usr-alex',
+          sender: options?.sender || ctx.name || 'Workspace Member',
+          sender_role: options?.senderRole || ctx.role || 'FOUNDER',
+          user_id: options?.userId || ctx.id || 'usr-workspace',
           reply_to_id: options?.replyToId || null,
           provenance: options?.provenance,
         };

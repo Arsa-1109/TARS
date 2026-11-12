@@ -57,6 +57,7 @@ export const ROLE_WORKSPACES: Record<UserRole, WorkspaceId[]> = {
 
 export const DEMO_ROLES: Record<UserRole, UserProfile> = {
   FOUNDER: {
+    id: 'usr-alex',
     name: 'Alex Vance',
     role: 'FOUNDER',
     department: 'Executive',
@@ -65,6 +66,7 @@ export const DEMO_ROLES: Record<UserRole, UserProfile> = {
     company_id: 'CMP-GENESIS-01',
   },
   PRODUCT: {
+    id: 'usr-marcus',
     name: 'Marcus Chen',
     role: 'PRODUCT',
     department: 'Product',
@@ -73,6 +75,7 @@ export const DEMO_ROLES: Record<UserRole, UserProfile> = {
     company_id: 'CMP-GENESIS-01',
   },
   SALES: {
+    id: 'usr-sarah',
     name: 'Sarah Jenkins',
     role: 'SALES',
     department: 'Sales & Growth',
@@ -81,6 +84,7 @@ export const DEMO_ROLES: Record<UserRole, UserProfile> = {
     company_id: 'CMP-GENESIS-01',
   },
   ENGINEER: {
+    id: 'usr-elena',
     name: 'Dr. Elena Rostova',
     role: 'ENGINEER',
     department: 'Engineering',
@@ -89,6 +93,7 @@ export const DEMO_ROLES: Record<UserRole, UserProfile> = {
     company_id: 'CMP-GENESIS-01',
   },
   NEW_HIRE: {
+    id: 'usr-chloe',
     name: 'Chloe Dubois',
     role: 'NEW_HIRE',
     department: 'Engineering',

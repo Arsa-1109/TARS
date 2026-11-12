@@ -108,16 +108,25 @@ GREETINGS = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon"
 @router.post("/search", response_model=SearchResponse)
 async def search_knowledge(
     req: SearchRequest,
-    x_user_id: Optional[str] = Header(None)
+    x_user_id: Optional[str] = Header(None),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-Id"),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
 ):
     start_time = time.perf_counter()
     
     # Item 110: Client-supplied roles are ignored for security
-    if x_user_id:
-        session_data = session_manager.get_session(x_user_id)
+    session_data = None
+    lookup_token = x_session_id or x_user_id
+    if lookup_token:
+        session_data = session_manager.get_session(lookup_token)
         if session_data:
             req.user_role = session_data.tars_role
             req.clearance = "EXECUTIVE_ONLY" if session_data.tars_role == "FOUNDER" else "ALL_TEAM"
+            if session_data.organisation_id and not req.organisation_id:
+                req.organisation_id = session_data.organisation_id
+    if not req.organisation_id and (x_organisation_id or x_company_name):
+        req.organisation_id = x_organisation_id or x_company_name
             
     print(f"[SEARCH DEBUG] Incoming search query: {req.query}", flush=True)
 
@@ -176,9 +185,13 @@ async def search_knowledge(
     abstention_reason = search_hybrid_res.get("abstention_reason")
 
     print(f"[SEARCH DEBUG] Citations found: {len(citations)}, status={hybrid_status}", flush=True)
-    # Retrieve and format institutional company facts
-    company = company_repo.get_profile() or {}
-    comp_name = company.get("company_name", "Your Company")
+    # Retrieve and format institutional company facts scoped to active tenant
+    target_org = req.organisation_id or x_organisation_id or x_company_name
+    if target_org:
+        company = company_repo.get_profile(company_id=target_org, company_name=x_company_name or target_org) or {}
+    else:
+        company = company_repo.get_profile() or {}
+    comp_name = company.get("company_name") or x_company_name or "Your Company"
     team_size = company.get("team_size", "Unknown")
     runway_m = company.get("runway_months", "N/A")
 
@@ -556,7 +569,12 @@ async def get_session(session_id: str):
 @router.post("/users", response_model=UserDTO)
 async def create_user(payload: UserCreateDTO):
     try:
-        return user_manager.create_user(payload)
+        created = user_manager.create_user(payload)
+        try:
+            session_manager.create_session(created.id, created.name, created.role)
+        except Exception:
+            pass
+        return created
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as err:
@@ -941,9 +959,13 @@ class TeachMemoryResponse(BaseModel):
 @router.post("/teach", response_model=TeachMemoryResponse)
 async def teach_institutional_memory(
     req: TeachMemoryRequest,
-    x_user_id: Optional[str] = Header(None)
+    x_user_id: Optional[str] = Header(None),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-Id"),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
 ):
-    uid = req.user_id or x_user_id
+    uid = req.user_id or x_session_id or x_user_id
+    session_data = None
     if uid:
         session_data = session_manager.get_session(uid)
         if session_data:
@@ -963,6 +985,14 @@ async def teach_institutional_memory(
     mem_id = f"MEM-TEACH-{uuid.uuid4().hex[:8].upper()}"
     now_ts = int(time.time())
 
+    target_org = (session_data.organisation_id if session_data else None) or x_organisation_id or x_company_name
+    if target_org:
+        active_company = company_repo.get_profile(company_id=target_org, company_name=x_company_name or target_org) or {}
+    else:
+        active_company = company_repo.get_profile() or {}
+    active_comp_name = active_company.get("company_name") or x_company_name or "the organization"
+    active_org_id = active_company.get("id") or x_organisation_id or x_company_name or "CMP-GENESIS-01"
+
     # 1. Distill formal decision artifact via local ML model (qwen3:8b)
     # The ML model reasons over user intent and strips conversational meta-language
     explicit_title = req.title.strip() if req.title and req.title.strip() else None
@@ -973,7 +1003,7 @@ async def teach_institutional_memory(
 
     try:
         distill_prompt = (
-            "You are TARS, Chief Architecture Officer and institutional AI for AetherFlow Technologies.\n"
+            f"You are TARS, Chief Architecture Officer and institutional AI for {active_comp_name}.\n"
             "A team member just submitted a conversational statement or instruction to /teach in Think Tank.\n"
             "Analyze the statement, strip away meta-conversational instructions "
             "(e.g. 'record a new decision named', 'please add decision for', 'we decided to', 'I want to teach you that'), "
@@ -1058,13 +1088,13 @@ async def teach_institutional_memory(
     tags = f"teach,learned,decision,{category.lower()}"
     content_record = f"{title}: {chosen_policy}\n\nContext & Drivers: {context_desc}\nOriginal Query: {raw_content}"
 
-    # 2. Persist to SQLite institutional memory table
+    # 2. Persist to SQLite institutional memory table scoped to tenant
     conn = db.get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO memories (id, record_type, title, content, source, timestamp, tags, clearance)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (mem_id, "INSTITUTIONAL_FACT", title, content_record, source, now_ts, tags, req.clearance or "ALL_TEAM"))
+        INSERT INTO memories (id, record_type, title, content, source, timestamp, tags, clearance, organisation_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (mem_id, "INSTITUTIONAL_FACT", title, content_record, source, now_ts, tags, req.clearance or "ALL_TEAM", active_org_id))
 
     # Link and mark supersession if statement declares switching or replacing a prior provider/entity
     switch_match = re.search(r"\b(?:switched|switch|replaced|replace|migrated|migrate|moved|now using)\b.*?\bfrom\s+([A-Za-z0-9_-]+)", raw_content, re.IGNORECASE) or re.search(r"\b(?:replacing|superseding)\s+([A-Za-z0-9_-]+)", raw_content, re.IGNORECASE)
@@ -1073,9 +1103,10 @@ async def teach_institutional_memory(
         cursor.execute(
             """UPDATE memories 
                SET superseded_by = ?, superseded_at = ? 
-               WHERE id != ? AND superseded_by IS NULL AND record_type = 'INSTITUTIONAL_FACT' 
+               WHERE id != ? AND superseded_by IS NULL AND record_type = 'INSTITUTIONAL_FACT'
+               AND (organisation_id = ? OR organisation_id IS NULL)
                AND (content LIKE ? OR title LIKE ?)""",
-            (mem_id, now_ts, mem_id, f"%{old_entity}%", f"%{old_entity}%")
+            (mem_id, now_ts, mem_id, active_org_id, f"%{old_entity}%", f"%{old_entity}%")
         )
 
     # Log to interaction_logs telemetry using normalized service (Item 118)
@@ -1105,7 +1136,7 @@ async def teach_institutional_memory(
 
         dec_context = f"{context_desc} (Taught by {req.user_name or 'Team Member'} [{req.user_role or 'ENGINEER'}])."
 
-        # Add to Kùzu Graph Engine
+        # Add to Kùzu Graph Engine scoped to active tenant
         graph_engine.add_decision(
             decision_id=decision_id,
             title=decision_title,
@@ -1114,6 +1145,7 @@ async def teach_institutional_memory(
             chosen_option=chosen_policy,
             clearance=req.clearance or "ALL_TEAM",
             status="ACTIVE",
+            company_name=active_comp_name if active_comp_name != "the organization" else None,
         )
 
         # Synthesize Markdown Architecture Decision Record (MADR)
@@ -1700,8 +1732,11 @@ async def send_chat_message(
     payload: ChatMessageCreate,
     user_id: Optional[str] = Query(None),
     x_user_id: Optional[str] = Header(None),
+    x_session_id: Optional[str] = Header(None, alias="X-Session-Id"),
     x_user_role: Optional[str] = Header(None),
-    x_user_clearance: Optional[str] = Header(None)
+    x_user_clearance: Optional[str] = Header(None),
+    x_company_name: Optional[str] = Header(None, alias="X-Company-Name"),
+    x_organisation_id: Optional[str] = Header(None, alias="X-Organisation-ID"),
 ):
     """
     Core Company Knowledge Chat Interaction:
@@ -1720,16 +1755,24 @@ async def send_chat_message(
 
     uid = _resolve_user_id(query_user_id=user_id, header_user_id=x_user_id, body_user_id=payload.user_id)
     
-    # Item 110: Client-supplied roles are ignored for security. Look up from session.
-    session_data = session_manager.get_session(uid)
+    # Item 110: Client-supplied roles are ignored for security. Look up from session or registered user store.
+    session_data = session_manager.get_session(x_session_id or uid)
+    user_record = user_manager.get_user_by_id(uid)
     if session_data:
         u_role = session_data.tars_role
         u_clearance = "EXECUTIVE_ONLY" if u_role == "FOUNDER" else "ALL_TEAM"
+        u_org = session_data.organisation_id
+    elif user_record:
+        u_role = user_record.role
+        u_clearance = user_record.clearance or ("EXECUTIVE_ONLY" if u_role == "FOUNDER" else "ALL_TEAM")
+        u_org = user_record.company_id or user_record.company_name
     else:
         u_role = "ENGINEER"
         u_clearance = "ALL_TEAM"
+        u_org = None
         
-    u_name = payload.user_name or uid
+    u_name = payload.user_name or (user_record.name if user_record else uid)
+    effective_org = u_org or x_organisation_id or x_company_name
 
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -1787,7 +1830,7 @@ async def send_chat_message(
         if asking_equity and not is_exec:
             answer = (
                 "Access restricted. Cap table, founder equity distributions, and Series Seed valuations "
-                "are classified as EXECUTIVE_ONLY clearance. Please contact the executive leadership team (Alex Vance) for authorized access."
+                "are classified as EXECUTIVE_ONLY clearance. Please contact your organization's executive leadership team for authorized access."
             )
             citations = []
         else:
@@ -1796,12 +1839,16 @@ async def send_chat_message(
                 query=raw_content,
                 limit=8,
                 user_clearance=u_clearance,
-                user_role=u_role
+                user_role=u_role,
+                organisation_id=effective_org,
             )
 
             # Retrieve company profile facts for grounding (Item 114: Tenant-isolated dynamic facts)
-            company = company_repo.get_profile() or {}
-            comp_name = company.get("company_name", "AetherFlow Technologies, Inc.")
+            if effective_org:
+                company = company_repo.get_profile(company_id=effective_org, company_name=x_company_name or effective_org) or {}
+            else:
+                company = company_repo.get_profile() or {}
+            comp_name = company.get("company_name") or x_company_name or "Your Company"
             team_size = company.get("team_size", "12 FTE")
             runway_m = company.get("runway_months", 9.0)
             is_aetherflow_tenant = _is_aetherflow_company(comp_name)

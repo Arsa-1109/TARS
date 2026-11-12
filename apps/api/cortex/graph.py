@@ -390,7 +390,8 @@ class TarsGraph:
     def _seed_golden_demo_state(self) -> None:
         """Pre-seeds Decision #14 and active client commitments for Track 2 (Item 96)."""
         mode = os.getenv("TARS_MODE", "DEMO").upper()
-        if mode in ("EMPTY", "CLEAN", "PRODUCTION") and not os.getenv("PYTEST_CURRENT_TEST"):
+        demo_flag = os.getenv("TARS_DEMO_MODE", "true").lower() in ("true", "1", "yes")
+        if (mode in ("EMPTY", "CLEAN", "PRODUCTION") or not demo_flag) and not os.getenv("PYTEST_CURRENT_TEST"):
             return
 
         # 1. Pre-seed Golden Demo Strategic Decision (scoped to AetherFlow tenant)
@@ -754,11 +755,13 @@ class TarsGraph:
         decisions = self.get_all_decisions(company_name=effective_company)
         if not include_demo_decisions and not company_name:
             decisions = [d for d in decisions if not self._is_aetherflow_tenant(d.get("company_name"))]
-        if effective_company and self._is_aetherflow_tenant(effective_company):
-            decisions = sorted(
-                decisions,
-                key=lambda d: (0 if self._is_aetherflow_tenant(d.get("company_name")) else 1, -(d.get("timestamp") or 0)),
-            )
+        decisions = sorted(
+            decisions,
+            key=lambda d: (
+                0 if not str(d.get("id", "")).startswith("DEC-GEN-") else 1,
+                -(d.get("timestamp") or 0),
+            ),
+        )
         proposal_lower = proposal.lower()
         
         # Heuristic semantic keyword conflict graph matching
@@ -781,7 +784,7 @@ class TarsGraph:
         }
 
         for d in decisions:
-            context_lower = (d["title"] + " " + d["context"] + " " + d["chosen_option"]).lower()
+            context_lower = f"{d.get('title') or ''} {d.get('context') or ''} {d.get('chosen_option') or ''}".lower()
             for key, conflicts in conflict_keywords.items():
                 if key in proposal_lower:
                     for c in conflicts:

@@ -555,9 +555,30 @@ async def simulate_impact(
     delay_weeks = round((req.delay_days / 7.0) + (req.reallocated_devs * 1.5), 1)
 
     affected_promises = []
-    affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]
+    affected_modules: List[str] = []
 
-    if "saml" in proposal_lower or "sso" in proposal_lower:
+    # Dynamically discover code modules from graph entities and proposal keywords
+    try:
+        conn = graph_engine._get_connection()
+        if conn:
+            res = conn.execute("MATCH (c:CodeEntity) RETURN c.file_path, c.name")
+            while res.has_next():
+                row = res.get_next()
+                fp = str(row[0] or "")
+                cname = str(row[1] or "")
+                if fp and (
+                    any(tok in fp.lower() or tok in cname.lower() for tok in proposal_lower.split() if len(tok) > 3)
+                    or len(affected_modules) < 2
+                ):
+                    if fp not in affected_modules:
+                        affected_modules.append(fp)
+    except Exception:
+        pass
+
+    if not affected_modules:
+        affected_modules = ["apps/api/core/gateway.py", "apps/api/core/session.py"]
+
+    if "saml" in proposal_lower or "sso" in proposal_lower or "auth" in proposal_lower:
         commitments = graph_engine.get_all_commitments()
         for c in commitments:
             # Only attach Acme Corp / SAML commitments if this is the Aetherflow golden-demo tenant
@@ -565,12 +586,14 @@ async def simulate_impact(
                 continue
             comm = c.get("commitment", "")
             client = c.get("client", "Client")
-            if "saml" in comm.lower() or "sso" in comm.lower():
+            if "saml" in comm.lower() or "sso" in comm.lower() or "auth" in comm.lower():
                 affected_promises.append(f"{client}: {comm}")
-        affected_modules.append("apps/api/core/security.py")
+        if "apps/api/core/security.py" not in affected_modules:
+            affected_modules.append("apps/api/core/security.py")
     if "db" in proposal_lower or "database" in proposal_lower or "sqlite" in proposal_lower:
         affected_promises.append("SLA Invariant: Sub-50ms query latency budget")
-        affected_modules.append("apps/api/core/db.py")
+        if "apps/api/core/db.py" not in affected_modules:
+            affected_modules.append("apps/api/core/db.py")
 
     prompt = (
         f"You are the TARS Executive Simulator. Analyze the strategic impact of this proposal:\n"

@@ -205,9 +205,40 @@ class UnifiedSearchService:
             base_params = []
 
             # Multi-tenant isolation directly in DB query
+            resolved_company_name: Optional[str] = None
             if organisation_id and organisation_id not in ("ALL", "*"):
-                base_where.append("(organisation_id = ? OR organisation_id IS NULL OR organisation_id = 'default')")
-                base_params.append(organisation_id)
+                org_clean = str(organisation_id).strip()
+                is_demo_tenant = org_clean.lower() in (
+                    "cmp-genesis-01",
+                    "aetherflow",
+                    "aetherflow ai",
+                    "aetherflow technologies",
+                    "aetherflow technologies, inc.",
+                    "default",
+                )
+                if is_demo_tenant:
+                    resolved_company_name = "AetherFlow Technologies, Inc."
+                    base_where.append(
+                        "(organisation_id = ? OR organisation_id = 'CMP-GENESIS-01' OR organisation_id IS NULL OR organisation_id = 'default')"
+                    )
+                    base_params.append(org_clean)
+                else:
+                    alt_org = org_clean
+                    resolved_company_name = org_clean
+                    try:
+                        from apps.api.core.company import company_repo
+                        prof = company_repo.get_profile(company_id=org_clean, company_name=org_clean)
+                        if prof:
+                            resolved_company_name = prof.get("company_name") or org_clean
+                            alt_org = (
+                                prof.get("id")
+                                if prof.get("company_name") == org_clean
+                                else (prof.get("company_name") or org_clean)
+                            )
+                    except Exception:
+                        pass
+                    base_where.append("(organisation_id IN (?, ?) AND (is_demo IS NULL OR is_demo = 0))")
+                    base_params.extend([org_clean, alt_org or org_clean])
 
             # Bi-temporal validity filter
             if as_of is not None:
@@ -284,6 +315,7 @@ class UnifiedSearchService:
             # -------------------------------------------------------------
             # Channel 2: Semantic Vector / Exact Phrase Keyword Match
             # -------------------------------------------------------------
+            from apps.api.core.ollama_client import ollama_client
             vector_scores: List[Tuple[float, Dict[str, Any]]] = []
             for row in filtered_memory_candidates:
                 title = row.get("title") or ""
@@ -298,9 +330,10 @@ class UnifiedSearchService:
                     score += t_matches * 8.0
                     score += min(c_matches * 2.0, 8.0)
 
-                if score > 0:
+                sem_sim = ollama_client.cosine_similarity(query, f"{title} {content[:500]}")
+                if score > 0 or sem_sim >= 0.45:
                     coverage = matched_keywords / max(1, len(kw_patterns))
-                    score = float(score * (1.0 + coverage * 2.0))
+                    score = float(score * (1.0 + coverage * 2.0)) + float(sem_sim * 10.0)
                     supersede_keywords = ["switched", "switch", "replaced", "migrated", "updated", "now using"]
                     is_supersede = any(sk in content.lower() for sk in supersede_keywords)
                     supersede_bonus = (30.0 if is_supersede else 0.0) if coverage >= 0.5 else 0.0
@@ -322,7 +355,7 @@ class UnifiedSearchService:
             try:
                 from apps.api.cortex.graph import TarsGraph
                 graph = TarsGraph()
-                decisions = graph.get_all_decisions()
+                decisions = graph.get_all_decisions(company_name=resolved_company_name)
                 d_scores: List[Tuple[float, Dict[str, Any]]] = []
                 for d in decisions:
                     d_clearance = (d.get("clearance") or "ALL_TEAM").upper()

@@ -121,6 +121,11 @@ class ModelRouter:
           qwen3:1.7b -> qwen2.5:1.5b -> llama3.2:1b -> qwen2.5-coder:1.5b
         """
         is_deep = task_complexity in ("deep", "reasoning", "heavy", "complex")
+        env_override = (
+            os.getenv("TARS_DEEP_MODEL") if is_deep else os.getenv("TARS_LIGHT_MODEL")
+        ) or os.getenv("TARS_MODEL")
+        if env_override and env_override.strip():
+            return env_override.strip()
         cascade = DEEP_REASONING_CASCADE if is_deep else SUBSECOND_EXTRACTION_CASCADE
 
         # Auto-probe if not already probed

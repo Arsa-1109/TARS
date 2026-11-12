@@ -159,14 +159,18 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   // Resolve consistent sovereign user ID for strict isolation
   const effectiveUserId = useMemo(() => {
     if (profile?.id) return profile.id;
+    const isDemoCompany = (profile?.company_name || '').toLowerCase().includes('aetherflow');
     const name = profile?.name?.toLowerCase() || '';
-    if (name.includes('alex')) return 'usr-alex';
-    if (name.includes('chloe')) return 'usr-chloe';
-    if (name.includes('elena')) return 'usr-elena';
-    if (name.includes('marcus')) return 'usr-marcus';
-    if (name.includes('sarah')) return 'usr-sarah';
-    if (name.includes('liam')) return 'usr-liam';
-    return 'usr-alex';
+    if (isDemoCompany) {
+      if (name.includes('alex')) return 'usr-alex';
+      if (name.includes('chloe')) return 'usr-chloe';
+      if (name.includes('elena')) return 'usr-elena';
+      if (name.includes('marcus')) return 'usr-marcus';
+      if (name.includes('sarah')) return 'usr-sarah';
+      if (name.includes('liam')) return 'usr-liam';
+    }
+    const slug = name.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return slug ? `usr-${slug}` : 'usr-workspace';
   }, [profile]);
 
   const [activeView, setActiveView] = useState<'chat' | 'lake'>('chat');

@@ -258,7 +258,13 @@ class StrategicAdvisor:
         conn.commit()
 
     def _ensure_seed_data(self):
-        """Seeds initial grounded recommendations per tenant if table is empty."""
+        """Seeds initial grounded recommendations per tenant if table is empty and demo mode is active."""
+        demo_flag = (
+            os.getenv("TARS_DEMO_MODE", "true").lower() in ("true", "1", "yes")
+            and os.getenv("TARS_MODE", "DEMO").upper() not in ("EMPTY", "CLEAN", "PRODUCTION")
+        ) or bool(os.getenv("PYTEST_CURRENT_TEST"))
+        if not demo_flag:
+            return
         conn = db.get_connection()
         cursor = conn.cursor()
 
