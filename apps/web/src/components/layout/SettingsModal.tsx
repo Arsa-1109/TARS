@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
-import { api } from '../../services/client';
+import { tarsClient } from '../../services/tarsClient';
 import {
   Sliders,
   Shield,
@@ -43,6 +43,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const [bloomingNodesCount, setBloomingNodesCount] = useState(4);
   const [genesisGenerating, setGenesisGenerating] = useState(false);
   const [genesisComplete, setGenesisComplete] = useState(false);
+  const [genesisError, setGenesisError] = useState<string | null>(null);
 
   // Host Resource Governor state
   const [ramLimit, setRamLimit] = useState(16);
@@ -84,19 +85,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
   const handleGenesisSubmit = async () => {
     if (!genesisAnswer.trim()) return;
     setGenesisGenerating(true);
+    setGenesisError(null);
     try {
       if (genesisStep === 3) {
         // Ratify Genesis founding decision into Kùzu
-        await fetch('/api/cortex/decisions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: 'Founding Thesis & Genesis Commitments',
-            category: 'STRATEGY',
-            context: 'Ratified through the Day 1 Cold-Start Genesis Socratic interview.',
-            chosen_option: genesisAnswer.trim(),
-            clearance: 'ALL_TEAM',
-          }),
+        await tarsClient.decisions.createDecision({
+          title: 'Founding Thesis & Genesis Commitments',
+          category: 'STRATEGY',
+          context: 'Ratified through the Day 1 Cold-Start Genesis Socratic interview.',
+          chosen_option: genesisAnswer.trim(),
+          clearance: 'ALL_TEAM',
         });
       }
       setBloomingNodesCount((prev) => prev + 3);
@@ -106,10 +104,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
       } else {
         setGenesisComplete(true);
       }
-    } catch (e) {
-      console.error(e);
-      setBloomingNodesCount((prev) => prev + 3);
-      setGenesisComplete(true);
+    } catch (e: any) {
+      setGenesisError(e?.message || 'Failed to ratify Genesis decision in local Kùzu graph.');
     } finally {
       setGenesisGenerating(false);
     }
@@ -119,32 +115,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     setSocketTesting(true);
     const startTime = performance.now();
     try {
-      const res = await fetch('/api/core/system/status');
+      const data = await tarsClient.system.getStatus();
       const elapsed = Math.round(performance.now() - startTime);
-      if (res.ok) {
-        const data = await res.json();
-        setAuditLogs([
-          `[TARS-AUDIT] Socket probe: 127.0.0.1:7777 (Gateway) ... OK (${elapsed}ms latency)`,
-          `[TARS-AUDIT] Local Database ... ${data.database || 'SQLite WAL'} (Direct C-driver)`,
-          `[TARS-AUDIT] Local Ollama Runtime ... ${data.ollama || 'ONLINE'} (127.0.0.1:11434)`,
-          `[TARS-AUDIT] Builtin MCP Tools ... ${data.mcp_tools || 3} registered sovereign tools`,
-          `[TARS-AUDIT] WAN Egress Check (0.0.0.0/0) ... BLOCKED [Egress = 0.00 KB]`,
-          `[TARS-AUDIT] Airplane Mode Invariant ... ${data.airplane_mode ? 'ENFORCED (PASS)' : 'VERIFIED'}`,
-          `✓ Airplane-mode invariant verified. Safe for defense / enterprise client NDA.`
-        ]);
-        setAirGapVerified(true);
-      } else {
-        setAuditLogs((prev) => [
-          `[TARS-AUDIT] Gateway probe returned HTTP ${res.status}`,
-          `[TARS-AUDIT] External WAN probe ... BLOCKED [Egress = 0.00 KB]`,
-          ...prev
-        ]);
-      }
-    } catch (err: any) {
       setAuditLogs([
-        `[TARS-AUDIT] Local probe offline or unproxied: ${err?.message || 'Connection refused'}`,
-        `[TARS-AUDIT] External WAN probe ... BLOCKED [Egress = 0.00 KB]`,
-        `✓ Sovereign air-gap guaranteed: No remote packets dispatched.`
+        `[TARS-AUDIT] Socket probe: 127.0.0.1:7777 (Gateway) ... OK (${elapsed}ms latency)`,
+        `[TARS-AUDIT] Local Database ... ${data.database || 'SQLite WAL'} (Direct C-driver)`,
+        `[TARS-AUDIT] Local Ollama Runtime ... ${data.ollama || 'ONLINE'} (127.0.0.1:11434)`,
+        `[TARS-AUDIT] Builtin MCP Tools ... ${data.mcp_tools ?? 3} registered sovereign tools`,
+        `[TARS-AUDIT] WAN Egress Check (0.0.0.0/0) ... BLOCKED [Egress = 0.00 KB]`,
+        `[TARS-AUDIT] Airplane Mode Invariant ... ${data.airplane_mode ? 'ENFORCED (PASS)' : 'VERIFIED'}`,
+        `✓ Airplane-mode invariant verified. Safe for defense / enterprise client NDA.`
+      ]);
+      setAirGapVerified(true);
+    } catch (err: any) {
+      setAirGapVerified(false);
+      setAuditLogs([
+        `[TARS-AUDIT] Local gateway probe failed: ${err?.message || 'Connection refused'}`,
+        `[TARS-AUDIT] Sovereign verification incomplete — ensure local API server is running on port 7777.`,
       ]);
     } finally {
       setSocketTesting(false);
@@ -162,7 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
     setResetLoading(true);
     setResetSuccess(null);
     try {
-      const res = await api.resetWorkspace({
+      const res = await tarsClient.company.resetWorkspace({
         reset_type: type,
         preserve_users: resetPreserveUsers,
         preserve_company_profile: resetPreserveCompany,
@@ -289,6 +276,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, o
                         placeholder="Type founder answer or dictate over local audio..."
                         className="w-full p-3.5 text-xs sm:text-sm rounded-[12px] border border-black/[0.10] dark:border-white/[0.12] bg-[#F5F5F7] dark:bg-[#2C2C2E] text-black dark:text-white placeholder:text-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20"
                       />
+
+                      {genesisError && (
+                        <div className="p-2.5 rounded-[10px] border border-[#FF453A]/30 bg-[#FF453A]/[0.08] text-[#FF453A] text-xs flex items-center gap-2">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>{genesisError}</span>
+                        </div>
+                      )}
 
                       <Button
                         variant="primary"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
@@ -9,10 +9,15 @@ import { SegmentedControl } from '../primitives/SegmentedControl';
 import { Dialog } from '../primitives/Dialog';
 import { DocumentReaderModal } from './DocumentReaderModal';
 import { SearchCitation, UserRole, ChatSessionDTO, ChatMessageDTO, ChatAttachment } from '../../types/contracts';
-import { knowledgeChatApi } from '../../services/knowledgeChatApi';
-import { ingestionApi } from '../../services/ingestionApi';
+import { tarsClient, useTarsInvalidation } from '../../services/tarsClient';
 import { useSessionStore } from '../../state/useSessionStore';
 import { realtimeBus } from '../../services/realtime';
+
+export type KnowledgeStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | { status: 'ACTIVE'; data: { chats: ChatSessionDTO[]; activeChatId: string | null; messages: ChatMessageDTO[] } }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
 import {
   Search,
   FileText,
@@ -166,10 +171,12 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
 
   const [activeView, setActiveView] = useState<'chat' | 'lake'>('chat');
 
-  // Chat Sessions & Messages State
-  const [chats, setChats] = useState<ChatSessionDTO[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessageDTO[]>([]);
+  // Discriminated union FSM (UX · DX · AX)
+  const [stage, setStage] = useState<KnowledgeStage>({
+    status: 'LOADING',
+    message: 'Initializing sovereign company knowledge workspace...',
+  });
+
   const [loadingChats, setLoadingChats] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -225,6 +232,51 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const composerInputRef = useRef<HTMLInputElement>(null);
 
+  const chats = stage.status === 'ACTIVE' ? stage.data.chats : [];
+  const activeChatId = stage.status === 'ACTIVE' ? stage.data.activeChatId : null;
+  const messages = stage.status === 'ACTIVE' ? stage.data.messages : [];
+
+  const setChats = (updater: ChatSessionDTO[] | ((prev: ChatSessionDTO[]) => ChatSessionDTO[])) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const nextChats = typeof updater === 'function' ? updater(prev.data.chats) : updater;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          chats: nextChats,
+        },
+      };
+    });
+  };
+
+  const setActiveChatId = (id: string | null) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          activeChatId: id,
+        },
+      };
+    });
+  };
+
+  const setMessages = (updater: ChatMessageDTO[] | ((prev: ChatMessageDTO[]) => ChatMessageDTO[])) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const nextMessages = typeof updater === 'function' ? updater(prev.data.messages) : updater;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          messages: nextMessages,
+        },
+      };
+    });
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -234,19 +286,14 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   }, [messages, sending]);
 
   // Fetch Lake Documents Catalog
-  const fetchLakeDocuments = async () => {
+  const fetchLakeDocuments = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch('/api/ingestion/documents');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.documents)) {
-          setLakeDocuments(data.documents);
-        }
-      }
+      const docs = await tarsClient.ingestion.getLakeDocuments(signal);
+      setLakeDocuments(docs);
     } catch {
       setLakeDocuments([]);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchLakeDocuments();
@@ -261,35 +308,72 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
       }
     });
     return unsub;
-  }, [uploadSuccess]);
+  }, [uploadSuccess, fetchLakeDocuments]);
 
   // Fetch Chats for current user
-  const fetchChats = async () => {
+  const fetchChats = useCallback(async (signal?: AbortSignal) => {
     setLoadingChats(true);
     try {
-      const list = await knowledgeChatApi.listChats(effectiveUserId);
-      setChats(list);
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: 'Loading sovereign chat sessions...' }
+      );
+      const list = await tarsClient.chat.listChats(effectiveUserId, signal);
+      let selectedId = activeChatId;
+      let initialList = list;
       if (list.length > 0) {
-        // Keep active chat if valid, or select the first one
-        if (!activeChatId || !list.some((c) => c.id === activeChatId)) {
-          setActiveChatId(list[0].id);
+        if (!selectedId || !list.some((c) => c.id === selectedId)) {
+          selectedId = list[0].id;
         }
       } else {
-        // Automatically spawn an initial clean chat if user has none
-        const initial = await knowledgeChatApi.createChat(effectiveUserId, 'New conversation');
-        setChats([initial]);
-        setActiveChatId(initial.id);
+        const initial = await tarsClient.chat.createChat(effectiveUserId, 'New conversation');
+        initialList = [initial];
+        selectedId = initial.id;
       }
-    } catch (err) {
-      console.error('Failed to fetch user chats:', err);
+
+      let msgs: ChatMessageDTO[] = [];
+      if (selectedId) {
+        try {
+          msgs = await tarsClient.chat.listMessages(selectedId, effectiveUserId, signal);
+        } catch {
+          msgs = [];
+        }
+      }
+
+      setStage({
+        status: 'ACTIVE',
+        data: {
+          chats: initialList,
+          activeChatId: selectedId,
+          messages: msgs,
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Failed to connect to sovereign knowledge service.',
+        canRetry: true,
+      });
     } finally {
       setLoadingChats(false);
     }
-  };
+  }, [effectiveUserId]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    fetchChats(controller.signal);
+    return () => controller.abort();
+  }, [fetchChats]);
+
+  useTarsInvalidation('chats:updated', () => {
     fetchChats();
-  }, [effectiveUserId]);
+  });
+
+  useTarsInvalidation('documents:updated', () => {
+    fetchLakeDocuments();
+  });
 
   // Fetch messages whenever activeChatId changes
   useEffect(() => {
@@ -301,7 +385,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     const fetchChatMessages = async () => {
       setLoadingMessages(true);
       try {
-        const msgs = await knowledgeChatApi.listMessages(activeChatId, effectiveUserId);
+        const msgs = await tarsClient.chat.listMessages(activeChatId, effectiveUserId);
         if (!isCancelled) {
           setMessages(msgs);
         }
@@ -321,7 +405,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   // Create New Chat
   const handleCreateNewChat = async () => {
     try {
-      const newChat = await knowledgeChatApi.createChat(effectiveUserId, 'New conversation');
+      const newChat = await tarsClient.chat.createChat(effectiveUserId, 'New conversation');
       setChats((prev) => [newChat, ...prev]);
       setActiveChatId(newChat.id);
       setMessages([]);
@@ -340,7 +424,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     // Auto-create chat if none active
     if (!targetChatId) {
       try {
-        const newChat = await knowledgeChatApi.createChat(effectiveUserId, 'New conversation');
+        const newChat = await tarsClient.chat.createChat(effectiveUserId, 'New conversation');
         setChats((prev) => [newChat, ...prev]);
         targetChatId = newChat.id;
         setActiveChatId(newChat.id);
@@ -364,7 +448,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const assistantMsg = await knowledgeChatApi.sendMessage(targetChatId, {
+      const assistantMsg = await tarsClient.chat.sendMessage(targetChatId, {
         content: text,
         userId: effectiveUserId,
         userRole: userRole || profile?.role || 'ENGINEER',
@@ -373,11 +457,11 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
       });
 
       // Refresh list to update title if derived or timestamps
-      const updatedChats = await knowledgeChatApi.listChats(effectiveUserId);
+      const updatedChats = await tarsClient.chat.listChats(effectiveUserId);
       setChats(updatedChats);
 
       // Re-fetch messages from persistent backend to synchronize IDs & timestamps
-      const freshMessages = await knowledgeChatApi.listMessages(targetChatId, effectiveUserId);
+      const freshMessages = await tarsClient.chat.listMessages(targetChatId, effectiveUserId);
       setMessages(freshMessages);
     } catch (err: any) {
       console.error('Failed to send message:', err);
@@ -410,7 +494,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
       return;
     }
     try {
-      const updated = await knowledgeChatApi.renameChat(chatId, editingTitle.trim(), effectiveUserId);
+      const updated = await tarsClient.chat.renameChat(chatId, editingTitle.trim(), effectiveUserId);
       setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title: updated.title } : c)));
     } catch (err) {
       console.error('Failed to rename chat:', err);
@@ -423,7 +507,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
   const handleConfirmDeleteChat = async () => {
     if (!chatToDelete) return;
     try {
-      await knowledgeChatApi.deleteChat(chatToDelete.id, effectiveUserId);
+      await tarsClient.chat.deleteChat(chatToDelete.id, effectiveUserId);
       const remaining = chats.filter((c) => c.id !== chatToDelete.id);
       setChats(remaining);
       if (activeChatId === chatToDelete.id) {
@@ -447,7 +531,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     const target = chatToClear || (activeChatId ? chats.find((c) => c.id === activeChatId) : null);
     if (!target) return;
     try {
-      await knowledgeChatApi.clearChat(target.id, effectiveUserId);
+      await tarsClient.chat.clearChat(target.id, effectiveUserId);
       if (activeChatId === target.id) {
         setMessages([]);
       }
@@ -515,7 +599,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     );
 
     try {
-      const uploaded = await ingestionApi.uploadDocumentXHR(file, (pct) => {
+      const uploaded = await tarsClient.ingestion.uploadDocumentXHR(file, (pct) => {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === uploadMsgId && m.attachment
@@ -570,7 +654,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     let targetChatId = activeChatId;
     if (!targetChatId) {
       try {
-        const newChat = await knowledgeChatApi.createChat(effectiveUserId, `Upload: ${file.name}`);
+        const newChat = await tarsClient.chat.createChat(effectiveUserId, `Upload: ${file.name}`);
         setChats((prev) => [newChat, ...prev]);
         targetChatId = newChat.id;
         setActiveChatId(newChat.id);
@@ -606,7 +690,7 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
     setUploadError(null);
 
     try {
-      const uploaded = await ingestionApi.uploadDocumentXHR(file, (pct) => {
+      const uploaded = await tarsClient.ingestion.uploadDocumentXHR(file, (pct) => {
         setUploadProgress(pct);
         setMessages((prev) =>
           prev.map((m) =>
@@ -803,8 +887,38 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
         </div>
       )}
 
-      {/* VIEW 1: PERSISTENT COMPANY KNOWLEDGE CHATBOT */}
-      {activeView === 'chat' && (
+      {/* Explicit Discriminated Union States: LOADING, ERROR, ACTIVE */}
+      {stage.status === 'LOADING' && (
+        <div className="flex-1 flex flex-col items-center justify-center p-12 rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] text-center space-y-3">
+          <Spinner size="lg" />
+          <p className="text-sm text-[#86868B] dark:text-[#8E8E93] font-medium">{stage.message}</p>
+        </div>
+      )}
+
+      {stage.status === 'ERROR' && (
+        <div className="p-6 rounded-[20px] border border-[#FF3B30]/30 dark:border-[#FF453A]/30 bg-[#FF3B30]/[0.05] dark:bg-[#FF453A]/[0.08] space-y-4">
+          <div className="flex items-center gap-3 text-[#D70015] dark:text-[#FF453A]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span className="font-semibold text-sm">Failed to Load Sovereign Knowledge</span>
+          </div>
+          <p className="text-xs text-[#3C3C43] dark:text-[#EBEBF5]">{stage.error}</p>
+          {stage.canRetry && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fetchChats()}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+            >
+              Retry Loading Knowledge
+            </Button>
+          )}
+        </div>
+      )}
+
+      {stage.status === 'ACTIVE' && (
+        <>
+          {/* VIEW 1: PERSISTENT COMPANY KNOWLEDGE CHATBOT */}
+          {activeView === 'chat' && (
         <div className="flex-1 min-h-[560px] rounded-[18px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] shadow-sm flex flex-row overflow-hidden">
 
           {/* LEFT SIDEBAR: CONVERSATION LIST */}
@@ -1559,6 +1673,8 @@ export const KnowledgeWorkspace: React.FC<KnowledgeWorkspaceProps> = ({
           )}
         </div>
       )}
+    </>
+  )}
 
       {/* CONFIRMATION DIALOG: DELETE CHAT */}
       <Dialog

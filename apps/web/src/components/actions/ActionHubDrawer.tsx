@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Drawer } from '../primitives/Drawer';
 import { ActionItemDTO, UserProfile } from '../../types/contracts';
-import { api } from '../../services/client';
+import { tarsClient, useTarsInvalidation } from '../../services/tarsClient';
 import { ActionItemRow } from './ActionItemRow';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
@@ -16,6 +16,7 @@ import {
   Calendar,
   User,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ActionHubDrawerProps {
@@ -47,6 +48,7 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
   const [copiedStandup, setCopiedStandup] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [teamMembers, setTeamMembers] = useState<string[]>([]);
+  const [teamMembersError, setTeamMembersError] = useState<string | null>(null);
 
   // New task form state
   const [title, setTitle] = useState('');
@@ -61,18 +63,32 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
     }
   }, [currentUser?.name]);
 
+  const fetchTeamMembers = useCallback(async () => {
+    try {
+      setTeamMembersError(null);
+      const users = await tarsClient.company.getUsers();
+      if (users && users.length > 0) {
+        const names: string[] = Array.from(
+          new Set(users.map((u) => u.name).filter((n): n is string => Boolean(n)))
+        );
+        setTeamMembers(names);
+      }
+    } catch (err: any) {
+      setTeamMembersError(err?.message || 'Unable to load team roster.');
+    }
+  }, []);
+
   useEffect(() => {
     if (isOpen) {
-      api.getUsers()
-        .then((users) => {
-          if (users && users.length > 0) {
-            const names = Array.from(new Set(users.map((u) => u.name).filter(Boolean)));
-            setTeamMembers(names);
-          }
-        })
-        .catch(() => {});
+      fetchTeamMembers();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchTeamMembers]);
+
+  useTarsInvalidation('actions:updated', () => {
+    if (isOpen) {
+      fetchTeamMembers();
+    }
+  });
 
   const filteredItems = actionItems.filter((item) => {
     if (filter === 'ALL') return true;
@@ -184,6 +200,13 @@ export const ActionHubDrawer: React.FC<ActionHubDrawerProps> = ({
       </div>
 
       {/* Add Task Quick Form */}
+      {teamMembersError && (
+        <div className="p-2.5 rounded-[10px] border border-[#FF453A]/30 bg-[#FF453A]/[0.08] text-[#FF453A] text-xs flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>{teamMembersError}</span>
+        </div>
+      )}
+
       {addModalOpen && (
         <div className="p-4 rounded-[16px] border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] space-y-3">
           <div className="text-[11px] font-semibold text-[#6E6E73] dark:text-[#8E8E93] uppercase tracking-wider">

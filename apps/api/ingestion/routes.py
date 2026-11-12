@@ -789,6 +789,7 @@ def list_call_tasks(
             "feature_requests": spec.get("feature_requests", []),
             "commitments": spec.get("commitments", []),
             "audio_duration_seconds": t.duration_seconds or 120.0,
+            "has_audio": bool(t.file_path and os.path.exists(t.file_path)),
             "recorded_at": time.strftime("%Y-%m-%d %H:%M", time.localtime(t.created_at)),
             "transcript": segments if segments else [
                 {"speaker": "System", "timestamp": "00:00", "seconds": 0, "text": t.transcript or "Processing audio with CPU Faster-Whisper..."}
@@ -801,6 +802,7 @@ def list_call_tasks(
             "client_name": "Acme Corp (Enterprise Expansion)",
             "sentiment": "URGENT",
             "audio_duration_seconds": 248.5,
+            "has_audio": False,
             "recorded_at": "2026-09-24 16:30 IST",
             "summary": "Discovery call with VP of Engineering Johnathan Vance. Acme Corp is evaluating TARS for 45 developers across their distributed infrastructure. They are prepared to sign an $80k annual agreement contingent on on-premise deployment and custom SAML SSO delivered by May 1st.",
             "pain_points": [
@@ -832,6 +834,7 @@ def list_call_tasks(
             "client_name": "Nexus Labs (Seed FinTech)",
             "sentiment": "POSITIVE",
             "audio_duration_seconds": 182.0,
+            "has_audio": False,
             "recorded_at": "2026-09-22 11:00 IST",
             "summary": "Follow-up onboarding call with Nexus Labs CTO Sarah Chen. Their 6-person engineering team integrated the TARS pre-commit hook. They reported zero accidental secret leaks and caught two transaction-wrapped Stripe calls before pushing.",
             "pain_points": [

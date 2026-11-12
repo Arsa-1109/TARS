@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { Drawer } from '../primitives/Drawer';
 import { EmptyState } from '../primitives/EmptyState';
+import { WorkspaceErrorCard } from '../primitives/ErrorBoundary';
 import {
   UserRole,
   CompanyProfile,
   OnboardingFlightPlanDTO,
   OnboardingModuleDTO,
 } from '../../types/contracts';
-import { api } from '../../services/client';
+import { tarsClient, useTarsInvalidation } from '../../services/tarsClient';
 import { useSessionStore } from '../../state/useSessionStore';
 import {
   CheckCircle2,
@@ -35,6 +36,12 @@ import {
   Lock,
 } from 'lucide-react';
 
+export type OnboardingStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | { status: 'ACTIVE'; data: { flightPlan: OnboardingFlightPlanDTO; completedTasks: Record<string, boolean> } }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
+
 interface OnboardingWorkspaceProps {
   userRole: UserRole;
   companyProfile?: CompanyProfile | null;
@@ -49,17 +56,50 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
 }) => {
   const { profile: sessionProfile } = useSessionStore();
   const [profile, setProfile] = useState<CompanyProfile | null>(propProfile || null);
-  const [flightPlan, setFlightPlan] = useState<OnboardingFlightPlanDTO | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [stage, setStage] = useState<OnboardingStage>({ status: 'IDLE' });
   const [activeDay, setActiveDay] = useState(1);
-  const [completedTasks, setCompletedTasks] = useState<Record<string, boolean>>({});
   const [tourPlaying, setTourPlaying] = useState(false);
-  const [isLoadingPlan, setIsLoadingPlan] = useState(false);
+
+  const flightPlan = stage.status === 'ACTIVE' ? stage.data.flightPlan : null;
+  const completedTasks = stage.status === 'ACTIVE' ? stage.data.completedTasks : {};
+
+  const setFlightPlan = (nextPlan: OnboardingFlightPlanDTO) => {
+    setStage((prev) => ({
+      status: 'ACTIVE',
+      data: {
+        flightPlan: nextPlan,
+        completedTasks:
+          nextPlan.completed_tasks && Object.keys(nextPlan.completed_tasks).length > 0
+            ? nextPlan.completed_tasks
+            : prev.status === 'ACTIVE'
+              ? prev.data.completedTasks
+              : {},
+      },
+    }));
+  };
+
+  const setCompletedTasks = (
+    updater: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)
+  ) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const nextCompleted = typeof updater === 'function' ? updater(prev.data.completedTasks) : updater;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          completedTasks: nextCompleted,
+        },
+      };
+    });
+  };
 
   // Founder Studio Drawer State
   const [studioOpen, setStudioOpen] = useState(false);
   const [studioModules, setStudioModules] = useState<OnboardingModuleDTO[]>([]);
   const [studioActiveDay, setStudioActiveDay] = useState(1);
-  const [studioSaving, setStudioSaving] = useState(false);
+  const [studioStatus, setStudioStatus] = useState<'IDLE' | 'SAVING'>('IDLE');
   const [studioToast, setStudioToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [newTaskInput, setNewTaskInput] = useState('');
 
@@ -74,11 +114,38 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
       text: 'Hello! I am your Socratic onboarding mentor. I have access to all founding thesis documents, technical decisions, and architecture contracts. Ask me anything.',
     },
   ]);
-  const [mentorLoading, setMentorLoading] = useState(false);
+  const [mentorStatus, setMentorStatus] = useState<'IDLE' | 'QUERYING'>('IDLE');
+  const studioSaving = studioStatus === 'SAVING';
+  const mentorLoading = mentorStatus === 'QUERYING';
+
+  const fetchCompanyProfile = useCallback(async () => {
+    const userCompany = sessionProfile?.company_name || sessionProfile?.company_id || undefined;
+    if (!userCompany) {
+      setProfileError(null);
+      setProfile(null);
+      return;
+    }
+    try {
+      setProfileError(null);
+      const p = await tarsClient.company.getProfile(userCompany);
+      if (
+        p &&
+        (!sessionProfile?.company_name ||
+          p.company_name.toLowerCase().trim() === sessionProfile.company_name.toLowerCase().trim())
+      ) {
+        setProfile(p);
+      } else {
+        setProfile(null);
+      }
+    } catch (err: any) {
+      setProfileError(err?.message || 'Unable to verify company profile from local gateway.');
+    }
+  }, [sessionProfile?.company_name, sessionProfile?.company_id]);
 
   // Synchronise Profile
   useEffect(() => {
     if (propProfile) {
+      setProfileError(null);
       if (
         sessionProfile?.company_name &&
         propProfile.company_name &&
@@ -89,29 +156,9 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
         setProfile(propProfile);
       }
     } else {
-      const userCompany = sessionProfile?.company_name || sessionProfile?.company_id || undefined;
-      if (!userCompany) {
-        setProfile(null);
-      } else {
-        api
-          .getCompanyProfile(userCompany)
-          .then((p) => {
-            if (
-              p &&
-              (!sessionProfile?.company_name ||
-                p.company_name.toLowerCase().trim() === sessionProfile.company_name.toLowerCase().trim())
-            ) {
-              setProfile(p);
-            } else {
-              setProfile(null);
-            }
-          })
-          .catch(() => {
-            setProfile(null);
-          });
-      }
+      fetchCompanyProfile();
     }
-  }, [propProfile, sessionProfile?.company_name, sessionProfile?.company_id]);
+  }, [propProfile, sessionProfile?.company_name, fetchCompanyProfile]);
 
   const targetCompanyName = useMemo(() => {
     return (
@@ -121,52 +168,74 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     );
   }, [sessionProfile?.company_name, sessionProfile?.name, profile?.company_name]);
 
-  const currentUserId = useMemo(() => {
-    return sessionProfile?.id || sessionProfile?.email || (userRole === 'NEW_HIRE' ? 'usr-chloe' : 'usr-alex');
-  }, [sessionProfile?.id, sessionProfile?.email, userRole]);
+  // Phase 4: Change storage keying from (company_name, user_id) to (company_name, role_target)
+  // so founder-created milestones render immediately in the new hire view
+  const roleTarget = useMemo(() => {
+    return 'NEW_HIRE';
+  }, []);
 
   // Load Flight Plan from Backend SQLite
-  const loadFlightPlan = async (compName: string, uId: string) => {
+  const loadFlightPlan = useCallback(async (compName: string, targetRole: string, signal?: AbortSignal) => {
     try {
-      setIsLoadingPlan(true);
-      const plan = await api.getFlightPlan(compName, uId);
-      if (plan) {
-        setFlightPlan(plan);
-        setCompletedTasks(plan.completed_tasks || {});
-      }
-    } catch (err) {
-      console.warn('Notice: Failed to load flight plan from server:', err);
-    } finally {
-      setIsLoadingPlan(false);
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: `Loading ${compName} onboarding flight-plan...` }
+      );
+      const plan = await tarsClient.onboarding.getFlightPlan(compName, targetRole, signal);
+      setStage({
+        status: 'ACTIVE',
+        data: {
+          flightPlan: plan,
+          completedTasks: plan.completed_tasks || {},
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Failed to load onboarding flight-plan from local backend.',
+        canRetry: true,
+      });
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (profile?.company_name || sessionProfile?.company_name) {
-      loadFlightPlan(targetCompanyName, currentUserId);
+      const controller = new AbortController();
+      loadFlightPlan(targetCompanyName, roleTarget, controller.signal);
+      return () => controller.abort();
     }
-  }, [targetCompanyName, currentUserId, profile?.company_name, sessionProfile?.company_name]);
+  }, [targetCompanyName, roleTarget, profile?.company_name, sessionProfile?.company_name, loadFlightPlan]);
+
+  useTarsInvalidation('flightplan:updated', () => {
+    if (profile?.company_name || sessionProfile?.company_name) {
+      loadFlightPlan(targetCompanyName, roleTarget);
+    }
+  });
 
   // Toggle Task Completion with SQLite Persistence
   const toggleTask = async (day: number, index: number) => {
     const key = `${day}-${index}`;
-    const nextVal = !completedTasks[key];
+    const prevVal = Boolean(completedTasks[key]);
+    const nextVal = !prevVal;
 
     // Optimistic UI update
     setCompletedTasks((prev) => ({ ...prev, [key]: nextVal }));
 
     try {
-      const res = await api.updateTaskProgress({
+      const res = await tarsClient.onboarding.updateTaskProgress({
         company_name: flightPlan?.company_name || targetCompanyName,
-        user_id: currentUserId,
+        user_id: roleTarget,
         task_key: key,
         completed: nextVal,
       });
       if (res && res.completed_tasks) {
         setCompletedTasks(res.completed_tasks);
       }
-    } catch (err) {
-      console.warn('Notice: Failed to sync task progress to server:', err);
+    } catch (err: any) {
+      setCompletedTasks((prev) => ({ ...prev, [key]: prevVal }));
+      setStudioToast({ message: err?.message || 'Failed to sync task progress.', type: 'error' });
     }
   };
 
@@ -277,8 +346,8 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
 
   const handleResetToDefaults = async () => {
     try {
-      setStudioSaving(true);
-      const res = await api.resetFlightPlanDefaults(targetCompanyName);
+      setStudioStatus('SAVING');
+      const res = await tarsClient.onboarding.resetFlightPlanDefaults(targetCompanyName);
       if (res) {
         setFlightPlan(res);
         setStudioModules(JSON.parse(JSON.stringify(res.modules || [])));
@@ -288,17 +357,17 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           type: 'success',
         });
       }
-    } catch (err) {
-      setStudioToast({ message: 'Failed to reset flight-plan defaults.', type: 'error' });
+    } catch (err: any) {
+      setStudioToast({ message: err?.message || 'Failed to reset flight-plan defaults.', type: 'error' });
     } finally {
-      setStudioSaving(false);
+      setStudioStatus('IDLE');
     }
   };
 
   const handleSaveAndPublish = async () => {
     try {
-      setStudioSaving(true);
-      const res = await api.saveFlightPlan({
+      setStudioStatus('SAVING');
+      const res = await tarsClient.onboarding.saveFlightPlan({
         company_name: targetCompanyName,
         title: `${targetCompanyName} Flight-Plan`,
         total_days: Math.max(14, studioModules.length),
@@ -314,10 +383,10 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           setStudioOpen(false);
         }, 800);
       }
-    } catch (err) {
-      setStudioToast({ message: 'Failed to save and publish flight-plan.', type: 'error' });
+    } catch (err: any) {
+      setStudioToast({ message: err?.message || 'Failed to save and publish flight-plan.', type: 'error' });
     } finally {
-      setStudioSaving(false);
+      setStudioStatus('IDLE');
     }
   };
 
@@ -379,7 +448,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     const userMsg = questionText.trim();
     setMentorMessages((prev) => [...prev, { sender: 'user', text: userMsg }]);
     setMentorQuery('');
-    setMentorLoading(true);
+    setMentorStatus('QUERYING');
 
     const lower = userMsg.toLowerCase();
     if (
@@ -432,7 +501,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           citation: activeProfile.cite,
         },
       ]);
-      setMentorLoading(false);
+      setMentorStatus('IDLE');
       return;
     }
 
@@ -465,7 +534,7 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
     };
 
     try {
-      const searchRes = await api.search({
+      const searchRes = await tarsClient.search({
         query: userMsg,
         department: 'ALL',
         clearance: userRole === 'FOUNDER' ? 'EXECUTIVE_ONLY' : 'ALL_TEAM',
@@ -509,16 +578,37 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           { sender: 'mentor', text: fallback.reply, citation: fallback.cite },
         ]);
       }
-    } catch {
-      const fallback = getFallbackAnswer();
+    } catch (err: any) {
       setMentorMessages((prev) => [
         ...prev,
-        { sender: 'mentor', text: fallback.reply, citation: fallback.cite },
+        {
+          sender: 'mentor',
+          text: `Unable to query Socratic Mentor: ${err?.message || 'Local SLM backend error. Please verify TARS gateway is running.'}`,
+          citation: 'Local Gateway Error',
+        },
       ]);
     } finally {
-      setMentorLoading(false);
+      setMentorStatus('IDLE');
     }
   };
+
+  if (profileError) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <PageHeader
+          eyebrow="Onboarding"
+          title={`${companyName} Onboarding Hub`}
+          description="Role-tailored flight-plans and Socratic mentor sandbox to bring new hires to day-3 productivity."
+        />
+        <WorkspaceErrorCard
+          title="Company Profile Unavailable"
+          error={profileError}
+          endpoint="/api/core/company/profile"
+          onRetry={fetchCompanyProfile}
+        />
+      </div>
+    );
+  }
 
   // If company profile does not exist at all, offer Genesis onboarding
   if (!profile || !profile.company_name) {
@@ -586,6 +676,25 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
         }
       />
 
+      {/* Main Stage FSM */}
+      {stage.status === 'ERROR' ? (
+        <WorkspaceErrorCard
+          title="Flight-Plan Unavailable"
+          error={stage.error}
+          endpoint="/api/onboarding/flight-plan"
+          onRetry={() => loadFlightPlan(targetCompanyName, roleTarget)}
+        />
+      ) : stage.status === 'LOADING' ? (
+        <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-12 text-center space-y-2 shadow-sm">
+          <div className="text-sm font-medium text-black dark:text-white animate-pulse">
+            {stage.message}
+          </div>
+          <div className="text-xs text-[#8E8E93]">
+            Loading role-adaptive flight-plan milestones and local SQLite progress...
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Progress Overview Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-[20px] border border-black/[0.08] dark:border-white/[0.10] bg-white dark:bg-[#1C1C1E] p-5 flex items-center gap-4 shadow-sm">
@@ -656,9 +765,6 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           <div className="text-[11px] font-semibold text-[#8E8E93] uppercase tracking-wider">
             Flight-Plan Timeline ({modules.length} Modules Active)
           </div>
-          {isLoadingPlan && (
-            <span className="text-[11px] font-mono text-[#8E8E93] animate-pulse">Syncing...</span>
-          )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {modules.map((mod) => {
@@ -850,6 +956,8 @@ export const OnboardingWorkspace: React.FC<OnboardingWorkspaceProps> = ({
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* Founder Flight-Plan Studio Drawer */}
       <Drawer

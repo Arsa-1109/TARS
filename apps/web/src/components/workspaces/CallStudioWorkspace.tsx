@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { VoiceToSpecResponse } from '../../types/contracts';
-import { ingestionApi } from '../../services/ingestionApi';
-import { realtimeBus } from '../../services/realtime';
+import { tarsClient, useTarsInvalidation } from '../../services/tarsClient';
 import { EmptyState } from '../primitives/EmptyState';
 import {
   Phone,
@@ -20,7 +19,14 @@ import {
   CheckSquare,
   Square,
   X,
+  RefreshCw,
 } from 'lucide-react';
+
+export type CallStudioStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | { status: 'ACTIVE'; data: { calls: VoiceToSpecResponse[]; selectedCall: VoiceToSpecResponse | null } }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
 
 interface CallStudioWorkspaceProps {
   activeCallId: string | null;
@@ -33,8 +39,12 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   onSelectCall,
   onPromoteAction,
 }) => {
-  const [calls, setCalls] = useState<VoiceToSpecResponse[]>([]);
-  const [selectedCall, setSelectedCall] = useState<VoiceToSpecResponse | null>(null);
+  // Discriminated union FSM (UX · DX · AX)
+  const [stage, setStage] = useState<CallStudioStage>({
+    status: 'LOADING',
+    message: 'Initializing local Call Studio and loading audio recordings...',
+  });
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSeconds, setPlaybackSeconds] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -44,8 +54,9 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   const [activeInspectorTab, setActiveInspectorTab] = useState<'summary' | 'specs' | 'commitments'>('summary');
   const [promotedSet, setPromotedSet] = useState<Set<string>>(new Set());
   const [uploadingAudio, setUploadingAudio] = useState(false);
+  const [audioNotice, setAudioNotice] = useState<string | null>(null);
 
-  // Deletion lifecycle & task pruning modal state (Bug 19)
+  // Deletion lifecycle & task pruning modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedDeleteTaskIds, setSelectedDeleteTaskIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -54,40 +65,56 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
   const audioInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // AbortController guarded call loading (Bug 3)
+  const activeCallIdRef = useRef(activeCallId);
+  const onSelectCallRef = useRef(onSelectCall);
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+    onSelectCallRef.current = onSelectCall;
+  }, [activeCallId, onSelectCall]);
+
+  const loadCalls = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: 'Fetching customer call debriefs...' }
+      );
+      const data = await tarsClient.ingestion.getCalls(signal);
+      const currentActiveId = activeCallIdRef.current;
+      const found = (data.length > 0 && currentActiveId)
+        ? data.find((c) => c.call_id === currentActiveId) || data[0]
+        : data[0] || null;
+
+      setStage({
+        status: 'ACTIVE',
+        data: { calls: data, selectedCall: found },
+      });
+      if (found && found.call_id !== currentActiveId) {
+        onSelectCallRef.current(found.call_id);
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Failed to retrieve call recordings from local storage.',
+        canRetry: true,
+      });
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
-    const loadCalls = () => {
-      ingestionApi.getCalls(controller.signal).then((data) => {
-        setCalls(data);
-        if (data.length > 0) {
-          const found = data.find((c) => c.call_id === activeCallId) || data[0];
-          setSelectedCall(found);
-        } else {
-          setSelectedCall(null);
-          setIsPlaying(false);
-          setPlaybackSeconds(0);
-        }
-      });
-    };
+    loadCalls(controller.signal);
+    return () => controller.abort();
+  }, [loadCalls]);
 
+  // Reactive event invalidation
+  useTarsInvalidation('calls:updated', () => {
     loadCalls();
+  });
 
-    const unsub = realtimeBus.subscribe((evt) => {
-      if (
-        evt.event === 'TRANSCRIPTION_COMPLETED' ||
-        evt.event === 'CALL_DELETED' ||
-        evt.event === 'DROP_EVENT'
-      ) {
-        loadCalls();
-      }
-    });
-
-    return () => {
-      controller.abort();
-      unsub();
-    };
-  }, [activeCallId]);
+  const calls = stage.status === 'ACTIVE' ? stage.data.calls : [];
+  const selectedCall = stage.status === 'ACTIVE' ? stage.data.selectedCall : null;
 
   // Sync default task deletion selection when selectedCall changes
   useEffect(() => {
@@ -105,12 +132,20 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
     if (!e.target.files || e.target.files.length === 0) return;
     setUploadingAudio(true);
     try {
-      const res = await ingestionApi.uploadCallAudio(e.target.files[0]);
-      setCalls((prev) => [res, ...prev]);
-      setSelectedCall(res);
+      const res = await tarsClient.ingestion.uploadCallAudio(e.target.files[0]);
+      setStage((prev) => {
+        if (prev.status !== 'ACTIVE') return prev;
+        return {
+          status: 'ACTIVE',
+          data: {
+            calls: [res, ...prev.data.calls],
+            selectedCall: res,
+          },
+        };
+      });
       onSelectCall(res.call_id);
-    } catch (err) {
-      console.error('Audio upload error:', err);
+    } catch (err: any) {
+      setAudioNotice(`Audio upload failed: ${err?.message || err}`);
     } finally {
       setUploadingAudio(false);
       if (audioInputRef.current) audioInputRef.current.value = '';
@@ -122,7 +157,16 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    setSelectedCall(call);
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      return {
+        status: 'ACTIVE',
+        data: {
+          ...prev.data,
+          selectedCall: call,
+        },
+      };
+    });
     onSelectCall(call.call_id);
     setIsPlaying(false);
     setPlaybackSeconds(0);
@@ -141,12 +185,15 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           playPromise
-            .then(() => setIsPlaying(true))
+            .then(() => {
+              setIsPlaying(true);
+              setAudioNotice(null);
+            })
             .catch((err) => {
               console.warn('Audio playback unavailable:', err);
-              // Item 134: Honest failure - do not simulate playback if audio is missing
               setIsPlaying(false);
-              alert('Audio recording file is unavailable or could not be loaded.');
+              // Accessible non-blocking inline notice replacing window.alert()
+              setAudioNotice('Audio recording file is unavailable or could not be loaded.');
             });
         }
       }
@@ -206,22 +253,24 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
     if (!selectedCall) return;
     setIsDeleting(true);
     try {
-      const res = await ingestionApi.deleteCall(selectedCall.call_id, selectedDeleteTaskIds);
+      const res = await tarsClient.ingestion.deleteCall(selectedCall.call_id, selectedDeleteTaskIds);
       setDeleteToast(
         `Call recording purged. Detached ${res.graph_nodes_detached} graph node(s), removed ${res.deleted_task_ids.length} Action Hub task(s), retained ${res.retained_task_ids.length} task(s).`
       );
       setTimeout(() => setDeleteToast(null), 6000);
       setDeleteModalOpen(false);
 
-      const freshCalls = await ingestionApi.getCalls();
-      setCalls(freshCalls);
+      const freshCalls = await tarsClient.ingestion.getCalls();
       const nextCall = freshCalls[0] || null;
-      setSelectedCall(nextCall);
+      setStage({
+        status: 'ACTIVE',
+        data: { calls: freshCalls, selectedCall: nextCall },
+      });
       setIsPlaying(false);
       setPlaybackSeconds(0);
       if (nextCall) onSelectCall(nextCall.call_id);
-    } catch (err) {
-      console.error('Failed to delete call recording:', err);
+    } catch (err: any) {
+      setAudioNotice(`Failed to delete call recording: ${err?.message || err}`);
     } finally {
       setIsDeleting(false);
     }
@@ -257,10 +306,10 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         onChange={handleAudioUpload}
       />
 
-      {/* Persistent Audio Mount at root JSX level (Bug 3: never unmounted during call switching) */}
+      {/* Persistent Audio Mount at root JSX level (never unmounted during call switching; omitted when demo call lacks disk audio) */}
       <audio
         ref={audioRef}
-        src={selectedCall ? `/api/ingestion/calls/${selectedCall.call_id}/audio` : undefined}
+        src={selectedCall?.has_audio ? `/api/ingestion/calls/${selectedCall.call_id}/audio` : undefined}
         preload="metadata"
         onTimeUpdate={(e) => {
           setPlaybackSeconds(Math.floor(e.currentTarget.currentTime));
@@ -310,8 +359,51 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
         </div>
       )}
 
-      {/* Single Tree Conditional: Render Empty State cleanly without unmounting audio element */}
-      {!selectedCall ? (
+      {/* Accessible Non-Blocking Audio Notice (Replaces alert) */}
+      {audioNotice && (
+        <div className="p-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] dark:border-[#FF453A]/[0.22] bg-[#FF3B30]/[0.08] dark:bg-[#FF453A]/[0.10] text-[#D70015] dark:text-[#FF453A] text-[13px] flex items-center justify-between gap-2 animate-slide-up">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{audioNotice}</span>
+          </div>
+          <button
+            onClick={() => setAudioNotice(null)}
+            className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Explicit Discriminated Union States: LOADING, ERROR, ACTIVE */}
+      {stage.status === 'LOADING' && (
+        <div className="flex flex-col items-center justify-center p-12 rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] text-center space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#0071E3] dark:text-[#0A84FF]" />
+          <p className="text-sm text-[#86868B] dark:text-[#8E8E93] font-medium">{stage.message}</p>
+        </div>
+      )}
+
+      {stage.status === 'ERROR' && (
+        <div className="p-6 rounded-[20px] border border-[#FF3B30]/30 dark:border-[#FF453A]/30 bg-[#FF3B30]/[0.05] dark:bg-[#FF453A]/[0.08] space-y-4">
+          <div className="flex items-center gap-3 text-[#D70015] dark:text-[#FF453A]">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span className="font-semibold text-sm">Failed to Load Call Recordings</span>
+          </div>
+          <p className="text-xs text-[#3C3C43] dark:text-[#EBEBF5]">{stage.error}</p>
+          {stage.canRetry && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => loadCalls()}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Retry Loading Calls
+            </Button>
+          )}
+        </div>
+      )}
+
+      {stage.status === 'ACTIVE' && (!selectedCall ? (
         <EmptyState
           icon={<Phone className="w-5 h-5 text-[#8E8E93]" />}
           title="No client calls recorded yet"
@@ -667,7 +759,7 @@ export const CallStudioWorkspace: React.FC<CallStudioWorkspaceProps> = ({
             </div>
           </div>
         </>
-      )}
+      ))}
 
       {/* Interactive Task Pruning Modal (Bug 19) */}
       {deleteModalOpen && selectedCall && (

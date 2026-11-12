@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { UserRole, UserProfile, UserDTO } from '../../types/contracts';
 import { ROLES } from '../../state/useSessionStore';
-import { api } from '../../services/client';
+import { tarsClient } from '../../services/tarsClient';
 import { X, Lock, ArrowRight, User, Mail, ChevronRight, Shield, AlertCircle, Building2 } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
 import { CustomSelect, SelectOption } from '../primitives/CustomSelect';
@@ -48,12 +48,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Fetch registered users on open
   useEffect(() => {
     if (isOpen) {
-      api.getUsers().then((users) => {
+      tarsClient.company.getUsers().then((users) => {
         if (users && users.length > 0) {
           setUsersList(users);
         }
-      }).catch((err) => {
-        console.warn('Could not load user list:', err);
+      }).catch((err: any) => {
+        setErrorMsg(err?.message || 'Unable to load workspace accounts. Check local API connection.');
       });
     }
   }, [isOpen]);
@@ -126,7 +126,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
 
     try {
-      const createdUser = await api.createUser({
+      const createdUser = await tarsClient.company.createUser({
         name: newName.trim(),
         email: newEmail.trim(),
         role: newRole,

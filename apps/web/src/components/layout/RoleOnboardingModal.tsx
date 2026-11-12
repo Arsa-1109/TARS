@@ -20,7 +20,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import { Button } from '../primitives/Button';
-import { api } from '../../services/client';
+import { tarsClient } from '../../services/tarsClient';
 
 interface RoleOnboardingModalProps {
   isOpen: boolean;
@@ -377,17 +377,21 @@ export const RoleOnboardingModal: React.FC<RoleOnboardingModalProps> = ({
     setSocraticMessages((prev) => [...prev, { role: 'user', text: userText }]);
 
     try {
-      const res = await api.search({ query: userText });
+      const res = await tarsClient.search.query({ query: userText });
       const reply = res.answer || "Based on our architecture and decisions, this is governed by our founding principles.";
       const cite = res.citations && res.citations.length > 0
         ? `${res.citations[0].doc_title} · P.${res.citations[0].page_number}`
         : 'DOC-FOUNDING · Section 2';
 
       setSocraticMessages((prev) => [...prev, { role: 'tars', text: reply, citation: cite }]);
-    } catch {
+    } catch (err: any) {
       setSocraticMessages((prev) => [
         ...prev,
-        { role: 'tars', text: "Error connecting to local SLM engine. Please ensure backend is running.", citation: "Local Gateway" }
+        {
+          role: 'tars',
+          text: err?.message || "Error connecting to local SLM engine. Please ensure backend is running.",
+          citation: "Local Gateway"
+        }
       ]);
     }
   };

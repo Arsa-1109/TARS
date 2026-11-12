@@ -23,8 +23,10 @@ import {
   Users,
   Clock,
   Compass,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
-import { api } from '../../services/client';
+import { tarsClient } from '../../services/tarsClient';
 import { CompanyProfile, GenesisBloomPayload, GenesisBloomResponse } from '../../types/contracts';
 
 interface GenesisOnboardingWizardProps {
@@ -129,6 +131,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
   // Step 4: Seed Document & Knowledge Ingestion
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [seedUploadError, setSeedUploadError] = useState<string | null>(null);
   // Sample assets only pre-checked for the Aetherflow golden-demo; fresh accounts start clean
   const [loadSampleAssets, setLoadSampleAssets] = useState(isAetherflowDemo);
   const [dragOver, setDragOver] = useState(false);
@@ -138,6 +141,7 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
   const [isBlooming, setIsBlooming] = useState(false);
   const [bloomPhaseIndex, setBloomPhaseIndex] = useState(0);
   const [bloomedResult, setBloomedResult] = useState<GenesisBloomResponse | null>(null);
+  const [bloomError, setBloomError] = useState<string | null>(null);
   const [bloomedNodesCount, setBloomedNodesCount] = useState(14);
 
   // Bloom animation stages
@@ -253,18 +257,21 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
 
   const processSelectedFile = async (file: File) => {
     setUploadedFile(file);
-    setUploadStatus('Staged for local air-gapped indexing');
+    setSeedUploadError(null);
+    setUploadStatus('Indexing into local institutional vault...');
     try {
-      const res = await api.uploadSeedDocument(file);
+      const res = await tarsClient.company.uploadSeedDocument(file);
       setUploadStatus(res.message || `Indexed ${file.name} successfully into institutional memory`);
-    } catch (err) {
-      console.warn('Seed document upload fallback notice:', err);
-      setUploadStatus(`Indexed ${file.name} locally (offline mode)`);
+    } catch (err: any) {
+      setSeedUploadError(err?.message || `Failed to upload ${file.name} to local backend.`);
+      setUploadStatus('Upload failed — review error below');
     }
   };
 
   const startBlooming = async () => {
     setIsBlooming(true);
+    setBloomError(null);
+    setBloomedResult(null);
     setBloomPhaseIndex(0);
 
     const payload: GenesisBloomPayload = {
@@ -285,7 +292,6 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
       load_sample_assets: loadSampleAssets,
     };
 
-    // Progression timers for 3-second live visual feedback
     const timer1 = setTimeout(() => {
       setBloomPhaseIndex(1);
       setBloomedNodesCount((prev) => prev + 6);
@@ -297,30 +303,17 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
     }, 2000);
 
     try {
-      const res = await api.bloomGenesis(payload);
+      const res = await tarsClient.company.bloomGenesis(payload);
       setTimeout(() => {
         setBloomPhaseIndex(3);
         setBloomedResult(res);
         setIsBlooming(false);
-      }, 3000);
-    } catch (err) {
-      console.warn('Genesis bloom fallback execution:', err);
-      setTimeout(() => {
-        setBloomPhaseIndex(3);
-        setBloomedResult({
-          status: 'BLOOMED',
-          company_profile: {
-            id: 'CMP-GENESIS',
-            ...payload,
-          },
-          seeded_decisions: ['DEC-GEN-001', 'DEC-GEN-002', 'DEC-GEN-003'],
-          flight_plans_count: 4,
-          loaded_assets: loadSampleAssets ? ['Financial Model', 'Discovery Call'] : [],
-          nodes_bloomed: 24,
-          timestamp: Date.now(),
-        });
-        setIsBlooming(false);
-      }, 3000);
+      }, 2200);
+    } catch (err: any) {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      setBloomError(err?.message || 'Failed to seed sovereign Genesis workspace on local backend.');
+      setIsBlooming(false);
     }
   };
 
@@ -1038,6 +1031,15 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
               </div>
 
               {/* Zero-Egress Air-Gap Reminder */}
+              {seedUploadError && (
+                <div className="p-3.5 rounded-[12px] border border-[#FF453A]/30 bg-[#FF453A]/[0.08] text-left flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-[#FF453A] shrink-0 mt-0.5" />
+                  <div className="text-xs text-[#FF453A] font-medium">
+                    {seedUploadError}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 px-3 py-2 rounded-[10px] bg-black/[0.03] dark:bg-white/[0.04] text-[11px] text-[#6E6E73] dark:text-[#8E8E93]">
                 <Shield className="w-3.5 h-3.5 text-[#34C759] shrink-0" />
                 <span>
@@ -1050,7 +1052,43 @@ export const GenesisOnboardingWizard: React.FC<GenesisOnboardingWizardProps> = (
           {/* STEP 5: Instant Genesis Blooming (Activation & Celebration) */}
           {currentStep === 5 && (
             <div className="space-y-6 animate-apple-in text-center py-4">
-              {isBlooming ? (
+              {bloomError ? (
+                <div className="max-w-md mx-auto p-6 rounded-[18px] border border-[#FF453A]/30 bg-[#FF453A]/[0.07] space-y-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-[#FF453A] shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-[#FF453A]">
+                        Genesis Bloom Failed
+                      </h3>
+                      <p className="text-xs text-[#6E6E73] dark:text-[#EBEBF5]/85 leading-relaxed">
+                        {bloomError}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={startBlooming}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] bg-black dark:bg-white text-white dark:text-black text-xs font-semibold hover:opacity-90 transition-all"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Retry Bloom</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBloomError(null);
+                        setDirection('backward');
+                        setCurrentStep(4);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-[10px] border border-black/[0.12] dark:border-white/[0.16] text-xs font-medium text-black dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-all"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Back to Setup</span>
+                    </button>
+                  </div>
+                </div>
+              ) : isBlooming ? (
                 /* Live 3-second animated synthesis screen */
                 <div className="space-y-6 max-w-md mx-auto">
                   <div className="relative w-20 h-20 mx-auto flex items-center justify-center">

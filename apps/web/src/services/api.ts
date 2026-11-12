@@ -1,3 +1,8 @@
+// apps/web/src/services/api.ts
+/**
+ * @deprecated Consolidated into apps/web/src/services/tarsClient.ts
+ * Legacy interface kept only for backward type compatibility; use tarsClient directly.
+ */
 import {
   SearchRequest,
   SearchResponse,

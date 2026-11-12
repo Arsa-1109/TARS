@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, Square, CheckCircle2, Shield, X, AlertCircle } from 'lucide-react';
 import { Spinner } from '../primitives/Spinner';
-import { api } from '../../services/client';
+import { tarsClient } from '../../services/tarsClient';
 
 interface VoiceMemoModalProps {
   isOpen: boolean;
@@ -48,7 +48,9 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         try {
           mediaRecorderRef.current.stop();
-        } catch {}
+        } catch (stopErr) {
+          console.warn('MediaRecorder cleanup warning:', stopErr);
+        }
         mediaRecorderRef.current = null;
       }
       setTimeout(() => {
@@ -140,7 +142,7 @@ export const VoiceMemoModal: React.FC<VoiceMemoModalProps> = ({
         const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
         try {
-          const res = await api.uploadVoiceMemo(audioBlob, `memo_${Date.now()}.${ext}`);
+          const res = await tarsClient.ingestion.uploadVoiceMemo(audioBlob, `memo_${Date.now()}.${ext}`);
           const finalTranscript = res.transcript || 'Voice memo transcribed successfully with zero egress.';
           setTranscript(finalTranscript);
           setDone(true);

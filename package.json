@@ -1,0 +1,7 @@
+{
+  "name": "tars-monorepo",
+  "private": true,
+  "scripts": {
+    "typecheck": "pnpm --filter web typecheck"
+  }
+}

@@ -17,6 +17,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Button } from '../primitives/Button';
+import { tarsClient } from '../../services/tarsClient';
 
 interface DocumentReaderModalProps {
   isOpen: boolean;
@@ -77,11 +78,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
 
       const loadPdf = async () => {
         try {
-          const res = await fetch(pdfUrl);
-          if (!res.ok) {
-            throw new Error(`Server returned ${res.status}`);
-          }
-          const blob = await res.blob();
+          const blob = await tarsClient.ingestion.getDocumentBlob(docTitle);
           if (active) {
             // Ensure the blob is tagged as application/pdf
             const pdfBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' });

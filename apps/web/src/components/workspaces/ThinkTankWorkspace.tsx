@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Surface } from '../primitives/Surface';
 import { Button } from '../primitives/Button';
 import { Dialog } from '../primitives/Dialog';
 import { SegmentedControl } from '../primitives/SegmentedControl';
 import { EmptyState } from '../primitives/EmptyState';
-import { api } from '../../services/client';
+import { WorkspaceErrorCard } from '../primitives/ErrorBoundary';
 import { DecisionItem, SearchCitation } from '../../types/contracts';
-import { chatApi, ThinkTankChannelDTO, ThinkTankMessageDTO } from '../../services/chatApi';
+import {
+  tarsClient,
+  useTarsInvalidation,
+  ThinkTankChannelDTO,
+  ThinkTankMessageDTO,
+} from '../../services/tarsClient';
 import { realtimeBus } from '../../services/realtime';
 import {
   MessageSquare,
@@ -27,6 +32,19 @@ import {
   Check,
   X
 } from 'lucide-react';
+
+export type ThinkTankStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | {
+      status: 'ACTIVE';
+      data: {
+        channels: ThinkTankChannelDTO[];
+        messages: ThinkTankMessageDTO[];
+        decisions: DecisionItem[];
+      };
+    }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
 
 interface ThinkTankWorkspaceProps {
   onNavigateDecision: (decId: string) => void;
@@ -62,14 +80,51 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   currentUserName = 'Team Member',
   currentUserRole = 'FOUNDER',
 }) => {
-  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
-  const [channels, setChannels] = useState<ThinkTankChannelDTO[]>([]);
+  const [stage, setStage] = useState<ThinkTankStage>({
+    status: 'LOADING',
+    message: 'Connecting to Think Tank channels & institutional memory...',
+  });
+  const [composerStatus, setComposerStatus] = useState<'IDLE' | 'SENDING'>('IDLE');
+  const [actionError, setActionError] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string>('general');
-  const [messages, setMessages] = useState<ThinkTankMessageDTO[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('document');
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
-  const [isSending, setIsSending] = useState(false);
+
+  const decisions = stage.status === 'ACTIVE' ? stage.data.decisions : [];
+  const channels = stage.status === 'ACTIVE' ? stage.data.channels : [];
+  const messages = stage.status === 'ACTIVE' ? stage.data.messages : [];
+  const isSending = composerStatus === 'SENDING';
+
+  const setDecisions = (
+    updater: DecisionItem[] | ((prev: DecisionItem[]) => DecisionItem[])
+  ) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const next = typeof updater === 'function' ? updater(prev.data.decisions) : updater;
+      return { ...prev, data: { ...prev.data, decisions: next } };
+    });
+  };
+
+  const setChannels = (
+    updater: ThinkTankChannelDTO[] | ((prev: ThinkTankChannelDTO[]) => ThinkTankChannelDTO[])
+  ) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const next = typeof updater === 'function' ? updater(prev.data.channels) : updater;
+      return { ...prev, data: { ...prev.data, channels: next } };
+    });
+  };
+
+  const setMessages = (
+    updater: ThinkTankMessageDTO[] | ((prev: ThinkTankMessageDTO[]) => ThinkTankMessageDTO[])
+  ) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const next = typeof updater === 'function' ? updater(prev.data.messages) : updater;
+      return { ...prev, data: { ...prev.data, messages: next } };
+    });
+  };
 
   // Edit Message inline state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -85,57 +140,105 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
 
   // Auto-scroll ref
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activeChannelIdRef = useRef(activeChannelId);
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId;
+  }, [activeChannelId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Load Decisions for Canvas
-  useEffect(() => {
-    api.getDecisions().then((d) => setDecisions(d)).catch(() => {});
-  }, []);
-
-  // Fetch Channels from live API
-  const refreshChannels = async () => {
+  const loadWorkspaceData = useCallback(async (signal?: AbortSignal) => {
     try {
-      const liveChannels = await chatApi.getChannels();
-      setChannels(liveChannels);
-      if (liveChannels.length > 0 && !liveChannels.find((c) => c.id === activeChannelId)) {
-        setActiveChannelId(liveChannels[0].id);
+      setActionError(null);
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: 'Loading Think Tank channels & institutional memory...' }
+      );
+      const [liveChannels, liveDecisions] = await Promise.all([
+        tarsClient.chat.getChannels(),
+        tarsClient.decisions.getDecisions(signal),
+      ]);
+      const currentId = activeChannelIdRef.current;
+      const resolvedChannelId =
+        liveChannels.length > 0 && !liveChannels.find((c) => c.id === currentId)
+          ? liveChannels[0].id
+          : currentId;
+
+      if (resolvedChannelId !== currentId) {
+        setActiveChannelId(resolvedChannelId);
       }
-    } catch (err) {
-      console.error('Failed to load Think Tank channels:', err);
+
+      const liveMessages = await tarsClient.chat.getMessages(resolvedChannelId);
+      setStage({
+        status: 'ACTIVE',
+        data: {
+          channels: liveChannels,
+          messages: liveMessages,
+          decisions: liveDecisions,
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Unable to connect to Think Tank collaboration channels.',
+        canRetry: true,
+      });
     }
-  };
+  }, []);
 
   useEffect(() => {
-    refreshChannels();
-  }, []);
+    const controller = new AbortController();
+    loadWorkspaceData(controller.signal);
+    return () => controller.abort();
+  }, [loadWorkspaceData]);
+
+  useTarsInvalidation('decisions:updated', () => {
+    tarsClient.decisions
+      .getDecisions()
+      .then((d) => setDecisions(d))
+      .catch((err: any) => {
+        setActionError(err?.message || 'Failed to sync updated decisions into canvas.');
+      });
+  });
 
   // Fetch Messages when activeChannelId changes
-  const refreshMessages = async (channelId: string) => {
+  const refreshMessages = useCallback(async (channelId: string) => {
     try {
-      const msgs = await chatApi.getMessages(channelId);
+      setActionError(null);
+      const msgs = await tarsClient.chat.getMessages(channelId);
       setMessages(msgs);
-    } catch (err) {
-      console.error(`Failed to load messages for channel ${channelId}:`, err);
+    } catch (err: any) {
+      setActionError(err?.message || `Failed to load messages for channel #${channelId}.`);
     }
-  };
+  }, []);
+
+  const refreshChannels = useCallback(async () => {
+    try {
+      const liveChannels = await tarsClient.chat.getChannels();
+      setChannels(liveChannels);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to refresh Think Tank channel list.');
+    }
+  }, []);
 
   useEffect(() => {
-    if (activeChannelId) {
+    if (activeChannelId && stage.status === 'ACTIVE') {
       refreshMessages(activeChannelId);
     }
     const unsub = realtimeBus.subscribe((evt) => {
       if (evt.event === 'THINKTANK_MESSAGE') {
-        if (activeChannelId) {
-          refreshMessages(activeChannelId);
+        if (activeChannelIdRef.current) {
+          refreshMessages(activeChannelIdRef.current);
         }
         refreshChannels();
       }
     });
     return unsub;
-  }, [activeChannelId]);
+  }, [activeChannelId, stage.status, refreshMessages, refreshChannels]);
 
   // Auto-scroll whenever messages change
   useEffect(() => {
@@ -154,14 +257,15 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     if (!newChannelName.trim()) return;
 
     try {
-      const newCh = await chatApi.createChannel(newChannelName.trim(), newChannelTopic.trim());
+      setActionError(null);
+      const newCh = await tarsClient.chat.createChannel(newChannelName.trim(), newChannelTopic.trim());
       setChannels((prev) => [...prev, newCh]);
       setActiveChannelId(newCh.id);
       setCreateDialogOpen(false);
       setNewChannelName('');
       setNewChannelTopic('');
-    } catch (err) {
-      console.error('Failed to create channel:', err);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to create discussion channel.');
     }
   };
 
@@ -170,7 +274,8 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
     if (!inputMessage.trim() || isSending) return;
     const userPrompt = inputMessage.trim();
     setInputMessage('');
-    setIsSending(true);
+    setActionError(null);
+    setComposerStatus('SENDING');
 
     try {
       const activeSender = currentUserName || 'Team Member';
@@ -181,7 +286,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         const fact = userPrompt.replace(/^\/teach\s+/i, '').trim();
         if (fact) {
           // Send user message to thread
-          const userMsg = await chatApi.sendMessage({
+          const userMsg = await tarsClient.chat.sendMessage({
             channel_id: activeChannelId,
             sender: activeSender,
             sender_name: activeSender,
@@ -192,7 +297,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           setMessages((prev) => [...prev, userMsg]);
 
           // Call backend /teach endpoint to persist institutional memory and ratify decision in Workspace 5
-          const teachRes = await chatApi.teachTars({
+          const teachRes = await tarsClient.chat.teachTars({
             content: fact,
             title: `Fact: ${fact.slice(0, 36)}...`,
             category: 'POLICY',
@@ -202,7 +307,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           });
 
           // Send confirmation assistant message with ratified Decision ID
-          const aiReply = await chatApi.sendMessage({
+          const aiReply = await tarsClient.chat.sendMessage({
             channel_id: activeChannelId,
             sender: 'TARS (@TARS)',
             sender_role: 'ASSISTANT',
@@ -212,13 +317,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
             is_ai: true
           });
           setMessages((prev) => [...prev, aiReply]);
-          setIsSending(false);
+          setComposerStatus('IDLE');
           return;
         }
       }
 
       // 2. Standard user message persistence with real user identity
-      const userMsg = await chatApi.sendMessage({
+      const userMsg = await tarsClient.chat.sendMessage({
         channel_id: activeChannelId,
         sender: activeSender,
         sender_name: activeSender,
@@ -233,11 +338,11 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       const cleanQuery = userPrompt.replace(/@TARS/gi, '').trim() || userPrompt;
 
       // Check for institutional decision contradictions
-      const conflictRes = await api.checkContradiction(cleanQuery);
+      const conflictRes = await tarsClient.decisions.checkContradiction(cleanQuery);
 
       // Gate: Only respond if explicit @TARS tag OR contradiction detected!
       if (!hasMention && !conflictRes.has_conflict) {
-        setIsSending(false);
+        setComposerStatus('IDLE');
         return;
       }
 
@@ -251,7 +356,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           : 'Institutional Invariant Rule';
       } else if (hasMention) {
         // Query knowledge base with local SLM
-        const ragRes = await api.search({ query: cleanQuery });
+        const ragRes = await tarsClient.search.query({ query: cleanQuery });
         aiText = ragRes.answer;
         if (ragRes.citations && ragRes.citations.length > 0) {
           provenance = ragRes.citations
@@ -264,7 +369,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       }
 
       // 4. Persist TARS response to SQLite
-      const aiMsg = await chatApi.sendMessage({
+      const aiMsg = await tarsClient.chat.sendMessage({
         channel_id: activeChannelId,
         sender: 'TARS (@TARS)',
         sender_role: 'ASSISTANT',
@@ -274,10 +379,10 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
         is_ai: true
       });
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
-      console.error('Think Tank message sending error:', err);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to send message to Think Tank backend.');
     } finally {
-      setIsSending(false);
+      setComposerStatus('IDLE');
     }
   };
 
@@ -290,12 +395,13 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   const handleSaveEdit = async (msgId: string) => {
     if (!editingText.trim()) return;
     try {
-      const updated = await chatApi.updateMessage(msgId, editingText.trim());
+      setActionError(null);
+      const updated = await tarsClient.chat.updateMessage(msgId, editingText.trim());
       setMessages((prev) => prev.map((m) => (m.id === msgId ? updated : m)));
       setEditingMessageId(null);
       setEditingText('');
-    } catch (err) {
-      console.error('Failed to update message:', err);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to update message.');
     }
   };
 
@@ -307,21 +413,23 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
   // Delete Message Handler
   const handleDeleteMessage = async (msgId: string) => {
     try {
-      await chatApi.deleteMessage(msgId);
+      setActionError(null);
+      await tarsClient.chat.deleteMessage(msgId);
       setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    } catch (err) {
-      console.error('Failed to delete message:', err);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to delete message.');
     }
   };
 
   // Clear Channel Handler
   const handleClearChannel = async () => {
     try {
-      await chatApi.clearChannel(activeChannelId);
+      setActionError(null);
+      await tarsClient.chat.clearChannel(activeChannelId);
       setMessages([]);
       setClearDialogOpen(false);
-    } catch (err) {
-      console.error('Failed to clear channel:', err);
+    } catch (err: any) {
+      setActionError(err?.message || 'Failed to clear channel messages.');
     }
   };
 
@@ -360,6 +468,23 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
       />
 
       {/* Main Think Tank Workspace Layout */}
+      {stage.status === 'ERROR' ? (
+        <WorkspaceErrorCard
+          title="Think Tank Unavailable"
+          error={stage.error}
+          endpoint="/api/core/chats"
+          onRetry={() => loadWorkspaceData()}
+        />
+      ) : stage.status === 'LOADING' ? (
+        <Surface className="p-12 text-center space-y-2">
+          <div className="text-sm font-medium text-black dark:text-white animate-pulse">
+            {stage.message}
+          </div>
+          <div className="text-xs text-[#8E8E93]">
+            Loading topic channels and local institutional decision graph...
+          </div>
+        </Surface>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Topic Channels (3 cols on desktop) */}
         <div className={`lg:col-span-3 space-y-3 ${viewMode === 'canvas' ? 'hidden lg:block' : ''}`}>
@@ -576,6 +701,26 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Inline Error Notice */}
+            {actionError && (
+              <div
+                role="alert"
+                className="mt-2 p-2.5 rounded-[10px] border border-[#FF453A]/30 bg-[#FF453A]/[0.08] text-[#FF453A] text-xs flex items-center justify-between gap-2"
+              >
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{actionError}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActionError(null)}
+                  className="text-[11px] font-semibold underline shrink-0"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             {/* Message Composer */}
             <form
               onSubmit={(e) => {
@@ -734,6 +879,7 @@ export const ThinkTankWorkspace: React.FC<ThinkTankWorkspaceProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Clear Channel Confirmation Dialog */}
       <Dialog

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthModal } from './components/auth/AuthModal';
@@ -21,7 +21,8 @@ import { useSessionStore, WORKSPACE_DOMAINS } from './state/useSessionStore';
 import { useThemeStore } from './state/useThemeStore';
 import { useNavigationStore } from './state/useNavigationStore';
 import { ActionItemDTO, WorkspaceId, CompanyProfile } from './types/contracts';
-import { api } from './services/client';
+import { tarsClient, useTarsInvalidation } from './services/tarsClient';
+import { ErrorBoundary } from './components/primitives/ErrorBoundary';
 
 
 export function App() {
@@ -98,12 +99,26 @@ export function App() {
   const [genesisWizardOpen, setGenesisWizardOpen] = useState(false);
   const [cursorModalOpen, setCursorModalOpen] = useState(false);
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [appNotice, setAppNotice] = useState<{ type: 'error' | 'warning'; message: string } | null>(null);
+
+  const fetchActionItems = useCallback(async () => {
+    try {
+      const items = await tarsClient.actions.getItems();
+      setActionItems(items);
+    } catch (err: any) {
+      setAppNotice({ type: 'error', message: err?.message || 'Failed to sync Action Hub tasks.' });
+    }
+  }, []);
+
+  useTarsInvalidation('actions:updated', () => {
+    fetchActionItems();
+  });
 
   useEffect(() => {
     if (!isAuthenticated) return;
     const targetComp = profile?.company_name || profile?.company_id || undefined;
-    api.getActionItems().then((items) => setActionItems(items));
-    api.getCompanyProfile(targetComp).then((prof) => {
+    fetchActionItems();
+    tarsClient.company.getProfile(targetComp).then((prof) => {
       if (prof && prof.company_name) {
         if (profile?.company_name && prof.company_name.toLowerCase().trim() !== profile.company_name.toLowerCase().trim()) {
           setCompanyProfile(null);
@@ -121,8 +136,10 @@ export function App() {
           setGenesisWizardOpen(true);
         }
       }
+    }).catch((err: any) => {
+      setAppNotice({ type: 'warning', message: err?.message || 'Unable to verify company profile with backend.' });
     });
-  }, [isAuthenticated, profile?.company_name, profile?.company_id]);
+  }, [isAuthenticated, profile?.company_name, profile?.company_id, fetchActionItems]);
 
   // Synchronise company identity with logged-in user profile
   useEffect(() => {
@@ -190,16 +207,16 @@ export function App() {
 
   const handleStatusChange = async (id: string, newStatus: ActionItemDTO['status']) => {
     try {
-      const updated = await api.updateActionStatus(id, newStatus);
+      const updated = await tarsClient.actions.updateStatus(id, newStatus);
       setActionItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setAppNotice({ type: 'error', message: err?.message || 'Failed to update task status.' });
     }
   };
 
   const handlePromoteCommitment = async (commitmentText: string, callId: string, timestamp: string) => {
     try {
-      const newItem = await api.createActionItem({
+      const newItem = await tarsClient.actions.createItem({
         description: commitmentText,
         owner: profile.name,
         deadline: Date.now() + 5 * 86400000,
@@ -209,17 +226,17 @@ export function App() {
         source_offset: timestamp,
       });
       setActionItems((prev) => [newItem, ...prev]);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setAppNotice({ type: 'error', message: err?.message || 'Failed to promote commitment to Action Hub.' });
     }
   };
 
   const handleCreateTask = async (task: Omit<ActionItemDTO, 'id'>) => {
     try {
-      const newItem = await api.createActionItem(task);
+      const newItem = await tarsClient.actions.createItem(task);
       setActionItems((prev) => [newItem, ...prev]);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setAppNotice({ type: 'error', message: err?.message || 'Failed to create Action Hub task.' });
     }
   };
 
@@ -229,7 +246,7 @@ export function App() {
         ? `Voice Memo (${durationSec}s): "${transcript.slice(0, 120)}${transcript.length > 120 ? '...' : ''}"`
         : `Review recorded founder voice debrief (${durationSec}s)`;
 
-      const newAction = await api.createActionItem({
+      const newAction = await tarsClient.actions.createItem({
         description: desc,
         owner: profile.name,
         deadline: Date.now() + 1 * 86400000,
@@ -239,8 +256,8 @@ export function App() {
         source_offset: 'Just now',
       });
       setActionItems((prev) => [newAction, ...prev]);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      setAppNotice({ type: 'error', message: err?.message || 'Failed to save voice memo action item.' });
     }
   };
 
@@ -310,10 +327,28 @@ export function App() {
   }
 
   return (
+    <ErrorBoundary scopeName="TarsAppRoot" resetKey={isAuthenticated ? 'auth' : 'anon'}>
     <div
       className={`h-screen overflow-hidden transition-opacity duration-200 ease-in-out ${appVisible ? 'opacity-100' : 'opacity-0'}`}
       style={{ willChange: 'opacity' }}
     >
+      {appNotice && (
+        <div
+          role="alert"
+          className="fixed top-14 right-4 z-50 max-w-sm px-3.5 py-2.5 rounded-[12px] border border-amber-500/30 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur shadow-lg flex items-center justify-between gap-3 text-xs"
+        >
+          <span className={appNotice.type === 'error' ? 'text-[#FF453A] font-medium' : 'text-amber-600 dark:text-amber-400 font-medium'}>
+            {appNotice.message}
+          </span>
+          <button
+            type="button"
+            onClick={() => setAppNotice(null)}
+            className="text-[#8E8E93] hover:text-black dark:hover:text-white font-semibold"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     <AppShell
       currentWorkspace={workspace}
       onSelectWorkspace={handleSelectWorkspace}
@@ -342,7 +377,8 @@ export function App() {
       onToggleTheme={toggleTheme}
 
     >
-      {/* Workspace Routing with Apple subtle fade transition */}
+      {/* Workspace Routing with Apple subtle fade transition & ErrorBoundary */}
+      <ErrorBoundary scopeName={workspace} resetKey={workspace}>
       <div key={workspace} className={`animate-fade-in ${workspace === 'knowledge' ? 'h-full flex flex-col flex-1 min-h-0 overflow-hidden' : ''}`}>
         {workspace === 'knowledge' && (
           <KnowledgeWorkspace
@@ -402,6 +438,7 @@ export function App() {
           />
         )}
       </div>
+      </ErrorBoundary>
 
       {/* Global Unified Action Hub Drawer */}
       <ActionHubDrawer
@@ -500,7 +537,7 @@ export function App() {
           setCompanyProfile(newProfile);
           setGenesisWizardOpen(false);
           // Persist user onboarding status to SQLite
-          api.createUser({
+          tarsClient.company.createUser({
             name: profile?.name || '',
             email: profile?.email || '',
             role: 'FOUNDER',
@@ -508,14 +545,17 @@ export function App() {
             clearance: 'EXECUTIVE_ONLY',
             company_name: newProfile.company_name || profile?.company_name || '',
             company_id: newProfile.id || profile?.company_id || undefined,
-          }).catch(() => {});
+          }).catch((err: any) => {
+            setAppNotice({ type: 'warning', message: err?.message || 'Unable to sync founder account record.' });
+          });
 
           // Refresh tasks with freshly configured role-based flight-plans
-          api.getActionItems().then((items) => setActionItems(items));
+          fetchActionItems();
         }}
       />
     </AppShell>
     </div>
+    </ErrorBoundary>
   );
 }
 

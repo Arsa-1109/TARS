@@ -90,6 +90,7 @@ class AddDecisionRequest(BaseModel):
     context: Optional[str] = ""
     chosen_option: Optional[str] = ""
     clearance: Optional[str] = "ALL_TEAM"
+    company_name: Optional[str] = None
 
 
 class ContradictionRequest(BaseModel):
@@ -257,25 +258,15 @@ async def get_decisions(
     company_name: Optional[str] = Query(None, description="Company name for tenant isolation"),
     x_company_name: Optional[str] = Header(None, alias="x-company-name"),
 ):
-    """Returns historical Decision nodes from the Kùzu Graph, scoped to the active tenant.
-    When no company context is provided (anonymous call), all decisions including DEC-014 are returned
-    for backward compatibility. Fresh non-Aetherflow accounts receive filtered results.
-    """
-    company = _resolve_company_profile(company_name, x_company_name)
-    active_company_name = company.get("company_name") or company_name or x_company_name
-
-    # Isolation rule:
-    #   • No company resolved → include demo decisions (backward-compatible demo mode)
-    #   • Aetherflow identified → include all demo decisions
-    #   • Any other company explicitly identified → exclude DEC-014 (fresh-account isolation)
-    if active_company_name:
-        exclude_demo = not _is_aetherflow_company(active_company_name)
+    """Returns historical Decision nodes from the Kùzu Graph, scoped deterministically to the active tenant."""
+    explicit_company = company_name or x_company_name
+    if explicit_company:
+        company = _resolve_company_profile(company_name, x_company_name)
+        active_company_name = company.get("company_name") or explicit_company
     else:
-        exclude_demo = False  # No tenant context: default to full demo mode
+        active_company_name = None
 
-    decisions = graph_engine.get_all_decisions()
-    if exclude_demo:
-        decisions = [d for d in decisions if d.get("id") != "DEC-014"]
+    decisions = graph_engine.get_all_decisions(company_name=active_company_name)
 
     return [
         DecisionItem(
@@ -369,10 +360,16 @@ def _async_madr_synthesis_worker(decision_id: str, title: str, context: str, cho
 
 @router.post("/decision", response_model=DecisionItem, status_code=201)
 @router.post("/decisions", response_model=DecisionItem, status_code=201)
-async def create_decision(payload: AddDecisionRequest, background_tasks: BackgroundTasks):
+async def create_decision(
+    payload: AddDecisionRequest,
+    background_tasks: BackgroundTasks,
+    x_company_name: Optional[str] = Header(None, alias="x-company-name"),
+):
     """Creates a new Decision node optimistically (<15ms) and delegates MADR synthesis to a background worker."""
     decision_id = payload.id or f"DEC-{uuid.uuid4().hex[:6].upper()}"
     ts = int(time.time())
+    company = _resolve_company_profile(payload.company_name, x_company_name)
+    active_company_name = payload.company_name or x_company_name or company.get("company_name")
     success = graph_engine.add_decision(
         decision_id=decision_id,
         title=payload.title,
@@ -381,6 +378,7 @@ async def create_decision(payload: AddDecisionRequest, background_tasks: Backgro
         chosen_option=payload.chosen_option or "",
         clearance=payload.clearance or "ALL_TEAM",
         status="ACTIVE",
+        company_name=active_company_name,
     )
     if not success:
         raise HTTPException(status_code=500, detail="Failed to insert decision into Kùzu graph")
@@ -495,28 +493,22 @@ async def check_contradiction(
     payload: ContradictionRequest,
     x_company_name: Optional[str] = Header(None, alias="x-company-name"),
 ):
-    """Performs graph semantic conflict check against existing architectural decisions.
-    For fresh/non-Aetherflow accounts, Aetherflow golden-demo decisions (DEC-014) are excluded.
-    When no company context is provided (anonymous call), include demo decisions for backward compatibility.
+    """Performs graph semantic conflict check against existing architectural decisions
+    scoped deterministically to the active workspace tenant graph.
     """
     severity = payload.severity or payload.severity_threshold or "BALANCED"
-    company = _resolve_company_profile(payload.company_name, x_company_name)
-    active_company_name = company.get("company_name") or payload.company_name or x_company_name
-
-    # Isolation rule:
-    #   • No company resolved → include demo decisions (backward-compatible demo mode)
-    #   • Aetherflow identified → include demo decisions
-    #   • Any other company identified → exclude demo decisions (fresh-account isolation)
-    if active_company_name:
-        include_demo = _is_aetherflow_company(active_company_name)
+    explicit_company = payload.company_name or x_company_name
+    if explicit_company:
+        company = _resolve_company_profile(payload.company_name, x_company_name)
+        active_company_name = company.get("company_name") or explicit_company
     else:
-        include_demo = True  # No tenant context: default to Aetherflow demo mode
+        active_company_name = None
 
     result = graph_engine.check_contradiction(
         proposal=payload.proposal,
         category=payload.category or "ALL",
         severity_threshold=severity,
-        include_demo_decisions=include_demo,
+        company_name=active_company_name,
     )
     return ContradictionCheckResponse(
         has_conflict=result["has_conflict"],

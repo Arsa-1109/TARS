@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, Lightformer, Sparkles } from '@react-three/drei';
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing';
@@ -19,6 +20,25 @@ function CameraRig() {
 }
 
 export default function TarsScene() {
+  const glRef = useRef<THREE.WebGLRenderer | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Phase 5: Ensure Three.js WebGL contexts dispose cleanly upon unmount to eliminate GPU VRAM contention with local Ollama SLMs
+      if (glRef.current) {
+        try {
+          const ctx = glRef.current.getContext?.();
+          glRef.current.dispose();
+          if (ctx && typeof ctx.isContextLost === 'function' && !ctx.isContextLost()) {
+            glRef.current.forceContextLoss?.();
+          }
+        } catch (e) {
+          console.warn('Three.js context disposal notice:', e);
+        }
+      }
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-0 pointer-events-none"
@@ -31,6 +51,7 @@ export default function TarsScene() {
         camera={{ position: [0, 0, 10], fov: 35, near: 0.1, far: 400 }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
+          glRef.current = gl;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1.05;
         }}

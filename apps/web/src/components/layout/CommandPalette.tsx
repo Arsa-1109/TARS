@@ -17,9 +17,10 @@ import {
   Sparkles,
   FileText,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { WorkspaceId } from '../../types/contracts';
-import { commandPaletteApi, SearchResultGroup } from '../../services/commandPaletteApi';
+import { tarsClient, SearchResultGroup } from '../../services/tarsClient';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -59,6 +60,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [federatedGroups, setFederatedGroups] = useState<SearchResultGroup[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       setQuery('');
       setActiveIndex(0);
       setFederatedGroups([]);
+      setSearchError(null);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
@@ -76,14 +79,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
     if (!query.trim()) {
       setFederatedGroups([]);
+      setSearchError(null);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
+    setSearchError(null);
     let isCancelled = false;
 
-    commandPaletteApi
+    tarsClient
       .searchFederated(query)
       .then((groups) => {
         if (!isCancelled) {
@@ -91,8 +96,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           setActiveIndex(0);
         }
       })
-      .catch(() => {
-        if (!isCancelled) setFederatedGroups([]);
+      .catch((err: any) => {
+        if (!isCancelled && err?.name !== 'AbortError') {
+          setFederatedGroups([]);
+          setSearchError(err?.message || 'Federated search unavailable. Verify TARS backend is running.');
+        }
       })
       .finally(() => {
         if (!isCancelled) setIsLoading(false);
@@ -370,7 +378,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
         {/* Results Container */}
         <div className="max-h-[380px] overflow-y-auto p-2 space-y-3">
-          {flatItems.length === 0 ? (
+          {searchError ? (
+            <div className="m-2 p-4 rounded-[12px] border border-[#FF453A]/30 bg-[#FF453A]/[0.08] flex items-start gap-2.5 text-left">
+              <AlertCircle className="w-4 h-4 text-[#FF453A] shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <div className="text-[12px] font-semibold text-[#FF453A]">
+                  Search Request Failed
+                </div>
+                <div className="text-[11px] text-[#6E6E73] dark:text-[#EBEBF5]/80">
+                  {searchError}
+                </div>
+              </div>
+            </div>
+          ) : flatItems.length === 0 ? (
             <div className="py-12 text-center space-y-1">
               <div className="text-[13px] font-medium text-black dark:text-white">
                 No results found for "{query}"

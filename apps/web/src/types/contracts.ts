@@ -67,6 +67,7 @@ export interface VoiceToSpecResponse {
   feature_requests: string[];
   commitments: string[];
   audio_duration_seconds: number;
+  has_audio?: boolean;
   recorded_at?: string;
   transcript?: {
     speaker: string;
@@ -74,6 +75,14 @@ export interface VoiceToSpecResponse {
     seconds: number;
     text: string;
   }[];
+}
+
+export interface SystemStatusDTO {
+  status?: string;
+  database?: string;
+  ollama?: string;
+  mcp_tools?: number;
+  airplane_mode?: boolean;
 }
 
 // Workspace 4 & 5: Decisions & Simulation

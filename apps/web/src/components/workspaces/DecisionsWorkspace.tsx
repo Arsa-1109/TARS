@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { SegmentedControl } from '../primitives/SegmentedControl';
@@ -13,7 +13,7 @@ import {
   SimulationScenarioResponse,
   StrategicRecommendation,
 } from '../../types/contracts';
-import { decisionsApi } from '../../services/decisionsApi';
+import { tarsClient, useTarsInvalidation } from '../../services/tarsClient';
 import { realtimeBus } from '../../services/realtime';
 import { useSessionStore } from '../../state/useSessionStore';
 import {
@@ -41,6 +41,12 @@ import {
   ArrowRight,
 } from 'lucide-react';
 
+export type DecisionsStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | { status: 'ACTIVE'; data: { decisions: DecisionItem[]; selectedDecision: DecisionItem | null } }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
+
 interface DecisionsWorkspaceProps {
   activeDecisionId: string | null;
   onSelectDecision: (id: string) => void;
@@ -53,8 +59,12 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   activeDecisionId,
   onSelectDecision,
 }) => {
-  const [decisions, setDecisions] = useState<DecisionItem[]>([]);
-  const [selectedDecision, setSelectedDecision] = useState<DecisionItem | null>(null);
+  // Discriminated union FSM (UX · DX · AX)
+  const [stage, setStage] = useState<DecisionsStage>({
+    status: 'LOADING',
+    message: 'Loading strategic decision registry from Kùzu graph...',
+  });
+
   const [sensitivity, setSensitivity] = useState<'STRICT' | 'BALANCED' | 'RELAXED'>('BALANCED');
   const [filterTab, setFilterTab] = useState<FilterTab>('ALL');
   const [density, setDensity] = useState<DensityMode>('comfortable');
@@ -104,28 +114,60 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const [radarNotice, setRadarNotice] = useState<string | null>(null);
   const [selectedRec, setSelectedRec] = useState<StrategicRecommendation | null>(null);
 
-  const fetchRecommendations = async () => {
+  const decisions = stage.status === 'ACTIVE' ? stage.data.decisions : [];
+  const selectedDecision = stage.status === 'ACTIVE' ? stage.data.selectedDecision : null;
+
+  const setSelectedDecision = (item: DecisionItem | null) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          selectedDecision: item,
+        },
+      };
+    });
+  };
+
+  const setDecisions = (updater: DecisionItem[] | ((prev: DecisionItem[]) => DecisionItem[])) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const nextDecisions = typeof updater === 'function' ? updater(prev.data.decisions) : updater;
+      const nextSelected = nextDecisions.find((d) => d.id === prev.data.selectedDecision?.id) || nextDecisions[0] || null;
+      return {
+        ...prev,
+        data: {
+          decisions: nextDecisions,
+          selectedDecision: nextSelected,
+        },
+      };
+    });
+  };
+
+  const fetchRecommendations = useCallback(async (signal?: AbortSignal) => {
     setLoadingRecs(true);
     try {
-      const data = await decisionsApi.getRecommendations(activeCompanyName);
+      const data = await tarsClient.decisions.getRecommendations(activeCompanyName, signal);
       setRecommendations(data);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
       console.warn('Failed to load recommendations:', err);
     } finally {
       setLoadingRecs(false);
     }
-  };
+  }, [activeCompanyName]);
 
   const handleGenerateRecommendations = async () => {
     setGeneratingRecs(true);
     setRadarNotice(null);
     try {
-      const data = await decisionsApi.generateRecommendations(activeCompanyName);
+      const data = await tarsClient.decisions.generateRecommendations(activeCompanyName);
       setRecommendations(data);
       setRadarNotice(`Fresh strategic suggestions synthesized by local Qwen 3 model for ${activeCompanyName}.`);
       setTimeout(() => setRadarNotice(null), 6000);
-    } catch (err) {
-      console.error('Failed to generate suggestions:', err);
+    } catch (err: any) {
+      setRadarNotice(`Unable to synthesize recommendations: ${err?.message || 'Local backend error.'}`);
     } finally {
       setGeneratingRecs(false);
     }
@@ -133,8 +175,14 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   const handleDismissRec = async (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    const previous = recommendations;
     setRecommendations((prev) => prev.filter((r) => r.id !== id));
-    await decisionsApi.dismissRecommendation(id, activeCompanyName);
+    try {
+      await tarsClient.decisions.dismissRecommendation(id, activeCompanyName);
+    } catch (err: any) {
+      setRecommendations(previous);
+      setRadarNotice(`Failed to dismiss recommendation: ${err?.message || 'Local backend error.'}`);
+    }
   };
 
   const handlePromoteToDecision = (rec: StrategicRecommendation) => {
@@ -158,34 +206,69 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
     setSimulationOpen(true);
   };
 
-  const fetchDecisions = async () => {
-    const data = await decisionsApi.getDecisions();
-    setDecisions(data);
-    if (data.length > 0) {
-      const found = data.find((d) => d.id === activeDecisionId) || data[0];
-      setSelectedDecision(found);
-    } else {
-      setSelectedDecision(null);
+  const activeDecisionIdRef = useRef(activeDecisionId);
+  const onSelectDecisionRef = useRef(onSelectDecision);
+  useEffect(() => {
+    activeDecisionIdRef.current = activeDecisionId;
+    onSelectDecisionRef.current = onSelectDecision;
+  }, [activeDecisionId, onSelectDecision]);
+
+  const fetchDecisions = useCallback(async (signal?: AbortSignal) => {
+    try {
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: 'Loading strategic decision registry from Kùzu graph...' }
+      );
+      const data = await tarsClient.decisions.getDecisions(signal);
+      const currentActiveId = activeDecisionIdRef.current;
+      const found = (data.length > 0 && currentActiveId)
+        ? data.find((d) => d.id === currentActiveId) || data[0]
+        : data[0] || null;
+
+      setStage({
+        status: 'ACTIVE',
+        data: { decisions: data, selectedDecision: found },
+      });
+      if (found && found.id !== currentActiveId) {
+        onSelectDecisionRef.current(found.id);
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Failed to load company decisions from graph storage.',
+        canRetry: true,
+      });
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchDecisions();
-    fetchRecommendations();
+    const controller = new AbortController();
+    fetchDecisions(controller.signal);
+    fetchRecommendations(controller.signal);
     const unsub = realtimeBus.subscribe((evt) => {
       if (evt.event === 'DECISION_MUTATION') {
         fetchDecisions();
         fetchRecommendations();
       }
     });
-    return unsub;
-  }, [activeDecisionId, activeCompanyName]);
+    return () => {
+      controller.abort();
+      unsub();
+    };
+  }, [fetchDecisions, fetchRecommendations]);
+
+  useTarsInvalidation('decisions:updated', () => {
+    fetchDecisions();
+    fetchRecommendations();
+  });
 
   const runContradictionCheck = async () => {
     if (!testProposal.trim()) return;
     setCheckingContradiction(true);
     try {
-      const res = await decisionsApi.checkContradiction(testProposal, sensitivity);
+      const res = await tarsClient.decisions.checkContradiction(testProposal, 'ALL', sensitivity);
       setContradictionResult(res);
     } finally {
       setCheckingContradiction(false);
@@ -201,7 +284,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
   const handleRunSimulation = async () => {
     setSimulating(true);
     try {
-      const res = await decisionsApi.simulateScenario({
+      const res = await tarsClient.decisions.simulateScenario({
         scenario_prompt: simScenarioPrompt,
         burn_delta_monthly: simBurnDelta,
         timeline_shift_days: simTimelineShift,
@@ -215,7 +298,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   const handleSaveDecision = async () => {
     if (!newTitle.trim() || !newChoice.trim()) return;
-    const created = await decisionsApi.createDecision({
+    const created = await tarsClient.decisions.createDecision({
       title: newTitle,
       category: newCategory,
       context: newContext,
@@ -240,7 +323,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   const handleSaveEdit = async () => {
     if (!selectedDecision) return;
-    const patched = await decisionsApi.patchDecision(selectedDecision.id, {
+    const patched = await tarsClient.decisions.patchDecision(selectedDecision.id, {
       title: editTitle,
       context: editContext,
       chosen_option: editChoice,
@@ -253,7 +336,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   const handleSoftSupersede = async () => {
     if (!selectedDecision) return;
-    await decisionsApi.deleteDecision(selectedDecision.id, false, supersededByVal || undefined);
+    await tarsClient.decisions.deleteDecision(selectedDecision.id, false, supersededByVal || undefined);
     setSupersedeDialogOpen(false);
     setSupersededByVal('');
     await fetchDecisions();
@@ -261,7 +344,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
 
   const handleHardPurge = async () => {
     if (!selectedDecision) return;
-    await decisionsApi.deleteDecision(selectedDecision.id, true);
+    await tarsClient.decisions.deleteDecision(selectedDecision.id, true);
     setPurgeDialogOpen(false);
     await fetchDecisions();
   };
@@ -579,7 +662,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
               type="button"
               onClick={() => {
                 setTestProposal(sample);
-                decisionsApi.checkContradiction(sample, sensitivity).then((res) => setContradictionResult(res));
+                tarsClient.decisions.checkContradiction(sample, 'ALL', sensitivity).then((res) => setContradictionResult(res));
               }}
               className="text-[11px] px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#3C3C43] dark:text-[#EBEBF5] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] transition-colors truncate max-w-[280px]"
             >
@@ -614,8 +697,36 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
         )}
       </div>
 
+      {/* Explicit Discriminated Union States: LOADING, ERROR, ACTIVE */}
+      {stage.status === 'LOADING' && (
+        <div className="flex flex-col items-center justify-center p-12 rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] text-center space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#0071E3] dark:text-[#0A84FF]" />
+          <p className="text-sm text-[#86868B] dark:text-[#8E8E93] font-medium">{stage.message}</p>
+        </div>
+      )}
+
+      {stage.status === 'ERROR' && (
+        <div className="p-6 rounded-[20px] border border-[#FF3B30]/30 dark:border-[#FF453A]/30 bg-[#FF3B30]/[0.05] dark:bg-[#FF453A]/[0.08] space-y-4">
+          <div className="flex items-center gap-3 text-[#D70015] dark:text-[#FF453A]">
+            <AlertOctagon className="w-5 h-5 shrink-0" />
+            <span className="font-semibold text-sm">Failed to Load Strategic Decisions</span>
+          </div>
+          <p className="text-xs text-[#3C3C43] dark:text-[#EBEBF5]">{stage.error}</p>
+          {stage.canRetry && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => fetchDecisions()}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Retry Loading Decisions
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Main Ledger Split or Empty State with Windowed Viewport */}
-      {decisions.length === 0 ? (
+      {stage.status === 'ACTIVE' && (decisions.length === 0 ? (
         <EmptyState
           icon={<Scale className="w-5 h-5 text-[#8E8E93]" />}
           title="No strategic decisions recorded yet"
@@ -867,7 +978,7 @@ export const DecisionsWorkspace: React.FC<DecisionsWorkspaceProps> = ({
             )}
           </div>
         </div>
-      )}
+      ))}
 
       {/* What-If Simulation Drawer */}
       <Drawer

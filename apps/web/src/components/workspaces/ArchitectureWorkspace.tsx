@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PageHeader } from '../layout/PageHeader';
 import { Button } from '../primitives/Button';
 import { StatusLabel } from '../primitives/StatusLabel';
@@ -11,9 +11,10 @@ import {
 } from '../../types/contracts';
 import { EmptyState } from '../primitives/EmptyState';
 import {
-  architectureApi,
+  tarsClient,
+  useTarsInvalidation,
   StagedRadarCheckResponse,
-} from '../../services/architectureApi';
+} from '../../services/tarsClient';
 import {
   Cpu,
   RefreshCw,
@@ -23,6 +24,12 @@ import {
   FileText,
   Code2,
 } from 'lucide-react';
+
+export type ArchitectureStage =
+  | { status: 'IDLE' }
+  | { status: 'LOADING'; message: string }
+  | { status: 'ACTIVE'; data: { invariants: InvariantCheckResult[]; stagedRadar: StagedRadarCheckResponse | null; selectedRule: InvariantCheckResult | null } }
+  | { status: 'ERROR'; error: string; canRetry: boolean };
 
 interface ArchitectureWorkspaceProps {
   activeFindingId: string | null;
@@ -35,16 +42,20 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   onSelectFinding,
   onOpenCursorConfig,
 }) => {
-  const [invariants, setInvariants] = useState<InvariantCheckResult[]>([]);
-  const [selectedRule, setSelectedRule] = useState<InvariantCheckResult | null>(null);
+  // Discriminated union FSM (UX · DX · AX)
+  const [stage, setStage] = useState<ArchitectureStage>({
+    status: 'LOADING',
+    message: 'Analyzing codebase invariants and inspecting staged changes with AST queries...',
+  });
+
   const [runningCheck, setRunningCheck] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(14.2);
   const [selectedGraphNode, setSelectedGraphNode] = useState<string>('routes');
   const [activeTab, setActiveTab] = useState<'diff' | 'madr' | 'tester'>('diff');
   const [refactorApplied, setRefactorApplied] = useState(false);
+  const [refactorError, setRefactorError] = useState<string | null>(null);
 
   // Live Repository Radar State (Track 4)
-  const [stagedRadar, setStagedRadar] = useState<StagedRadarCheckResponse | null>(null);
   const [scanningStaged, setScanningStaged] = useState(false);
 
   // Dynamic Topology State
@@ -58,34 +69,113 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   const [testScenario, setTestScenario] = useState<string>('INV-017');
   const [simData, setSimData] = useState<PreCommitSimulationResponse | null>(null);
 
+  const invariants = stage.status === 'ACTIVE' ? stage.data.invariants : [];
+  const stagedRadar = stage.status === 'ACTIVE' ? stage.data.stagedRadar : null;
+  const selectedRule = stage.status === 'ACTIVE' ? stage.data.selectedRule : null;
+
+  const setSelectedRule = (rule: InvariantCheckResult | null) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          selectedRule: rule,
+        },
+      };
+    });
+  };
+
+  const setInvariants = (invs: InvariantCheckResult[]) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      const nextSelected =
+        (prev.data.selectedRule && invs.find((r) => r.rule_id === prev.data.selectedRule?.rule_id)) ||
+        invs[0] ||
+        null;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          invariants: invs,
+          selectedRule: nextSelected,
+        },
+      };
+    });
+  };
+
+  const setStagedRadar = (radar: StagedRadarCheckResponse | null) => {
+    setStage((prev) => {
+      if (prev.status !== 'ACTIVE') return prev;
+      return {
+        ...prev,
+        data: {
+          ...prev.data,
+          stagedRadar: radar,
+        },
+      };
+    });
+  };
+
+  const activeFindingIdRef = useRef(activeFindingId);
+  const onSelectFindingRef = useRef(onSelectFinding);
+  useEffect(() => {
+    activeFindingIdRef.current = activeFindingId;
+    onSelectFindingRef.current = onSelectFinding;
+  }, [activeFindingId, onSelectFinding]);
+
   // Initial Data & Radar Load
-  const loadInvariants = useCallback(async () => {
+  const loadInvariants = useCallback(async (signal?: AbortSignal) => {
     try {
+      setStage((prev) =>
+        prev.status === 'ACTIVE'
+          ? prev
+          : { status: 'LOADING', message: 'Analyzing codebase invariants and inspecting staged changes...' }
+      );
       const [invData, radarData] = await Promise.all([
-        architectureApi.getInvariants(),
-        architectureApi.checkStaged(),
+        tarsClient.cortex.getInvariants(signal),
+        tarsClient.cortex.checkStaged(signal),
       ]);
-      setInvariants(invData);
-      setStagedRadar(radarData);
-      if (invData.length > 0) {
-        const found =
-          (activeFindingId && invData.find((inv) => inv.rule_id === activeFindingId)) ||
-          invData[0];
-        setSelectedRule(found);
+      const currentFindingId = activeFindingIdRef.current;
+      const found =
+        (currentFindingId && invData.find((inv) => inv.rule_id === currentFindingId)) ||
+        invData[0] ||
+        null;
+      setStage({
+        status: 'ACTIVE',
+        data: {
+          invariants: invData,
+          stagedRadar: radarData,
+          selectedRule: found,
+        },
+      });
+      if (found && found.rule_id !== currentFindingId) {
+        onSelectFindingRef.current(found.rule_id);
       }
-    } catch (e) {
-      console.error('Failed to load invariants:', e);
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      setStage({
+        status: 'ERROR',
+        error: err?.message || 'Failed to inspect architectural invariants.',
+        canRetry: true,
+      });
     }
-  }, [activeFindingId]);
+  }, []);
 
   useEffect(() => {
-    loadInvariants();
+    const controller = new AbortController();
+    loadInvariants(controller.signal);
+    return () => controller.abort();
   }, [loadInvariants]);
+
+  useTarsInvalidation('invariants:updated', () => {
+    loadInvariants();
+  });
 
   // Load Topology when selected rule or refactor state changes
   useEffect(() => {
     if (!selectedRule) return;
-    architectureApi
+    tarsClient.cortex
       .getTopology(selectedRule.rule_id)
       .then((res) => {
         setTopology(res);
@@ -96,27 +186,22 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
           setSelectedGraphNode('gateway');
         else if (selectedRule.rule_id === 'INV-021') setSelectedGraphNode('webhook');
       })
-      .catch((err) => console.error('Topology error:', err));
+      .catch((err: any) => {
+        setTopology(null);
+        setRefactorError(err?.message || 'Unable to load architectural topology graph.');
+      });
   }, [selectedRule?.rule_id, refactorApplied]);
 
   // Load MADR when tab or selected rule changes
   useEffect(() => {
     if (activeTab === 'madr' && selectedRule) {
       setLoadingMadr(true);
-      architectureApi
+      tarsClient.cortex
         .getMadr(selectedRule.rule_id)
         .then((res) => setMadrData(res))
-        .catch((err) => {
-          console.error('MADR error:', err);
-          setMadrData({
-            rule_id: selectedRule.rule_id,
-            rule_name: selectedRule.rule_name,
-            file_name: `${selectedRule.rule_id.toLowerCase()}-adr.md`,
-            path: `docs/adr/${selectedRule.adr_ref}`,
-            content: '',
-            problem_statement: selectedRule.rationale,
-            decision_outcome: selectedRule.suggested_refactor,
-          });
+        .catch((err: any) => {
+          setMadrData(null);
+          setRefactorError(err?.message || `Failed to load MADR specification for ${selectedRule.rule_id}.`);
         })
         .finally(() => setLoadingMadr(false));
     }
@@ -125,10 +210,13 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   // Load Simulator Logs when tab or scenario changes
   useEffect(() => {
     if (activeTab === 'tester') {
-      architectureApi
+      tarsClient.cortex
         .simulatePreCommit(testScenario)
         .then((res) => setSimData(res))
-        .catch((err) => console.error('Simulator error:', err));
+        .catch((err: any) => {
+          setSimData(null);
+          setRefactorError(err?.message || `Failed to run pre-commit simulator for ${testScenario}.`);
+        });
     }
   }, [activeTab, testScenario]);
 
@@ -136,8 +224,8 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
     setRunningCheck(true);
     try {
       const [res, radarRes] = await Promise.all([
-        architectureApi.triggerASTCheck(),
-        architectureApi.checkStaged(),
+        tarsClient.cortex.triggerASTCheck(),
+        tarsClient.cortex.checkStaged(),
       ]);
       setExecutionTime(res.execution_time_ms);
       setInvariants(res.results);
@@ -154,7 +242,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   const handleScanStaged = async () => {
     setScanningStaged(true);
     try {
-      const res = await architectureApi.checkStaged();
+      const res = await tarsClient.cortex.checkStaged();
       setStagedRadar(res);
       setExecutionTime(res.inspection_latency_ms);
     } finally {
@@ -165,27 +253,29 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
   const handleApplyRefactor = async () => {
     if (!selectedRule) return;
     setRefactorApplied(true);
+    setRefactorError(null);
     try {
-      const res = await architectureApi.applyRefactor(selectedRule.rule_id);
+      const res = await tarsClient.cortex.applyRefactor(selectedRule.rule_id);
       if (res.invariants) {
         setInvariants(res.invariants);
         const updated = res.invariants.find((i) => i.rule_id === selectedRule.rule_id);
         if (updated) setSelectedRule(updated);
       }
-      const radar = await architectureApi.checkStaged();
+      const radar = await tarsClient.cortex.checkStaged();
       setStagedRadar(radar);
     } catch (err: any) {
-      console.error("Refactor application failed on backend:", err);
-      // Item 132: Honest failure - preserve breach state and alert user
+      console.error('Refactor application failed on backend:', err);
+      // Item 132: Honest failure - preserve breach state and show inline notice
       setRefactorApplied(false);
-      alert(`Refactor application failed: ${err?.message || "Backend error"}. The breach remains unresolved.`);
+      setRefactorError(`Refactor application failed: ${err?.message || 'Backend error'}. The breach remains unresolved.`);
     }
   };
 
   const handleResetRefactors = async () => {
     setRefactorApplied(false);
+    setRefactorError(null);
     try {
-      const res = await architectureApi.resetRefactors();
+      const res = await tarsClient.cortex.resetRefactors();
       if (res.invariants) {
         setInvariants(res.invariants);
         if (selectedRule) {
@@ -193,42 +283,12 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
           if (updated) setSelectedRule(updated);
         }
       }
-      const radar = await architectureApi.checkStaged();
+      const radar = await tarsClient.cortex.checkStaged();
       setStagedRadar(radar);
     } catch {
       loadInvariants();
     }
   };
-
-  if (!selectedRule) {
-    return (
-      <div className="h-full overflow-y-auto pr-1 space-y-6">
-        <PageHeader
-          eyebrow="Workspace 6"
-          title="Tech & Architecture Workspace"
-          description="Deterministic architectural enforcement powered by Tree-sitter AST queries (<50ms) and embedded Kùzu call-graph analysis."
-          actions={
-            <Button
-              variant="primary"
-              size="sm"
-              loading={runningCheck}
-              icon={<RefreshCw className="w-3.5 h-3.5" />}
-              onClick={handleRunASTCheck}
-            >
-              Run AST Scan
-            </Button>
-          }
-        />
-        <EmptyState
-          icon={<Cpu className="w-5 h-5 text-[#8E8E93]" />}
-          title="No AST invariants loaded yet"
-          description="Invariants enforce architectural rules at git pre-commit time. Run an AST check or verify .tars/invariants.yaml."
-          actionLabel="Run AST Scan"
-          onAction={handleRunASTCheck}
-        />
-      </div>
-    );
-  }
 
   // Fallback nodes and edges referencing real repository files
   const graphNodes = topology?.nodes || [
@@ -240,7 +300,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
       layer: 'Core',
       x: 200,
       y: 130,
-      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+      isBreached: selectedRule?.rule_id === 'INV-017' && !!selectedRule?.is_breached,
     },
     { id: 'db', name: 'SQLite WAL Pool', layer: 'Data', x: 380, y: 70, isBreached: false },
     { id: 'webhook', name: 'Outbox Dispatcher', layer: 'Event', x: 380, y: 150, isBreached: false },
@@ -255,7 +315,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
       y1: 100,
       x2: 200,
       y2: 160,
-      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+      isBreached: selectedRule?.rule_id === 'INV-017' && !!selectedRule?.is_breached,
     },
     { source: 'auth', target: 'db', x1: 300, y1: 60, x2: 380, y2: 100, isBreached: false },
     {
@@ -265,7 +325,7 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
       y1: 160,
       x2: 380,
       y2: 100,
-      isBreached: selectedRule.rule_id === 'INV-017' && selectedRule.is_breached,
+      isBreached: selectedRule?.rule_id === 'INV-017' && !!selectedRule?.is_breached,
     },
     { source: 'routes', target: 'webhook', x1: 300, y1: 160, x2: 380, y2: 180, isBreached: false },
   ];
@@ -312,7 +372,52 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
         }
       />
 
-      {/* Track 4: Live Push Sentinel Status Card */}
+      {refactorError && (
+        <div className="p-3.5 rounded-[12px] border border-[#FF3B30]/[0.22] dark:border-[#FF453A]/[0.22] bg-[#FF3B30]/[0.08] dark:bg-[#FF453A]/[0.10] text-[#D70015] dark:text-[#FF453A] text-[13px] flex items-center justify-between gap-2 animate-slide-up">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 shrink-0 text-[#FF3B30]" />
+            <span>{refactorError}</span>
+          </div>
+          <button
+            onClick={() => setRefactorError(null)}
+            className="text-[11px] font-medium opacity-60 hover:opacity-100 transition-opacity"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Explicit Discriminated Union States: LOADING, ERROR, ACTIVE */}
+      {stage.status === 'LOADING' && (
+        <div className="flex flex-col items-center justify-center p-12 rounded-[20px] border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#1C1C1E] text-center space-y-3">
+          <RefreshCw className="w-6 h-6 animate-spin text-[#0071E3] dark:text-[#0A84FF]" />
+          <p className="text-sm text-[#86868B] dark:text-[#8E8E93] font-medium">{stage.message}</p>
+        </div>
+      )}
+
+      {stage.status === 'ERROR' && (
+        <div className="p-6 rounded-[20px] border border-[#FF3B30]/30 dark:border-[#FF453A]/30 bg-[#FF3B30]/[0.05] dark:bg-[#FF453A]/[0.08] space-y-4">
+          <div className="flex items-center gap-3 text-[#D70015] dark:text-[#FF453A]">
+            <Shield className="w-5 h-5 shrink-0 text-[#FF3B30]" />
+            <span className="font-semibold text-sm">Failed to Load Architectural Invariants</span>
+          </div>
+          <p className="text-xs text-[#3C3C43] dark:text-[#EBEBF5]">{stage.error}</p>
+          {stage.canRetry && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => loadInvariants()}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              Retry AST Scan
+            </Button>
+          )}
+        </div>
+      )}
+
+      {stage.status === 'ACTIVE' && (
+        <>
+          {/* Track 4: Live Push Sentinel Status Card */}
       <div className="p-4 rounded-[18px] border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-[#1C1C1E] shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -774,6 +879,8 @@ export const ArchitectureWorkspace: React.FC<ArchitectureWorkspaceProps> = ({
           </div>
         </>
       )}
+    </>
+  )}
     </div>
   );
 };

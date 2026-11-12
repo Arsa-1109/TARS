@@ -284,6 +284,7 @@ class CompanyProfileRepository:
                 chosen_option=f"Established foundational operating policy for {company_name}: {dec_1_title}.",
                 context=f"Root decision formulated during TARS Genesis onboarding for {company_name}.",
                 clearance="EXECUTIVE_ONLY",
+                company_name=company_name,
             )
             seeded_decisions.append(dec_1_id)
 
@@ -303,6 +304,7 @@ class CompanyProfileRepository:
                 chosen_option=f"Core monetisation model adopted: {dec_2_title}.",
                 context=f"Pricing framework aligned with target runway of {runway} months.",
                 clearance="ALL_TEAM",
+                company_name=company_name,
             )
             seeded_decisions.append(dec_2_id)
 
@@ -315,6 +317,7 @@ class CompanyProfileRepository:
                 chosen_option=f"Primary technical baseline: {tech_stack}.",
                 context=f"Air-gapped architecture and performance guarantees for {company_name}.",
                 clearance="ALL_TEAM",
+                company_name=company_name,
             )
             seeded_decisions.append(dec_3_id)
 

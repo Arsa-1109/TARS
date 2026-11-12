@@ -5,6 +5,8 @@ Nodes: Document, Decision, ActionItem, Invariant, CodeEntity
 Relationships: [:SUPERSEDES], [:RELATES_TO], [:ENFORCES]
 """
 import os
+import re
+import sqlite3
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
@@ -310,6 +312,8 @@ class TarsGraph:
         
         self.db_path = os.path.abspath(db_path)
         os.makedirs(Path(self.db_path).parent, exist_ok=True)
+        self.tenant_db_path = os.path.join(os.path.dirname(self.db_path), "decision_tenants.db")
+        self._ensure_tenant_table()
         
         if _NATIVE_KUZU_AVAILABLE:
             if self.db_path not in self._db_cache:
@@ -389,7 +393,7 @@ class TarsGraph:
         if mode in ("EMPTY", "CLEAN", "PRODUCTION") and not os.getenv("PYTEST_CURRENT_TEST"):
             return
 
-        # 1. Pre-seed Decision #14
+        # 1. Pre-seed Golden Demo Strategic Decision (scoped to AetherFlow tenant)
         try:
             self.add_decision(
                 decision_id="DEC-014",
@@ -399,6 +403,7 @@ class TarsGraph:
                 chosen_option="Strictly reject bespoke enterprise forks.",
                 clearance="ALL_TEAM",
                 status="ACTIVE",
+                company_name="AetherFlow Technologies, Inc.",
             )
         except Exception as e:
             print(f"Notice: Failed to pre-seed Decision #14: {e}")
@@ -422,7 +427,110 @@ class TarsGraph:
         except Exception:
             pass
 
-    def add_decision(self, decision_id: str, title: str, category: str, context: str, chosen_option: str, timestamp: Optional[int] = None, clearance: str = "ALL_TEAM", status: str = "ACTIVE") -> bool:
+    def _ensure_tenant_table(self) -> None:
+        """Initializes SQLite sidecar table tracking multi-tenant ownership of graph Decision nodes."""
+        try:
+            with sqlite3.connect(self.tenant_db_path, timeout=10.0) as conn:
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS decision_tenants (
+                        decision_id TEXT PRIMARY KEY,
+                        company_name TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """
+                )
+                conn.commit()
+        except Exception:
+            pass
+
+    def _set_decision_tenant(self, decision_id: str, company_name: Optional[str]) -> None:
+        if not decision_id or not company_name or not company_name.strip():
+            return
+        try:
+            with sqlite3.connect(self.tenant_db_path, timeout=10.0) as conn:
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO decision_tenants (decision_id, company_name, updated_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (decision_id, company_name.strip(), int(time.time())),
+                )
+                conn.commit()
+        except Exception:
+            pass
+
+    def _remove_decision_tenant(self, decision_id: str) -> None:
+        if not decision_id:
+            return
+        try:
+            with sqlite3.connect(self.tenant_db_path, timeout=10.0) as conn:
+                conn.execute("DELETE FROM decision_tenants WHERE decision_id = ?", (decision_id,))
+                conn.commit()
+        except Exception:
+            pass
+
+    def _get_decision_tenants(self) -> Dict[str, str]:
+        try:
+            with sqlite3.connect(self.tenant_db_path, timeout=10.0) as conn:
+                cur = conn.execute("SELECT decision_id, company_name FROM decision_tenants")
+                return {row[0]: row[1] for row in cur.fetchall() if row[0] and row[1]}
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _is_aetherflow_tenant(name: Optional[str]) -> bool:
+        if not name:
+            return False
+        low = name.strip().lower()
+        return "aetherflow" in low or low == "cmp-genesis-01"
+
+    @classmethod
+    def _infer_decision_owner(
+        cls,
+        dec_id: str,
+        title: str,
+        context: str,
+        chosen_option: str,
+        tenant_map: Dict[str, str],
+    ) -> Optional[str]:
+        if dec_id in tenant_map and tenant_map[dec_id]:
+            return tenant_map[dec_id]
+        if dec_id == "DEC-014":
+            return "AetherFlow Technologies, Inc."
+        for text in (context or "", title or "", chosen_option or ""):
+            m = re.search(
+                r"(?:Genesis onboarding for|operating policy for|Technology Invariants for|performance guarantees for)\s+([^.:]+)",
+                text,
+                flags=re.IGNORECASE,
+            )
+            if m:
+                return m.group(1).strip()
+        return None
+
+    @classmethod
+    def _tenant_matches(cls, owner_company: Optional[str], target_company: Optional[str]) -> bool:
+        """Determines whether a decision owned by `owner_company` is visible to `target_company`."""
+        if not target_company or not target_company.strip():
+            return True
+        if not owner_company or not owner_company.strip():
+            return True
+        if cls._is_aetherflow_tenant(owner_company) and cls._is_aetherflow_tenant(target_company):
+            return True
+        return owner_company.strip().lower() == target_company.strip().lower()
+
+    def add_decision(
+        self,
+        decision_id: str,
+        title: str,
+        category: str,
+        context: str,
+        chosen_option: str,
+        timestamp: Optional[int] = None,
+        clearance: str = "ALL_TEAM",
+        status: str = "ACTIVE",
+        company_name: Optional[str] = None,
+    ) -> bool:
         """Adds or updates a Decision node in the graph."""
         ts = timestamp or int(time.time())
         query = """
@@ -441,6 +549,8 @@ class TarsGraph:
                 "clearance": clearance,
                 "status": status,
             })
+            if company_name:
+                self._set_decision_tenant(decision_id, company_name)
             return True
         except Exception as e:
             print(f"Error adding decision: {e}")
@@ -483,6 +593,7 @@ class TarsGraph:
         try:
             res = self.conn.execute(query, params)
             if hard_purge:
+                self._remove_decision_tenant(decision_id)
                 return True
             has_res = res.has_next() if hasattr(res, "has_next") else True
             if has_res and superseded_by:
@@ -556,16 +667,21 @@ class TarsGraph:
             print(f"Error fetching invariants: {e}")
             return []
 
-    def get_all_decisions(self) -> List[Dict[str, Any]]:
-        """Returns all Decision nodes ordered by timestamp descending."""
+    def get_all_decisions(self, company_name: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Returns all Decision nodes ordered by timestamp descending, optionally scoped to `company_name`."""
+        tenant_map = self._get_decision_tenants()
         query = "MATCH (d:Decision) RETURN d.id, d.title, d.category, d.context, d.chosen_option, d.timestamp, d.clearance, d.status"
         try:
             result = self.conn.execute(query)
             decisions = []
             while result.has_next():
                 row = result.get_next()
+                dec_id = row[0]
+                owner_company = self._infer_decision_owner(dec_id, row[1], row[3], row[4], tenant_map)
+                if company_name and not self._tenant_matches(owner_company, company_name):
+                    continue
                 decisions.append({
-                    "id": row[0],
+                    "id": dec_id,
                     "title": row[1],
                     "category": row[2],
                     "context": row[3],
@@ -574,6 +690,7 @@ class TarsGraph:
                     "clearance": row[6],
                     "status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
                     "lifecycle_status": row[7] if len(row) > 7 and row[7] is not None else "ACTIVE",
+                    "company_name": owner_company,
                 })
             return sorted(decisions, key=lambda x: (x.get("timestamp") or 0), reverse=True)
         except Exception:
@@ -582,8 +699,12 @@ class TarsGraph:
                 decisions = []
                 while result.has_next():
                     row = result.get_next()
+                    dec_id = row[0]
+                    owner_company = self._infer_decision_owner(dec_id, row[1], row[3], row[4], tenant_map)
+                    if company_name and not self._tenant_matches(owner_company, company_name):
+                        continue
                     decisions.append({
-                        "id": row[0],
+                        "id": dec_id,
                         "title": row[1],
                         "category": row[2],
                         "context": row[3],
@@ -592,6 +713,7 @@ class TarsGraph:
                         "clearance": row[6],
                         "status": "ACTIVE",
                         "lifecycle_status": "ACTIVE",
+                        "company_name": owner_company,
                     })
                 return sorted(decisions, key=lambda x: (x.get("timestamp") or 0), reverse=True)
             except Exception as e:
@@ -617,11 +739,26 @@ class TarsGraph:
         except Exception:
             return []
 
-    def check_contradiction(self, proposal: str, category: str = "ALL", severity_threshold: str = "STRICT", include_demo_decisions: bool = True) -> Dict[str, Any]:
-        """Performs graph-based semantic conflict search against existing architectural decisions."""
-        decisions = self.get_all_decisions()
-        if not include_demo_decisions:
-            decisions = [d for d in decisions if d.get("id") != "DEC-014"]
+    def check_contradiction(
+        self,
+        proposal: str,
+        category: str = "ALL",
+        severity_threshold: str = "STRICT",
+        include_demo_decisions: bool = True,
+        company_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Performs graph-based semantic conflict search against active tenant's architectural decisions."""
+        effective_company = company_name
+        if not effective_company and include_demo_decisions:
+            effective_company = "AetherFlow Technologies, Inc."
+        decisions = self.get_all_decisions(company_name=effective_company)
+        if not include_demo_decisions and not company_name:
+            decisions = [d for d in decisions if not self._is_aetherflow_tenant(d.get("company_name"))]
+        if effective_company and self._is_aetherflow_tenant(effective_company):
+            decisions = sorted(
+                decisions,
+                key=lambda d: (0 if self._is_aetherflow_tenant(d.get("company_name")) else 1, -(d.get("timestamp") or 0)),
+            )
         proposal_lower = proposal.lower()
         
         # Heuristic semantic keyword conflict graph matching
@@ -631,15 +768,16 @@ class TarsGraph:
             "http": ["transaction", "atomic", "database lock"],
             "stripe": ["transaction", "outbox", "sync dispatch"],
             "power_peg": ["pruned", "dormant", "legacy"],
-            "saml": ["zero enterprise customisations", "custom branches", "unified core"],
-            "saml sso": ["zero enterprise customisations", "reject bespoke", "self-serve"],
-            "custom branch": ["zero enterprise customisations", "unified core", "standard"],
-            "bespoke": ["reject bespoke", "zero enterprise customisations", "standard self-serve"],
-            "customisation": ["zero enterprise customisations", "reject bespoke", "strictly reject"],
-            "customization": ["zero enterprise customisations", "reject bespoke", "strictly reject"],
-            "enterprise fork": ["reject bespoke", "zero enterprise customisations"],
-            "aws": ["zero cloud gpu", "sovereign local-first", "100% sovereign"],
-            "s3": ["zero cloud gpu", "sovereign local-first", "100% sovereign"],
+            "saml": ["zero enterprise customisations", "custom branches", "unified core", "bespoke enterprise forks"],
+            "saml sso": ["zero enterprise customisations", "reject bespoke", "self-serve", "bespoke enterprise forks"],
+            "custom branch": ["zero enterprise customisations", "unified core", "standard", "bespoke enterprise forks", "rejection of bespoke"],
+            "custom fork": ["zero enterprise customisations", "reject bespoke", "bespoke enterprise forks", "rejection of bespoke"],
+            "bespoke": ["reject bespoke", "zero enterprise customisations", "standard self-serve", "bespoke enterprise forks", "rejection of bespoke"],
+            "customisation": ["zero enterprise customisations", "reject bespoke", "strictly reject", "bespoke enterprise forks", "rejection of bespoke"],
+            "customization": ["zero enterprise customisations", "reject bespoke", "strictly reject", "bespoke enterprise forks", "rejection of bespoke"],
+            "enterprise fork": ["reject bespoke", "zero enterprise customisations", "bespoke enterprise forks", "rejection of bespoke"],
+            "aws": ["zero cloud gpu", "sovereign local-first", "100% sovereign", "air-gapped"],
+            "s3": ["zero cloud gpu", "sovereign local-first", "100% sovereign", "air-gapped"],
         }
 
         for d in decisions:

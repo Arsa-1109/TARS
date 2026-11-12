@@ -7,16 +7,10 @@ export function Preloader({ onDone }: { onDone: () => void }) {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / 1700);
-      setCount(Math.round((1 - Math.pow(1 - p, 3)) * 100));
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else setTimeout(() => { setOpen(false); onDone(); }, 250);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // Phase 5: Removed artificial 1.7s blocking delay for zero-latency instant readiness
+    setCount(100);
+    setOpen(false);
+    onDone();
   }, [onDone]);
 
   return (
